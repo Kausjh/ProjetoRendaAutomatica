@@ -1,0 +1,207 @@
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(frozen=True)
+class ConfiguracaoAfiliador:
+    nome: str
+    tipo: str
+    ativo: bool
+    prioridade: int
+    dominios: list[str]
+    parametros: dict[str, str] = field(
+        default_factory=dict
+    )
+
+    @classmethod
+    def criar_de_dict(
+        cls,
+        dados: dict[str, Any],
+        indice: int
+    ) -> "ConfiguracaoAfiliador":
+        contexto = (
+            f"Afiliador na posição {indice}"
+        )
+
+        nome = dados.get(
+            "nome"
+        )
+
+        if not isinstance(
+            nome,
+            str
+        ) or not nome.strip():
+            raise ValueError(
+                f"{contexto}: o campo 'nome' precisa ser "
+                "uma string não vazia."
+            )
+
+        tipo = dados.get(
+            "tipo"
+        )
+
+        if not isinstance(
+            tipo,
+            str
+        ) or not tipo.strip():
+            raise ValueError(
+                f"{contexto}: o campo 'tipo' precisa ser "
+                "uma string não vazia."
+            )
+
+        tipo_normalizado = (
+            tipo
+            .strip()
+            .lower()
+        )
+
+        tipos_suportados = {
+            "parametros"
+        }
+
+        if tipo_normalizado not in tipos_suportados:
+            raise ValueError(
+                f"{contexto}: tipo de afiliador não suportado: "
+                f"'{tipo_normalizado}'. "
+                f"Tipos disponíveis: "
+                f"{', '.join(sorted(tipos_suportados))}."
+            )
+
+        ativo = dados.get(
+            "ativo",
+            True
+        )
+
+        if not isinstance(
+            ativo,
+            bool
+        ):
+            raise ValueError(
+                f"{contexto}: o campo 'ativo' precisa ser "
+                "true ou false."
+            )
+
+        prioridade = dados.get(
+            "prioridade",
+            0
+        )
+
+        if (
+            not isinstance(
+                prioridade,
+                int
+            )
+            or isinstance(
+                prioridade,
+                bool
+            )
+        ):
+            raise ValueError(
+                f"{contexto}: o campo 'prioridade' precisa "
+                "ser um número inteiro."
+            )
+
+        dominios_brutos = dados.get(
+            "dominios"
+        )
+
+        if not isinstance(
+            dominios_brutos,
+            list
+        ) or not dominios_brutos:
+            raise ValueError(
+                f"{contexto}: o campo 'dominios' precisa ser "
+                "uma lista com pelo menos um domínio."
+            )
+
+        dominios: list[str] = []
+
+        for dominio in dominios_brutos:
+            if not isinstance(
+                dominio,
+                str
+            ) or not dominio.strip():
+                raise ValueError(
+                    f"{contexto}: todos os domínios precisam "
+                    "ser strings não vazias."
+                )
+
+            dominio_normalizado = (
+                dominio
+                .strip()
+                .lower()
+            )
+
+            if "://" in dominio_normalizado:
+                raise ValueError(
+                    f"{contexto}: informe somente o domínio, "
+                    f"sem http ou https: '{dominio}'."
+                )
+
+            if "/" in dominio_normalizado:
+                raise ValueError(
+                    f"{contexto}: o domínio não pode possuir "
+                    f"caminhos: '{dominio}'."
+                )
+
+            dominios.append(
+                dominio_normalizado
+            )
+
+        parametros_brutos = dados.get(
+            "parametros",
+            {}
+        )
+
+        if not isinstance(
+            parametros_brutos,
+            dict
+        ):
+            raise ValueError(
+                f"{contexto}: o campo 'parametros' precisa "
+                "ser um objeto JSON."
+            )
+
+        parametros: dict[str, str] = {}
+
+        for chave, valor in parametros_brutos.items():
+            if not isinstance(
+                chave,
+                str
+            ) or not chave.strip():
+                raise ValueError(
+                    f"{contexto}: cada parâmetro precisa "
+                    "possuir uma chave válida."
+                )
+
+            if not isinstance(
+                valor,
+                str
+            ):
+                raise ValueError(
+                    f"{contexto}: o valor do parâmetro "
+                    f"'{chave}' precisa ser uma string."
+                )
+
+            parametros[
+                chave.strip()
+            ] = valor
+
+        if (
+            tipo_normalizado == "parametros"
+            and not parametros
+        ):
+            raise ValueError(
+                f"{contexto}: afiliadores do tipo "
+                "'parametros' precisam possuir pelo menos "
+                "um parâmetro."
+            )
+
+        return cls(
+            nome=nome.strip(),
+            tipo=tipo_normalizado,
+            ativo=ativo,
+            prioridade=prioridade,
+            dominios=dominios,
+            parametros=parametros
+        )
