@@ -1,0 +1,64 @@
+# ==========================
+# Segredos e configurações locais
+# ==========================
+.env
+.env.*
+!.env.example
+
+# ==========================
+# Ambiente virtual
+# ==========================
+.venv/
+venv/
+
+# ==========================
+# Cache e arquivos compilados do Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================
+# Estado local do projeto
+# ==========================
+database/links_afiliados_mercado_livre.json
+database/historico_precos.json
+database/pendencias_afiliacao.json
+database/publicados.json
+database/relatorios_execucao.json
+
+# ==========================
+# Logs
+# ==========================
+logs/
+*.log
+
+# ==========================
+# Playwright e sessões autenticadas
+# ==========================
+playwright/.auth/
+browser_profile/
+.browser_profile/
+
+# ==========================
+# Arquivos temporários
+# ==========================
+codigo_atual.txt
+*.tmp
+*.bak
+
+# ==========================
+# Editores
+# ==========================
+.vscode/
+.idea/
+
+# ==========================
+# Sistema operacional
+# ==========================
+.DS_Store
+Thumbs.db
+desktop.ini

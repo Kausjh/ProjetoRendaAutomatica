@@ -1,0 +1,16 @@
+{
+    "afiliadores": [
+        {
+            "nome": "Books to Scrape",
+            "ativo": true,
+            "tipo": "parametros",
+            "prioridade": 100,
+            "dominios": [
+                "books.toscrape.com"
+            ],
+            "parametros": {
+                "ref": "${IDENTIFICADOR_MARCA}"
+            }
+        }
+    ]
+}
