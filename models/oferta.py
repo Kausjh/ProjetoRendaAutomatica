@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -18,6 +18,27 @@ class Oferta:
     link_afiliado: str | None = None
     pendente_afiliacao: bool = False
 
+    # Classificação de nicho
+    eh_nicho: bool = False
+    categoria: str | None = None
+    relevancia_nicho: float = 0.0
+    termos_nicho: list[str] = field(
+        default_factory=list
+    )
+    motivo_classificacao: str = ""
+
+    # Curadoria comercial
+    marca: str | None = None
+    nota_comercial: float = 0.0
+    motivos_comerciais: list[str] = field(
+        default_factory=list
+    )
+
+    # Pontuação
+    nota_tecnica: float = 0.0
+    nota_historica: float = 0.0
+    nota_final: float = 0.0
+
     @property
     def desconto_percentual(self) -> float:
         if self.preco_antigo is None:
@@ -26,7 +47,7 @@ class Oferta:
         if self.preco_antigo <= 0:
             return 0.0
 
-        if self.preco < 0:
+        if self.preco <= 0:
             return 0.0
 
         if self.preco >= self.preco_antigo:
@@ -37,4 +58,7 @@ class Oferta:
             / self.preco_antigo
         ) * 100
 
-        return desconto
+        return round(
+            desconto,
+            2
+        )
