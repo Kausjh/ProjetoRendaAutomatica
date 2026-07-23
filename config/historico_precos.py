@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+
+ARQUIVO_HISTORICO_ML = (
+    "data/historico/mercado_livre_precos.json"
+)
+
+ARQUIVO_RANKING_ML = (
+    "data/processado/ranking_completo_ml.json"
+)
+
+ARQUIVO_APROVADAS_ML = (
+    "data/processado/ofertas_aprovadas_ml.json"
+)
+
+
+ARQUIVOS_COLETA_ML: tuple[str, ...] = (
+    "celulares_e_telefones.json",
+    "eletronicos_audio_e_video.json",
+    "games.json",
+    "informatica.json",
+)
+
+
+LIMITE_REGISTROS_POR_PRODUTO = 180
+
+MINIMO_OBSERVACOES_PARA_ANALISE = 2
+
+MINIMO_OBSERVACOES_PARA_CONFIANCA_MEDIA = 5
+
+MINIMO_OBSERVACOES_PARA_CONFIANCA_ALTA = 15
+
+
+PONTOS_NOVO_MENOR_PRECO = 70
+
+PONTOS_20_ABAIXO_MEDIANA = 60
+
+PONTOS_15_ABAIXO_MEDIANA = 50
+
+PONTOS_10_ABAIXO_MEDIANA = 35
+
+PONTOS_5_ABAIXO_MEDIANA = 20
+
+PONTOS_PRECO_PROXIMO_MEDIANA = 5
+
+PENALIDADE_10_ACIMA_MEDIANA = -10
+
+PENALIDADE_20_ACIMA_MEDIANA = -25
+
+
+PESO_HISTORICO_CONFIANCA_BAIXA = 0.50
+
+PESO_HISTORICO_CONFIANCA_MEDIA = 0.75
+
+PESO_HISTORICO_CONFIANCA_ALTA = 1.00

@@ -54,8 +54,10 @@ async def main() -> None:
         classificador=classificador
     )
 
-    gerador_link_afiliado = criar_gerador_link_afiliado(
-        configuracoes
+    gerador_link_afiliado = (
+        criar_gerador_link_afiliado(
+            configuracoes
+        )
     )
 
     bot = TelegramBot(
@@ -66,24 +68,41 @@ async def main() -> None:
 
     repository = PublicadosRepository()
 
-    relatorios_repository = RelatoriosRepository()
-
-    historico_precos_repository = (
-        HistoricoPrecosRepository()
+    relatorios_repository = (
+        RelatoriosRepository()
     )
 
-    historico_precos_service = HistoricoPrecosService(
-        repository=historico_precos_repository
+    historico_precos_repository = (
+        HistoricoPrecosRepository(
+            caminho_arquivo=(
+                "data/historico/"
+                "mercado_livre_precos.json"
+            )
+        )
+    )
+
+    historico_precos_service = (
+        HistoricoPrecosService(
+            repository=(
+                historico_precos_repository
+            )
+        )
     )
 
     filtro = OfertaFilter(
-        desconto_minimo=configuracoes.desconto_minimo,
-        preco_maximo=configuracoes.preco_maximo,
+        desconto_minimo=(
+            configuracoes.desconto_minimo
+        ),
+        preco_maximo=(
+            configuracoes.preco_maximo
+        ),
         relevancia_nicho_minima=55
     )
 
     pontuador = PontuadorOferta(
-        preco_maximo=configuracoes.preco_maximo
+        preco_maximo=(
+            configuracoes.preco_maximo
+        )
     )
 
     logger.info(
@@ -106,17 +125,31 @@ async def main() -> None:
         "e produtos gamer."
     )
 
+    logger.info(
+        "Produtos atualmente no histórico: %s",
+        historico_precos_repository
+        .quantidade_produtos()
+    )
+
     pipeline = ExecutorPipeline(
         coletor=coletor,
         bot=bot,
         repository=repository,
-        relatorios_repository=relatorios_repository,
-        historico_precos_service=historico_precos_service,
+        relatorios_repository=(
+            relatorios_repository
+        ),
+        historico_precos_service=(
+            historico_precos_service
+        ),
         filtro=filtro,
         pontuador=pontuador,
         quantidade_scrapers=len(scrapers),
-        limite_ofertas=configuracoes.limite_ofertas,
-        maximo_publicacoes=configuracoes.maximo_publicacoes,
+        limite_ofertas=(
+            configuracoes.limite_ofertas
+        ),
+        maximo_publicacoes=(
+            configuracoes.maximo_publicacoes
+        ),
         intervalo_publicacoes=(
             configuracoes.intervalo_publicacoes
         )
@@ -125,6 +158,7 @@ async def main() -> None:
     await pipeline.executar()
 
 
-asyncio.run(
-    main()
-)
+if __name__ == "__main__":
+    asyncio.run(
+        main()
+    )

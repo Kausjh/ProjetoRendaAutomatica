@@ -4,12 +4,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from services.identificador_mercado_livre import (
-    IdentificadorMercadoLivre
+    IdentificadorMercadoLivre,
+)
+from services.mercadolivre_affiliate_service import (
+    MercadoLivreAffiliateService,
 )
 
 
 @dataclass(frozen=True)
 class LinkAfiliadoMercadoLivre:
+
     item_id: str
     link_original: str
     link_afiliado: str
@@ -24,7 +28,7 @@ class LinksAfiliadosMercadoLivreRepository:
         caminho_arquivo: str = (
             "database/"
             "links_afiliados_mercado_livre.json"
-        )
+        ),
     ) -> None:
 
         self.caminho_arquivo = Path(
@@ -35,12 +39,16 @@ class LinksAfiliadosMercadoLivreRepository:
             IdentificadorMercadoLivre()
         )
 
+        self.gerador = (
+            MercadoLivreAffiliateService()
+        )
+
         self._garantir_arquivo()
 
     def cadastrar(
         self,
         link_original: str,
-        link_afiliado: str
+        link_afiliado: str,
     ) -> LinkAfiliadoMercadoLivre:
 
         resultado = (
@@ -70,7 +78,6 @@ class LinksAfiliadosMercadoLivreRepository:
             )
 
         dados = self._carregar_dados()
-
         agora = self._agora_iso()
 
         registro_anterior = dados.get(
@@ -83,21 +90,19 @@ class LinksAfiliadosMercadoLivreRepository:
             registro_anterior,
             dict
         ):
-            criado_em = (
+            criado_em = str(
                 registro_anterior.get(
                     "criado_em",
-                    agora
+                    agora,
                 )
             )
 
-        registro = (
-            LinkAfiliadoMercadoLivre(
-                item_id=item_id,
-                link_original=link_original.strip(),
-                link_afiliado=link_afiliado.strip(),
-                criado_em=criado_em,
-                atualizado_em=agora
-            )
+        registro = LinkAfiliadoMercadoLivre(
+            item_id=item_id,
+            link_original=link_original.strip(),
+            link_afiliado=link_afiliado.strip(),
+            criado_em=criado_em,
+            atualizado_em=agora,
         )
 
         dados[item_id] = asdict(
@@ -112,7 +117,7 @@ class LinksAfiliadosMercadoLivreRepository:
 
     def buscar_por_item_id(
         self,
-        item_id: str
+        item_id: str,
     ) -> LinkAfiliadoMercadoLivre | None:
 
         item_id_normalizado = (
@@ -135,12 +140,12 @@ class LinksAfiliadosMercadoLivreRepository:
 
         return self._converter_registro(
             item_id=item_id_normalizado,
-            registro=registro
+            registro=registro,
         )
 
     def buscar_por_link(
         self,
-        link_original: str
+        link_original: str,
     ) -> LinkAfiliadoMercadoLivre | None:
 
         resultado = (
@@ -158,21 +163,63 @@ class LinksAfiliadosMercadoLivreRepository:
 
     def obter_link_afiliado(
         self,
-        link_original: str
+        link_original: str,
     ) -> str | None:
 
         registro = self.buscar_por_link(
             link_original
         )
 
-        if registro is None:
+        if registro is not None:
+            return registro.link_afiliado
+
+        try:
+
+            link_afiliado = self.gerador.gerar(
+                link_original
+            )
+
+        except Exception as erro:
+
+            print(
+                "[LinksAfiliadosMercadoLivre] "
+                "Não foi possível gerar o link: "
+                f"{type(erro).__name__}: {erro}"
+            )
+
             return None
 
-        return registro.link_afiliado
+        if link_afiliado is None:
+            return None
+
+        try:
+
+            registro_criado = self.cadastrar(
+                link_original=link_original,
+                link_afiliado=link_afiliado,
+            )
+
+        except ValueError as erro:
+
+            print(
+                "[LinksAfiliadosMercadoLivre] "
+                "O link foi gerado, mas não pôde "
+                f"ser salvo: {erro}"
+            )
+
+            return link_afiliado
+
+        print(
+            "[LinksAfiliadosMercadoLivre] "
+            "Link afiliado gerado e salvo: "
+            f"{registro_criado.link_afiliado}"
+        )
+
+        return registro_criado.link_afiliado
 
     def existe(
         self,
-        link_original: str
+        link_original: str,
     ) -> bool:
 
         return (
@@ -183,7 +230,7 @@ class LinksAfiliadosMercadoLivreRepository:
         )
 
     def listar(
-        self
+        self,
     ) -> list[
         LinkAfiliadoMercadoLivre
     ]:
@@ -194,10 +241,7 @@ class LinksAfiliadosMercadoLivreRepository:
             LinkAfiliadoMercadoLivre
         ] = []
 
-        for (
-            item_id,
-            registro
-        ) in dados.items():
+        for item_id, registro in dados.items():
 
             if not isinstance(
                 registro,
@@ -208,19 +252,20 @@ class LinksAfiliadosMercadoLivreRepository:
             registros.append(
                 self._converter_registro(
                     item_id=item_id,
-                    registro=registro
+                    registro=registro,
                 )
             )
 
         return sorted(
             registros,
-            key=lambda item:
-                item.atualizado_em,
-            reverse=True
+            key=lambda item: (
+                item.atualizado_em
+            ),
+            reverse=True,
         )
 
     def quantidade(
-        self
+        self,
     ) -> int:
 
         return len(
@@ -229,7 +274,7 @@ class LinksAfiliadosMercadoLivreRepository:
 
     def remover(
         self,
-        item_id: str
+        item_id: str,
     ) -> bool:
 
         item_id_normalizado = (
@@ -259,7 +304,7 @@ class LinksAfiliadosMercadoLivreRepository:
     def _converter_registro(
         self,
         item_id: str,
-        registro: dict
+        registro: dict,
     ) -> LinkAfiliadoMercadoLivre:
 
         return LinkAfiliadoMercadoLivre(
@@ -267,32 +312,32 @@ class LinksAfiliadosMercadoLivreRepository:
             link_original=str(
                 registro.get(
                     "link_original",
-                    ""
+                    "",
                 )
             ),
             link_afiliado=str(
                 registro.get(
                     "link_afiliado",
-                    ""
+                    "",
                 )
             ),
             criado_em=str(
                 registro.get(
                     "criado_em",
-                    ""
+                    "",
                 )
             ),
             atualizado_em=str(
                 registro.get(
                     "atualizado_em",
-                    ""
+                    "",
                 )
-            )
+            ),
         )
 
     def _normalizar_item_id(
         self,
-        item_id: str
+        item_id: str,
     ) -> str:
 
         item_id_normalizado = (
@@ -307,8 +352,8 @@ class LinksAfiliadosMercadoLivreRepository:
             "MLB"
         ):
             raise ValueError(
-                "O código do anúncio precisa começar "
-                "com MLB."
+                "O código do anúncio precisa "
+                "começar com MLB."
             )
 
         parte_numerica = (
@@ -324,12 +369,12 @@ class LinksAfiliadosMercadoLivreRepository:
         return item_id_normalizado
 
     def _garantir_arquivo(
-        self
+        self,
     ) -> None:
 
         self.caminho_arquivo.parent.mkdir(
             parents=True,
-            exist_ok=True
+            exist_ok=True,
         )
 
         if self.caminho_arquivo.exists():
@@ -338,7 +383,7 @@ class LinksAfiliadosMercadoLivreRepository:
         self._salvar_dados({})
 
     def _carregar_dados(
-        self
+        self,
     ) -> dict[str, dict]:
 
         self._garantir_arquivo()
@@ -346,7 +391,8 @@ class LinksAfiliadosMercadoLivreRepository:
         try:
 
             conteudo = (
-                self.caminho_arquivo.read_text(
+                self.caminho_arquivo
+                .read_text(
                     encoding="utf-8"
                 )
             )
@@ -356,6 +402,7 @@ class LinksAfiliadosMercadoLivreRepository:
             )
 
         except json.JSONDecodeError as erro:
+
             raise ValueError(
                 "O arquivo de links afiliados do "
                 "Mercado Livre contém JSON inválido."
@@ -374,25 +421,26 @@ class LinksAfiliadosMercadoLivreRepository:
 
     def _salvar_dados(
         self,
-        dados: dict[str, dict]
+        dados: dict[str, dict],
     ) -> None:
 
         conteudo = json.dumps(
             dados,
             ensure_ascii=False,
             indent=4,
-            sort_keys=True
+            sort_keys=True,
         )
 
         arquivo_temporario = (
-            self.caminho_arquivo.with_suffix(
+            self.caminho_arquivo
+            .with_suffix(
                 ".tmp"
             )
         )
 
         arquivo_temporario.write_text(
             conteudo,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         arquivo_temporario.replace(
@@ -400,7 +448,7 @@ class LinksAfiliadosMercadoLivreRepository:
         )
 
     def _agora_iso(
-        self
+        self,
     ) -> str:
 
         return (

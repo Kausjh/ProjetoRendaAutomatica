@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from models.oferta import Oferta
 from repositories.historico_precos_repository import (
@@ -30,13 +31,19 @@ class HistoricoPrecosService:
         self,
         oferta: Oferta
     ) -> ResultadoHistoricoPreco:
-        historico_anterior = self.repository.obter_historico(
-            oferta.link
+        chave_produto = self._criar_chave_produto(
+            oferta
         )
 
-        primeiro_registro = len(
-            historico_anterior
-        ) == 0
+        historico_anterior = (
+            self.repository.obter_registros(
+                chave_produto
+            )
+        )
+
+        primeiro_registro = (
+            len(historico_anterior) == 0
+        )
 
         preco_anterior = self._obter_preco_anterior(
             historico_anterior
@@ -46,9 +53,11 @@ class HistoricoPrecosService:
             historico_anterior
         )
 
-        variacao_percentual = self._calcular_variacao_percentual(
-            preco_anterior=preco_anterior,
-            preco_atual=oferta.preco
+        variacao_percentual = (
+            self._calcular_variacao_percentual(
+                preco_anterior=preco_anterior,
+                preco_atual=oferta.preco
+            )
         )
 
         preco_caiu = (
@@ -61,32 +70,100 @@ class HistoricoPrecosService:
             and oferta.preco > preco_anterior
         )
 
-        menor_preco_historico = self._verificar_menor_preco_historico(
-            preco_atual=oferta.preco,
-            menor_preco_anterior=menor_preco_anterior
+        menor_preco_historico = (
+            self._verificar_menor_preco_historico(
+                preco_atual=oferta.preco,
+                menor_preco_anterior=(
+                    menor_preco_anterior
+                )
+            )
         )
 
-        novo_preco_registrado = self.repository.registrar_preco(
-            oferta
+        coletado_em = (
+            datetime.now()
+            .astimezone()
+            .isoformat(timespec="seconds")
         )
+
+        novo_preco_registrado = (
+            self.repository.registrar_preco(
+                chave_produto=chave_produto,
+                titulo=oferta.nome,
+                link=oferta.link,
+                categoria=oferta.categoria or "",
+                preco=oferta.preco,
+                coletado_em=coletado_em
+            )
+        )
+
+        self.repository.salvar()
 
         quantidade_registros = len(
             historico_anterior
         )
 
-        if novo_preco_registrado:
+        if (
+            novo_preco_registrado
+            and primeiro_registro
+        ):
             quantidade_registros += 1
+
+        elif novo_preco_registrado:
+            historico_atualizado = (
+                self.repository.obter_registros(
+                    chave_produto
+                )
+            )
+
+            quantidade_registros = len(
+                historico_atualizado
+            )
 
         return ResultadoHistoricoPreco(
             primeiro_registro=primeiro_registro,
             preco_anterior=preco_anterior,
             menor_preco_anterior=menor_preco_anterior,
-            menor_preco_historico=menor_preco_historico,
+            menor_preco_historico=(
+                menor_preco_historico
+            ),
             variacao_percentual=variacao_percentual,
             preco_caiu=preco_caiu,
             preco_subiu=preco_subiu,
-            novo_preco_registrado=novo_preco_registrado,
-            quantidade_registros=quantidade_registros
+            novo_preco_registrado=(
+                novo_preco_registrado
+            ),
+            quantidade_registros=(
+                quantidade_registros
+            )
+        )
+
+    def _criar_chave_produto(
+        self,
+        oferta: Oferta
+    ) -> str:
+        identificadores = (
+            oferta.id_produto,
+            oferta.id_anuncio
+        )
+
+        for identificador in identificadores:
+            if identificador:
+                return self._normalizar_identificador(
+                    identificador
+                )
+
+        return oferta.link.strip()
+
+    def _normalizar_identificador(
+        self,
+        identificador: str
+    ) -> str:
+        return (
+            identificador
+            .strip()
+            .upper()
+            .replace("-", "")
+            .replace("_", "")
         )
 
     def _obter_preco_anterior(
@@ -102,30 +179,34 @@ class HistoricoPrecosService:
             "preco"
         )
 
+        if isinstance(preco, bool):
+            return None
+
         if not isinstance(
             preco,
-            int | float
+            (int, float)
         ):
             return None
 
-        return float(
-            preco
-        )
+        return float(preco)
 
     def _obter_menor_preco(
         self,
         historico: list[dict]
     ) -> float | None:
-        precos_validos = []
+        precos_validos: list[float] = []
 
         for registro in historico:
             preco = registro.get(
                 "preco"
             )
 
+            if isinstance(preco, bool):
+                continue
+
             if isinstance(
                 preco,
-                int | float
+                (int, float)
             ):
                 precos_validos.append(
                     float(preco)
@@ -134,9 +215,7 @@ class HistoricoPrecosService:
         if not precos_validos:
             return None
 
-        return min(
-            precos_validos
-        )
+        return min(precos_validos)
 
     def _verificar_menor_preco_historico(
         self,

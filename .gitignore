@@ -1,64 +1,93 @@
-# ==========================
+# ==========================================================
+# Projeto Renda Automática
+# ==========================================================
+
+# ==========================================================
 # Segredos e configurações locais
-# ==========================
+# ==========================================================
+
 .env
 .env.*
 !.env.example
 
-# ==========================
-# Ambiente virtual
-# ==========================
+# ==========================================================
+# Ambientes virtuais
+# ==========================================================
+
 .venv/
 venv/
+env/
 
-# ==========================
-# Cache e arquivos compilados do Python
-# ==========================
+# ==========================================================
+# Python
+# ==========================================================
+
 __pycache__/
 *.py[cod]
 *$py.class
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# ==========================
-# Estado local do projeto
-# ==========================
+.coverage
+htmlcov/
+
+# ==========================================================
+# Playwright, Chrome e sessões autenticadas
+# ==========================================================
+
+playwright/.auth/
+
+browser_profile/
+.browser_profile/
+browser_profile_chrome/
+browser_profile_cdp/
+
+# ==========================================================
+# Estado local e dados gerados durante a execução
+# ==========================================================
+
 database/links_afiliados_mercado_livre.json
 database/historico_precos.json
 database/pendencias_afiliacao.json
 database/publicados.json
 database/relatorios_execucao.json
 
-# ==========================
-# Logs
-# ==========================
+# ==========================================================
+# Logs e relatórios gerados
+# ==========================================================
+
 logs/
 *.log
 
-# ==========================
-# Playwright e sessões autenticadas
-# ==========================
-playwright/.auth/
-browser_profile/
-.browser_profile/
+debug/
+relatorios/
 
-# ==========================
-# Arquivos temporários
-# ==========================
-codigo_atual.txt
+# ==========================================================
+# Arquivos temporários e testes manuais
+# ==========================================================
+
 *.tmp
 *.bak
 
-# ==========================
-# Editores
-# ==========================
+codigo_atual.txt
+arquivos_projeto.txt
+estrutura.txt
+
+teste_ml.py
+
+# ==========================================================
+# Editores e IDEs
+# ==========================================================
+
 .vscode/
 .idea/
 
-# ==========================
+# ==========================================================
 # Sistema operacional
-# ==========================
+# ==========================================================
+
 .DS_Store
 Thumbs.db
 desktop.ini
