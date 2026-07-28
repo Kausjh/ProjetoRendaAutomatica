@@ -1,160 +1,175 @@
-# 🚀 Radar de Ofertas
+# 🚀 Projeto Renda Automática
 
-> Um sistema inteligente para descobrir ofertas, gerar links de afiliados automaticamente e publicar promoções de forma automatizada.
-
-<p align="center">
-
-![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-orange?style=for-the-badge)
-![GitHub](https://img.shields.io/github/last-commit/Kausjh/ProjetoRendaAutomatica?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-
-</p>
+> Sistema modular para encontrar ofertas, validá-las, gerar links de afiliado e publicá-las automaticamente no Telegram.
 
 ---
 
 ## 📖 Sobre o projeto
 
-O **Radar de Ofertas** é um sistema desenvolvido para automatizar todo o processo de descoberta e publicação de ofertas de produtos.
+O Projeto Renda Automática nasceu com um único objetivo:
 
-O objetivo é transformar um fluxo totalmente manual em um pipeline automatizado:
+> Construir uma plataforma capaz de gerar renda recorrente através da divulgação automática de ofertas.
 
-- encontrar ofertas;
-- analisar sua qualidade;
-- gerar links de afiliados;
-- preparar a publicação;
-- enviar automaticamente para o Telegram.
+O sistema coleta produtos de diversos marketplaces, identifica boas oportunidades, valida a qualidade das ofertas, gera links de afiliado e publica automaticamente em um canal do Telegram.
 
-O projeto foi construído priorizando arquitetura limpa, baixo acoplamento e facilidade para expansão.
+A arquitetura foi projetada para ser escalável, permitindo adicionar novos marketplaces e programas de afiliados sem alterar o restante do sistema.
 
 ---
 
-# ⚙️ Fluxo do sistema
+# 🎯 Objetivos
+
+- Encontrar ofertas automaticamente
+- Validar se a oferta realmente vale a pena
+- Evitar ofertas duplicadas
+- Classificar ofertas por qualidade
+- Gerar links de afiliado automaticamente
+- Publicar no Telegram
+- Escalar para diversos marketplaces
+
+---
+
+# 🏗 Arquitetura
 
 ```text
-Marketplaces
-
-(Mercado Livre, Amazon, Shopee...)
-
-        │
-        ▼
-
-Coleta de Produtos
-    (Scrapers)
-
-        │
-        ▼
-
-Normalização
-
-        │
-        ▼
-
-Filtros
-
-        │
-        ▼
-
-Histórico de Preços
-
-        │
-        ▼
-
-Pontuação Comercial
-
-        │
-        ▼
-
-Links de Afiliados
-
-        │
-        ▼
-
-Formatação
-
-        │
-        ▼
-
-Telegram
+                ┌──────────────┐
+                │   Scrapers   │
+                └──────┬───────┘
+                       │
+                       ▼
+             Coletor de Ofertas
+                       │
+                       ▼
+             Validador de Ofertas
+                       │
+                       ▼
+          Sistema de Classificação
+                       │
+                       ▼
+            Gerador de Links
+               de Afiliado
+                       │
+                       ▼
+             Formatador da Mensagem
+                       │
+                       ▼
+                Telegram Bot
 ```
 
 ---
 
-# ✨ Funcionalidades
-
-- ✅ Arquitetura modular
-- ✅ Sistema de Scrapers
-- ✅ Filtros inteligentes
-- ✅ Histórico de preços
-- ✅ Pontuação automática de ofertas
-- ✅ Integração com Telegram
-- ✅ Integração com Mercado Livre
-- ✅ Cache de links afiliados
-- ✅ Reutilização automática de links
-
----
-
-# 🏗 Estrutura
+# 📂 Estrutura do projeto
 
 ```text
 ProjetoRendaAutomatica/
 
-├── bots/
+├── affiliates/
+├── automation_web/
 ├── config/
 ├── database/
 ├── filters/
 ├── formatters/
+├── launcher/
 ├── models/
 ├── repositories/
 ├── scrapers/
 ├── services/
-├── scripts/
-├── tests/
+├── telegram/
+├── utils/
+│
+├── launcher.py
+├── iniciar_projeto.bat
 ├── main.py
 └── README.md
 ```
 
 ---
 
-# 🛠 Tecnologias
+# ⚙ Funcionalidades
 
-- Python
-- Playwright
-- HTTPX
-- Telegram Bot API
-- JSON
-- Git
-- GitHub
+## ✅ Implementadas
+
+- Launcher automático
+- Inicialização simplificada
+- Chrome com CDP
+- Perfil persistente do navegador
+- Coletor de ofertas
+- Validador de ofertas
+- Histórico de ofertas
+- Estrutura de afiliados
+- Integração Telegram
+- Arquitetura modular
+- Suporte ao Playwright
 
 ---
 
-# 🚀 Instalação
+# 🛒 Marketplaces
 
-Clone o projeto:
+## Implementados
+
+- Mercado Livre
+
+## Em desenvolvimento
+
+- KaBuM
+
+## Planejados
+
+- Amazon
+- Pichau
+- Terabyte
+- Shopee
+- AliExpress
+
+---
+
+# 💰 Programas de afiliados
+
+Planejados ou já suportados pela arquitetura:
+
+- Mercado Livre Afiliados
+- Amazon Associados
+- KaBuM Partners
+- Pichau
+- Terabyte
+- Shopee
+
+---
+
+# ▶ Como executar
+
+## Clone
 
 ```bash
 git clone https://github.com/Kausjh/ProjetoRendaAutomatica.git
 ```
 
-Entre na pasta:
+---
 
-```bash
-cd ProjetoRendaAutomatica
-```
-
-Crie o ambiente virtual:
+## Ambiente virtual
 
 ```bash
 python -m venv .venv
 ```
 
-Ative o ambiente:
+---
 
-```powershell
-.\.venv\Scripts\Activate.ps1
+## Ativar
+
+Windows
+
+```bash
+.venv\Scripts\activate
 ```
 
-Instale as dependências:
+Linux
+
+```bash
+source .venv/bin/activate
+```
+
+---
+
+## Instalar dependências
 
 ```bash
 pip install -r requirements.txt
@@ -162,48 +177,80 @@ pip install -r requirements.txt
 
 ---
 
-# ▶️ Executando
+## Executar
+
+Modo recomendado
 
 ```bash
-python main.py
+python launcher.py
+```
+
+ou
+
+```bash
+iniciar_projeto.bat
 ```
 
 ---
 
-# 🗺 Roadmap
+# 🧠 Tecnologias
 
-## ✅ Concluído
-
-- Arquitetura inicial
-- Sistema de Scrapers
-- Sistema de Filtros
-- Histórico de preços
-- Pontuação de ofertas
-- Integração com Telegram
-- Integração com Mercado Livre
-- Cache de links afiliados
+- Python
+- Playwright
+- Telegram Bot API
+- Git
+- GitHub
 
 ---
 
-## 🚧 Em desenvolvimento
+# 📌 Roadmap
 
-- Pipeline completo Mercado Livre → Telegram
-- Melhorias comerciais
-- Curadoria automática
+## Concluído
+
+- [x] Estrutura inicial
+- [x] Pipeline modular
+- [x] Launcher automático
+- [x] Perfil persistente
+- [x] Validador de ofertas
+- [x] Integração Mercado Livre
+- [x] Estrutura de afiliados
 
 ---
 
-## 🔮 Futuro
+## Em desenvolvimento
 
-- Amazon Associates
-- Shopee
-- KaBuM
-- Pichau
-- Terabyte
-- SQLite
-- Dashboard Web
-- Docker
-- API REST
+- [ ] KaBuM
+- [ ] Amazon
+- [ ] Melhor classificação de ofertas
+- [ ] Melhor sistema de pontuação
+
+---
+
+## Futuro
+
+- [ ] Dashboard Web
+- [ ] IA para análise de ofertas
+- [ ] Estatísticas de conversão
+- [ ] Múltiplos canais Telegram
+- [ ] Interface gráfica
+
+---
+
+# 🤝 Contribuindo
+
+Toda contribuição é bem-vinda.
+
+Caso encontre bugs ou tenha sugestões, abra uma Issue.
+
+Caso deseje implementar melhorias, envie um Pull Request.
+
+---
+
+# 📜 Licença
+
+Este projeto encontra-se em desenvolvimento.
+
+A licença definitiva será definida futuramente.
 
 ---
 
@@ -211,4 +258,12 @@ python main.py
 
 **Kauê Jhonatas**
 
-> "Automatizar o trabalho repetitivo para dedicar tempo ao que realmente importa."
+Projeto desenvolvido com foco em automação, programação e geração de renda através de sistemas inteligentes.
+
+---
+
+## ⭐ Se este projeto te ajudar
+
+Considere deixar uma estrela no repositório.
+
+Isso ajuda bastante no crescimento do projeto.
