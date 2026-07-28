@@ -1,12 +1,16 @@
 import logging
 
 from affiliates.afiliador_generico import AfiliadorGenerico
+from affiliates.afiliador_mercado_livre import (
+    AfiliadorMercadoLivre,
+)
 from affiliates.afiliador_parametros import AfiliadorParametros
+from affiliates.base_afiliador import BaseAfiliador
 from affiliates.carregador_afiliadores import (
-    CarregadorAfiliadores
+    CarregadorAfiliadores,
 )
 from affiliates.configuracao_afiliador import (
-    ConfiguracaoAfiliador
+    ConfiguracaoAfiliador,
 )
 from affiliates.gerador_link_afiliado import GeradorLinkAfiliado
 from config.configuracoes import Configuracoes
@@ -15,9 +19,11 @@ from config.configuracoes_afiliados import ConfiguracoesAfiliados
 
 logger = logging.getLogger(__name__)
 
+# 63.8738, -149.7525
+
 
 def criar_gerador_link_afiliado(
-    configuracoes: Configuracoes
+    configuracoes: Configuracoes,
 ) -> GeradorLinkAfiliado:
     del configuracoes
 
@@ -46,7 +52,7 @@ def criar_gerador_link_afiliado(
 
             logger.info(
                 "Afiliador desativado ignorado: %s.",
-                configuracao.nome
+                configuracao.nome,
             )
 
             continue
@@ -72,7 +78,7 @@ def criar_gerador_link_afiliado(
             configuracao.prioridade,
             ", ".join(
                 configuracao.dominios
-            )
+            ),
         )
 
     gerador.registrar(
@@ -86,20 +92,26 @@ def criar_gerador_link_afiliado(
             "Fallback: ativo."
         ),
         quantidade_registrada,
-        quantidade_desativada
+        quantidade_desativada,
     )
 
     return gerador
 
 
 def _criar_afiliador(
-    configuracao: ConfiguracaoAfiliador
-) -> AfiliadorParametros:
+    configuracao: ConfiguracaoAfiliador,
+) -> BaseAfiliador:
+    if configuracao.tipo == "mercado_livre":
+        return AfiliadorMercadoLivre(
+            nome=configuracao.nome,
+            dominios=configuracao.dominios,
+        )
+
     if configuracao.tipo == "parametros":
         return AfiliadorParametros(
             nome=configuracao.nome,
             dominios=configuracao.dominios,
-            parametros=configuracao.parametros
+            parametros=configuracao.parametros,
         )
 
     raise ValueError(

@@ -269,3 +269,7 @@ def main() -> int:
 
         duracao = time.monotonic() - inicio_execucao
         exibir_rodape(duracao)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

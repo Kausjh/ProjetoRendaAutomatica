@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+# 63.8738, -149.7525
+
+
 @dataclass(frozen=True)
 class ConfiguracaoAfiliador:
     nome: str
@@ -17,7 +20,7 @@ class ConfiguracaoAfiliador:
     def criar_de_dict(
         cls,
         dados: dict[str, Any],
-        indice: int
+        indice: int,
     ) -> "ConfiguracaoAfiliador":
         contexto = (
             f"Afiliador na posição {indice}"
@@ -29,7 +32,7 @@ class ConfiguracaoAfiliador:
 
         if not isinstance(
             nome,
-            str
+            str,
         ) or not nome.strip():
             raise ValueError(
                 f"{contexto}: o campo 'nome' precisa ser "
@@ -42,7 +45,7 @@ class ConfiguracaoAfiliador:
 
         if not isinstance(
             tipo,
-            str
+            str,
         ) or not tipo.strip():
             raise ValueError(
                 f"{contexto}: o campo 'tipo' precisa ser "
@@ -56,25 +59,26 @@ class ConfiguracaoAfiliador:
         )
 
         tipos_suportados = {
-            "parametros"
+            "mercado_livre",
+            "parametros",
         }
 
         if tipo_normalizado not in tipos_suportados:
             raise ValueError(
                 f"{contexto}: tipo de afiliador não suportado: "
                 f"'{tipo_normalizado}'. "
-                f"Tipos disponíveis: "
+                "Tipos disponíveis: "
                 f"{', '.join(sorted(tipos_suportados))}."
             )
 
         ativo = dados.get(
             "ativo",
-            True
+            True,
         )
 
         if not isinstance(
             ativo,
-            bool
+            bool,
         ):
             raise ValueError(
                 f"{contexto}: o campo 'ativo' precisa ser "
@@ -83,17 +87,17 @@ class ConfiguracaoAfiliador:
 
         prioridade = dados.get(
             "prioridade",
-            0
+            0,
         )
 
         if (
             not isinstance(
                 prioridade,
-                int
+                int,
             )
             or isinstance(
                 prioridade,
-                bool
+                bool,
             )
         ):
             raise ValueError(
@@ -107,7 +111,7 @@ class ConfiguracaoAfiliador:
 
         if not isinstance(
             dominios_brutos,
-            list
+            list,
         ) or not dominios_brutos:
             raise ValueError(
                 f"{contexto}: o campo 'dominios' precisa ser "
@@ -119,7 +123,7 @@ class ConfiguracaoAfiliador:
         for dominio in dominios_brutos:
             if not isinstance(
                 dominio,
-                str
+                str,
             ) or not dominio.strip():
                 raise ValueError(
                     f"{contexto}: todos os domínios precisam "
@@ -150,12 +154,12 @@ class ConfiguracaoAfiliador:
 
         parametros_brutos = dados.get(
             "parametros",
-            {}
+            {},
         )
 
         if not isinstance(
             parametros_brutos,
-            dict
+            dict,
         ):
             raise ValueError(
                 f"{contexto}: o campo 'parametros' precisa "
@@ -167,7 +171,7 @@ class ConfiguracaoAfiliador:
         for chave, valor in parametros_brutos.items():
             if not isinstance(
                 chave,
-                str
+                str,
             ) or not chave.strip():
                 raise ValueError(
                     f"{contexto}: cada parâmetro precisa "
@@ -176,7 +180,7 @@ class ConfiguracaoAfiliador:
 
             if not isinstance(
                 valor,
-                str
+                str,
             ):
                 raise ValueError(
                     f"{contexto}: o valor do parâmetro "
@@ -203,5 +207,5 @@ class ConfiguracaoAfiliador:
             ativo=ativo,
             prioridade=prioridade,
             dominios=dominios,
-            parametros=parametros
+            parametros=parametros,
         )
