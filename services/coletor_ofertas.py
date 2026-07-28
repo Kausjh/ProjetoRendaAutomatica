@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -5,6 +7,10 @@ from models.oferta import Oferta
 from scrapers.base_scraper import BaseScraper
 from services.classificador_produto import ClassificadorProduto
 from services.pipeline.pipeline import Pipeline
+from services.validadores.validador_oferta import (
+    EstatisticasValidacao,
+    ValidadorOferta,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -16,12 +22,18 @@ class ColetorOfertas:
         self,
         scrapers: list[BaseScraper],
         classificador: ClassificadorProduto,
-        pipeline: Pipeline | None = None
+        pipeline: Pipeline | None = None,
+        validador: ValidadorOferta | None = None
     ) -> None:
 
         self.scrapers = scrapers
         self.classificador = classificador
         self.pipeline = pipeline
+        self.validador = (
+            validador
+            if validador is not None
+            else ValidadorOferta()
+        )
 
     def _executar_scraper(
         self,
@@ -54,18 +66,14 @@ class ColetorOfertas:
     ) -> list[Oferta]:
 
         ofertas_unicas: list[Oferta] = []
-
         links = set()
 
         for oferta in ofertas:
-
             if oferta.link in links:
-
                 logger.info(
                     "Oferta duplicada removida: %s",
                     oferta.nome
                 )
-
                 continue
 
             links.add(
@@ -78,6 +86,30 @@ class ColetorOfertas:
 
         return ofertas_unicas
 
+    def _validar_ofertas(
+        self,
+        ofertas: list[Oferta]
+    ) -> list[Oferta]:
+
+        resultado: list[Oferta] = []
+        estatisticas = EstatisticasValidacao()
+
+        for oferta in ofertas:
+            oferta_validada = self.validador.validar(
+                oferta,
+                estatisticas=estatisticas
+            )
+
+            resultado.append(
+                oferta_validada
+            )
+
+        logger.info(
+            estatisticas.formatar_resumo()
+        )
+
+        return resultado
+
     def _classificar_ofertas(
         self,
         ofertas: list[Oferta]
@@ -86,6 +118,18 @@ class ColetorOfertas:
         resultado: list[Oferta] = []
 
         for oferta in ofertas:
+            if not oferta.valida:
+                logger.warning(
+                    (
+                        "Oferta inválida não seguirá para a "
+                        "classificação: '%s'. Motivos: %s"
+                    ),
+                    oferta.nome,
+                    "; ".join(
+                        oferta.motivos_validacao
+                    )
+                )
+                continue
 
             classificacao = (
                 self.classificador
@@ -95,17 +139,18 @@ class ColetorOfertas:
             )
 
             if not classificacao.eh_nicho:
-
                 logger.info(
                     "Oferta fora do nicho removida: '%s'. Motivo: %s",
                     oferta.nome,
                     classificacao.motivo
                 )
-
                 continue
 
             logger.info(
-                "Oferta classificada: '%s' | Categoria: %s | Relevância: %.2f.",
+                (
+                    "Oferta classificada: '%s' | "
+                    "Categoria: %s | Relevância: %.2f."
+                ),
                 oferta.nome,
                 classificacao.categoria,
                 classificacao.relevancia
@@ -116,7 +161,10 @@ class ColetorOfertas:
             )
 
         logger.info(
-            "Classificação concluída: %s de %s oferta(s) pertencem ao nicho.",
+            (
+                "Classificação concluída: %s de %s oferta(s) "
+                "pertencem ao nicho."
+            ),
             len(resultado),
             len(ofertas)
         )
@@ -134,7 +182,6 @@ class ColetorOfertas:
         resultado: list[Oferta] = []
 
         for oferta in ofertas:
-
             resultado.append(
                 self.pipeline.executar(
                     oferta
@@ -151,11 +198,9 @@ class ColetorOfertas:
         ofertas: list[Oferta] = []
 
         if not self.scrapers:
-
             logger.warning(
                 "Nenhum scraper foi configurado."
             )
-
             return ofertas
 
         with ThreadPoolExecutor(
@@ -177,17 +222,13 @@ class ColetorOfertas:
             for tarefa in as_completed(
                 tarefas
             ):
-
                 scraper = tarefas[tarefa]
 
                 try:
-
                     ofertas.extend(
                         tarefa.result()
                     )
-
                 except Exception:
-
                     logger.exception(
                         "Erro ao executar o scraper '%s'.",
                         type(scraper).__name__
@@ -199,6 +240,10 @@ class ColetorOfertas:
         )
 
         ofertas = self._remover_duplicadas(
+            ofertas
+        )
+
+        ofertas = self._validar_ofertas(
             ofertas
         )
 

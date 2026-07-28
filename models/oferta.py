@@ -11,6 +11,15 @@ class Oferta:
     imagem: str | None
     moeda: str = "R$"
 
+    # Dados comerciais extraídos da loja
+    desconto_anunciado: float | None = None
+
+    # Validação
+    valida: bool = True
+    motivos_validacao: list[str] = field(
+        default_factory=list
+    )
+
     # Monetização
     marketplace: str | None = None
     id_produto: str | None = None
