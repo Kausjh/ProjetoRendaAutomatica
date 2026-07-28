@@ -45,7 +45,7 @@ browser_profile_chrome/
 browser_profile_cdp/
 
 # ==========================================================
-# Estado local e dados gerados durante a execução
+# Estado local e banco de dados
 # ==========================================================
 
 database/links_afiliados_mercado_livre.json
@@ -55,7 +55,13 @@ database/publicados.json
 database/relatorios_execucao.json
 
 # ==========================================================
-# Logs e relatórios gerados
+# Dados gerados durante a execução
+# ==========================================================
+
+data/
+
+# ==========================================================
+# Logs e relatórios
 # ==========================================================
 
 logs/
@@ -63,19 +69,37 @@ logs/
 
 debug/
 relatorios/
+diagnosticos/
 
 # ==========================================================
-# Arquivos temporários e testes manuais
+# Resultados temporários
+# ==========================================================
+
+resultado_teste*.txt
+
+log.txt
+projeto.txt
+integracao_validador.txt
+
+# ==========================================================
+# Arquivos temporários
 # ==========================================================
 
 *.tmp
+*.temp
 *.bak
+*.zip
 
 codigo_atual.txt
 arquivos_projeto.txt
 estrutura.txt
 
+# ==========================================================
+# Testes locais
+# ==========================================================
+
 teste_ml.py
+teste_kabum.py
 
 # ==========================================================
 # Editores e IDEs
