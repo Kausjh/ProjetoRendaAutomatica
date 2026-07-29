@@ -1,5 +1,5 @@
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from playwright.sync_api import (
     Browser,
@@ -7,10 +7,9 @@ from playwright.sync_api import (
     Locator,
     Page,
     Playwright,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
-
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 ENDERECO_CDP = "http://127.0.0.1:9222"
 TERMO_PESQUISA = "Ryzen 7 5700X"
@@ -22,9 +21,7 @@ def obter_contexto(browser: Browser) -> BrowserContext:
     contextos = browser.contexts
 
     if not contextos:
-        raise RuntimeError(
-            "O Chrome conectado não possui nenhum contexto disponível."
-        )
+        raise RuntimeError("O Chrome conectado não possui nenhum contexto disponível.")
 
     return contextos[0]
 
@@ -61,10 +58,7 @@ def escolher_pagina_mercado_livre(
     for pagina in contexto.pages:
         url = pagina.url.lower()
 
-        if (
-            "mercadolivre.com.br" in url
-            or "mercadolibre.com" in url
-        ):
+        if "mercadolivre.com.br" in url or "mercadolibre.com" in url:
             paginas_ml.append(pagina)
 
     if not paginas_ml:
@@ -84,10 +78,7 @@ def escolher_pagina_mercado_livre(
     for pagina in paginas_ml:
         url = pagina.url.lower()
 
-        if any(
-            palavra in url
-            for palavra in palavras_afiliacao
-        ):
+        if any(palavra in url for palavra in palavras_afiliacao):
             return pagina
 
     return paginas_ml[-1]
@@ -102,10 +93,7 @@ def locator_utilizavel(locator: Locator) -> bool:
 
         elemento = locator.first
 
-        return (
-            elemento.is_visible()
-            and elemento.is_enabled()
-        )
+        return elemento.is_visible() and elemento.is_enabled()
 
     except Exception:
         return False
@@ -154,9 +142,7 @@ def candidatos_campo_busca(
 
     yield (
         "campo de texto visível",
-        pagina.locator(
-            'input[type="text"]:visible'
-        ),
+        pagina.locator('input[type="text"]:visible'),
     )
 
 
@@ -170,8 +156,7 @@ def encontrar_campo_busca(
             return descricao, locator.first
 
     raise RuntimeError(
-        "Não foi possível localizar automaticamente "
-        "o campo de pesquisa do painel."
+        "Não foi possível localizar automaticamente " "o campo de pesquisa do painel."
     )
 
 
@@ -200,12 +185,8 @@ def mostrar_campos_visiveis(pagina: Page) -> None:
         try:
             tipo = input_atual.get_attribute("type")
             nome = input_atual.get_attribute("name")
-            placeholder = input_atual.get_attribute(
-                "placeholder"
-            )
-            aria_label = input_atual.get_attribute(
-                "aria-label"
-            )
+            placeholder = input_atual.get_attribute("placeholder")
+            aria_label = input_atual.get_attribute("aria-label")
 
             print(f"Input {indice + 1}:")
             print(f"  type: {tipo}")
@@ -215,10 +196,7 @@ def mostrar_campos_visiveis(pagina: Page) -> None:
             print()
 
         except Exception as erro:
-            print(
-                f"Não foi possível analisar o input "
-                f"{indice + 1}: {erro}"
-            )
+            print(f"Não foi possível analisar o input " f"{indice + 1}: {erro}")
 
 
 def executar_busca(
@@ -236,10 +214,7 @@ def executar_busca(
         )
     except PlaywrightTimeoutError:
         print()
-        print(
-            "Aviso: a página não informou o término do "
-            "carregamento, mas o teste continuará."
-        )
+        print("Aviso: a página não informou o término do " "carregamento, mas o teste continuará.")
 
     descricao, campo = encontrar_campo_busca(pagina)
 
@@ -297,14 +272,8 @@ def executar_busca(
         )
     else:
         print()
-        print(
-            "A busca foi enviada, mas nenhum botão "
-            "'Compartilhar' foi localizado ainda."
-        )
-        print(
-            "Observe a janela do Chrome para confirmar "
-            "se os resultados apareceram."
-        )
+        print("A busca foi enviada, mas nenhum botão " "'Compartilhar' foi localizado ainda.")
+        print("Observe a janela do Chrome para confirmar " "se os resultados apareceram.")
 
 
 def executar_teste(playwright: Playwright) -> None:
@@ -342,10 +311,7 @@ def executar_teste(playwright: Playwright) -> None:
         raise
 
     print()
-    input(
-        "Pressione ENTER para encerrar o teste. "
-        "O Chrome dedicado permanecerá aberto..."
-    )
+    input("Pressione ENTER para encerrar o teste. " "O Chrome dedicado permanecerá aberto...")
 
 
 def main() -> None:

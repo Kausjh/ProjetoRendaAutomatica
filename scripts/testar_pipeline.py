@@ -1,9 +1,8 @@
 from models.oferta import Oferta
-
-from services.pipeline.pipeline import Pipeline
 from services.pipeline.etapas.etapa_afiliacao import (
     EtapaAfiliacao,
 )
+from services.pipeline.pipeline import Pipeline
 
 
 def main():
@@ -21,9 +20,7 @@ def main():
         EtapaAfiliacao(),
     )
 
-    resultado = pipeline.executar(
-        oferta
-    )
+    resultado = pipeline.executar(oferta)
 
     print()
     print("=" * 50)
@@ -31,25 +28,15 @@ def main():
     print("=" * 50)
     print()
 
-    print(
-        f"Marketplace : {resultado.marketplace}"
-    )
+    print(f"Marketplace : {resultado.marketplace}")
 
-    print(
-        f"Produto     : {resultado.id_produto}"
-    )
+    print(f"Produto     : {resultado.id_produto}")
 
-    print(
-        f"Anúncio     : {resultado.id_anuncio}"
-    )
+    print(f"Anúncio     : {resultado.id_anuncio}")
 
-    print(
-        f"Pendente    : {resultado.pendente_afiliacao}"
-    )
+    print(f"Pendente    : {resultado.pendente_afiliacao}")
 
-    print(
-        f"Link        : {resultado.link_afiliado}"
-    )
+    print(f"Link        : {resultado.link_afiliado}")
 
 
 if __name__ == "__main__":

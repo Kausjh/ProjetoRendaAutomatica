@@ -38,9 +38,9 @@ from config.filtro_ofertas import (
     PONTOS_DESCONTO_50,
     PONTOS_PRECO_ACEITAVEL,
     PONTOS_PRECO_IDEAL,
-    PREFIXOS_COMPATIBILIDADE_MARCA,
     PRECO_MAXIMO,
     PRECO_MINIMO,
+    PREFIXOS_COMPATIBILIDADE_MARCA,
     TIPOS_ACESSORIOS_COMPATIVEIS,
 )
 
@@ -50,10 +50,7 @@ class FiltroQualidade:
         self,
         produtos: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        ranking = [
-            self.analisar_produto(produto)
-            for produto in produtos
-        ]
+        ranking = [self.analisar_produto(produto) for produto in produtos]
 
         ranking.sort(
             key=lambda produto: (
@@ -71,11 +68,7 @@ class FiltroQualidade:
         ranking: list[dict[str, Any]],
         limite: int = LIMITE_OFERTAS_APROVADAS,
     ) -> list[dict[str, Any]]:
-        candidatos = [
-            produto
-            for produto in ranking
-            if produto.get("aprovado") is True
-        ]
+        candidatos = [produto for produto in ranking if produto.get("aprovado") is True]
 
         selecionados: list[dict[str, Any]] = []
         quantidade_por_tipo: dict[str, int] = {}
@@ -85,10 +78,7 @@ class FiltroQualidade:
             if len(selecionados) >= limite:
                 break
 
-            tipo = (
-                produto.get("tipo_detectado")
-                or "outros"
-            )
+            tipo = produto.get("tipo_detectado") or "outros"
 
             limite_tipo = LIMITES_POR_TIPO.get(
                 tipo,
@@ -103,32 +93,21 @@ class FiltroQualidade:
             if quantidade_tipo >= limite_tipo:
                 continue
 
-            chave_modelo = self._criar_chave_modelo(
-                produto
+            chave_modelo = self._criar_chave_modelo(produto)
+
+            quantidade_modelo = quantidade_por_modelo.get(
+                chave_modelo,
+                0,
             )
 
-            quantidade_modelo = (
-                quantidade_por_modelo.get(
-                    chave_modelo,
-                    0,
-                )
-            )
-
-            if (
-                quantidade_modelo
-                >= LIMITE_PRODUTOS_MESMO_MODELO
-            ):
+            if quantidade_modelo >= LIMITE_PRODUTOS_MESMO_MODELO:
                 continue
 
             selecionados.append(produto)
 
-            quantidade_por_tipo[tipo] = (
-                quantidade_tipo + 1
-            )
+            quantidade_por_tipo[tipo] = quantidade_tipo + 1
 
-            quantidade_por_modelo[chave_modelo] = (
-                quantidade_modelo + 1
-            )
+            quantidade_por_modelo[chave_modelo] = quantidade_modelo + 1
 
         return selecionados
 
@@ -179,119 +158,78 @@ class FiltroQualidade:
             "percentual_desconto",
         )
 
-        titulo_normalizado = self._normalizar_texto(
-            titulo
-        )
+        titulo_normalizado = self._normalizar_texto(titulo)
 
-        categoria_normalizada = self._normalizar_texto(
-            categoria
-        )
+        categoria_normalizada = self._normalizar_texto(categoria)
 
         nota = 0
         motivos: list[str] = []
         bloqueado = False
 
-        pontos, novos_motivos, bloqueia = (
-            self._avaliar_palavras_proibidas(
-                titulo_normalizado
-            )
+        pontos, novos_motivos, bloqueia = self._avaliar_palavras_proibidas(titulo_normalizado)
+        nota += pontos
+        motivos.extend(novos_motivos)
+        bloqueado = bloqueado or bloqueia
+
+        tipo_produto, pontos, novos_motivos = self._avaliar_tipo_produto(titulo_normalizado)
+        nota += pontos
+        motivos.extend(novos_motivos)
+
+        marca, pontos, novos_motivos = self._avaliar_marca(
+            titulo=titulo_normalizado,
+            tipo_produto=tipo_produto,
+        )
+        nota += pontos
+        motivos.extend(novos_motivos)
+
+        pontos, novos_motivos = self._avaliar_acessorio_sem_marca(
+            tipo_produto=tipo_produto,
+            marca=marca,
+        )
+        nota += pontos
+        motivos.extend(novos_motivos)
+
+        pontos, novos_motivos, bloqueia = self._avaliar_hardware_ultrapassado(titulo_normalizado)
+        nota += pontos
+        motivos.extend(novos_motivos)
+        bloqueado = bloqueado or bloqueia
+
+        pontos, novos_motivos, bloqueia = self._avaliar_alegacoes_suspeitas(
+            titulo=titulo_normalizado,
+            marca=marca,
+            tipo_produto=tipo_produto,
         )
         nota += pontos
         motivos.extend(novos_motivos)
         bloqueado = bloqueado or bloqueia
 
-        tipo_produto, pontos, novos_motivos = (
-            self._avaliar_tipo_produto(
-                titulo_normalizado
-            )
-        )
+        pontos, novos_motivos = self._avaliar_qualidade_titulo(titulo_normalizado)
         nota += pontos
         motivos.extend(novos_motivos)
 
-        marca, pontos, novos_motivos = (
-            self._avaliar_marca(
-                titulo=titulo_normalizado,
-                tipo_produto=tipo_produto,
-            )
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-
-        pontos, novos_motivos = (
-            self._avaliar_acessorio_sem_marca(
-                tipo_produto=tipo_produto,
-                marca=marca,
-            )
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-
-        pontos, novos_motivos, bloqueia = (
-            self._avaliar_hardware_ultrapassado(
-                titulo_normalizado
-            )
-        )
+        pontos, novos_motivos, bloqueia = self._avaliar_preco(preco)
         nota += pontos
         motivos.extend(novos_motivos)
         bloqueado = bloqueado or bloqueia
 
-        pontos, novos_motivos, bloqueia = (
-            self._avaliar_alegacoes_suspeitas(
-                titulo=titulo_normalizado,
-                marca=marca,
-                tipo_produto=tipo_produto,
-            )
-        )
+        pontos, novos_motivos = self._avaliar_desconto(desconto)
+        nota += pontos
+        motivos.extend(novos_motivos)
+
+        pontos, novos_motivos = self._avaliar_categoria(categoria_normalizada)
+        nota += pontos
+        motivos.extend(novos_motivos)
+
+        pontos, novos_motivos, bloqueia = self._avaliar_link(link)
         nota += pontos
         motivos.extend(novos_motivos)
         bloqueado = bloqueado or bloqueia
 
-        pontos, novos_motivos = (
-            self._avaliar_qualidade_titulo(
-                titulo_normalizado
-            )
-        )
+        pontos, novos_motivos = self._avaliar_imagem(imagem)
         nota += pontos
         motivos.extend(novos_motivos)
 
-        pontos, novos_motivos, bloqueia = (
-            self._avaliar_preco(preco)
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-        bloqueado = bloqueado or bloqueia
-
-        pontos, novos_motivos = (
-            self._avaliar_desconto(desconto)
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-
-        pontos, novos_motivos = (
-            self._avaliar_categoria(
-                categoria_normalizada
-            )
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-
-        pontos, novos_motivos, bloqueia = (
-            self._avaliar_link(link)
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-        bloqueado = bloqueado or bloqueia
-
-        pontos, novos_motivos = (
-            self._avaliar_imagem(imagem)
-        )
-        nota += pontos
-        motivos.extend(novos_motivos)
-
-        aprovado = (
-            not bloqueado
-            and nota >= NOTA_MINIMA_PUBLICACAO
-        )
+        aprovado = not bloqueado and nota >= NOTA_MINIMA_PUBLICACAO
 
         produto["titulo"] = titulo
         produto["categoria"] = categoria
@@ -328,10 +266,7 @@ class FiltroQualidade:
 
         return (
             PENALIDADE_PALAVRA_PROIBIDA,
-            [
-                f"{PENALIDADE_PALAVRA_PROIBIDA} "
-                f"Palavra proibida: {palavra}"
-            ],
+            [f"{PENALIDADE_PALAVRA_PROIBIDA} " f"Palavra proibida: {palavra}"],
             True,
         )
 
@@ -340,37 +275,25 @@ class FiltroQualidade:
         titulo: str,
         tipo_produto: str,
     ) -> tuple[str, int, list[str]]:
-        marca_declarada = self._extrair_marca_declarada(
-            titulo
-        )
+        marca_declarada = self._extrair_marca_declarada(titulo)
 
         if marca_declarada:
             if marca_declarada in MARCAS_PRIORITARIAS:
-                pontos = MARCAS_PRIORITARIAS[
-                    marca_declarada
-                ]
+                pontos = MARCAS_PRIORITARIAS[marca_declarada]
 
                 return (
                     marca_declarada,
                     pontos,
-                    [
-                        f"+{pontos} Marca declarada: "
-                        f"{marca_declarada}"
-                    ],
+                    [f"+{pontos} Marca declarada: " f"{marca_declarada}"],
                 )
 
             return (
                 marca_declarada,
                 0,
-                [
-                    "0 Marca declarada não prioritária: "
-                    f"{marca_declarada}"
-                ],
+                ["0 Marca declarada não prioritária: " f"{marca_declarada}"],
             )
 
-        marcas_encontradas: list[
-            tuple[int, str, int]
-        ] = []
+        marcas_encontradas: list[tuple[int, str, int]] = []
 
         for marca, pontos in MARCAS_PRIORITARIAS.items():
             posicoes = self._encontrar_todas_posicoes_termo(
@@ -387,9 +310,7 @@ class FiltroQualidade:
                 ):
                     continue
 
-                marcas_encontradas.append(
-                    (posicao, marca, pontos)
-                )
+                marcas_encontradas.append((posicao, marca, pontos))
 
         if not marcas_encontradas:
             return (
@@ -410,10 +331,7 @@ class FiltroQualidade:
         return (
             marca,
             pontos,
-            [
-                f"+{pontos} Marca prioritária: "
-                f"{marca}"
-            ],
+            [f"+{pontos} Marca prioritária: " f"{marca}"],
         )
 
     def _marca_eh_compatibilidade(
@@ -428,27 +346,19 @@ class FiltroQualidade:
             posicao - 45,
         )
 
-        contexto_anterior = titulo[
-            inicio_contexto:posicao
-        ].strip()
+        contexto_anterior = titulo[inicio_contexto:posicao].strip()
 
         for prefixo in PREFIXOS_COMPATIBILIDADE_MARCA:
-            prefixo_normalizado = self._normalizar_texto(
-                prefixo
-            )
+            prefixo_normalizado = self._normalizar_texto(prefixo)
 
-            if contexto_anterior.endswith(
-                prefixo_normalizado
-            ):
+            if contexto_anterior.endswith(prefixo_normalizado):
                 return True
 
         if tipo_produto in TIPOS_ACESSORIOS_COMPATIVEIS:
             palavras_antes = contexto_anterior.split()
 
             if palavras_antes:
-                ultimas_palavras = " ".join(
-                    palavras_antes[-5:]
-                )
+                ultimas_palavras = " ".join(palavras_antes[-5:])
 
                 marcadores = (
                     "para",
@@ -465,17 +375,10 @@ class FiltroQualidade:
                     "poco",
                 )
 
-                if any(
-                    marcador in ultimas_palavras
-                    for marcador in marcadores
-                ):
+                if any(marcador in ultimas_palavras for marcador in marcadores):
                     return True
 
-        trecho_principal = (
-            self._obter_trecho_principal_marca(
-                titulo
-            )
-        )
+        trecho_principal = self._obter_trecho_principal_marca(titulo)
 
         if posicao >= len(trecho_principal):
             return True
@@ -486,9 +389,7 @@ class FiltroQualidade:
         self,
         titulo: str,
     ) -> tuple[str, int, list[str]]:
-        encontrados: list[
-            tuple[int, int, str, int]
-        ] = []
+        encontrados: list[tuple[int, int, str, int]] = []
 
         for termo, pontos in PALAVRAS_TECNOLOGIA.items():
             posicao = self._encontrar_posicao_termo(
@@ -527,10 +428,7 @@ class FiltroQualidade:
         return (
             termo,
             pontos,
-            [
-                f"+{pontos} Produto relevante: "
-                f"{termo}"
-            ],
+            [f"+{pontos} Produto relevante: " f"{termo}"],
         )
 
     @staticmethod
@@ -546,10 +444,7 @@ class FiltroQualidade:
 
         return (
             PENALIDADE_ACESSORIO_SEM_MARCA,
-            [
-                f"{PENALIDADE_ACESSORIO_SEM_MARCA} "
-                "Acessório sem fabricante confiável"
-            ],
+            [f"{PENALIDADE_ACESSORIO_SEM_MARCA} " "Acessório sem fabricante confiável"],
         )
 
     def _avaliar_hardware_ultrapassado(
@@ -572,10 +467,7 @@ class FiltroQualidade:
 
         return (
             PENALIDADE_HARDWARE_ULTRAPASSADO,
-            [
-                f"{PENALIDADE_HARDWARE_ULTRAPASSADO} "
-                f"Hardware ultrapassado: {termo}"
-            ],
+            [f"{PENALIDADE_HARDWARE_ULTRAPASSADO} " f"Hardware ultrapassado: {termo}"],
             True,
         )
 
@@ -585,16 +477,12 @@ class FiltroQualidade:
         marca: str,
         tipo_produto: str,
     ) -> tuple[int, list[str], bool]:
-        marca_confiavel = (
-            marca in MARCAS_PRIORITARIAS
-        )
+        marca_confiavel = marca in MARCAS_PRIORITARIAS
 
         if marca_confiavel:
             return 0, [], False
 
-        capacidade = self._extrair_capacidade_mah(
-            titulo
-        )
+        capacidade = self._extrair_capacidade_mah(titulo)
 
         if (
             tipo_produto
@@ -616,15 +504,9 @@ class FiltroQualidade:
                 True,
             )
 
-        potencia = self._extrair_potencia_watts(
-            titulo
-        )
+        potencia = self._extrair_potencia_watts(titulo)
 
-        if (
-            tipo_produto == "carregador"
-            and potencia is not None
-            and potencia >= 100
-        ):
+        if tipo_produto == "carregador" and potencia is not None and potencia >= 100:
             return (
                 PENALIDADE_ALEGACAO_SUSPEITA,
                 [
@@ -641,17 +523,12 @@ class FiltroQualidade:
         self,
         titulo: str,
     ) -> tuple[int, list[str]]:
-        quantidade_palavras = len(
-            titulo.split()
-        )
+        quantidade_palavras = len(titulo.split())
 
         pontos = 0
         motivos: list[str] = []
 
-        if (
-            quantidade_palavras
-            >= LIMITE_PALAVRAS_TITULO_MUITO_LONGO
-        ):
+        if quantidade_palavras >= LIMITE_PALAVRAS_TITULO_MUITO_LONGO:
             pontos += PENALIDADE_TITULO_MUITO_LONGO
 
             motivos.append(
@@ -660,10 +537,7 @@ class FiltroQualidade:
                 f"{quantidade_palavras} palavras"
             )
 
-        elif (
-            quantidade_palavras
-            >= LIMITE_PALAVRAS_TITULO_LONGO
-        ):
+        elif quantidade_palavras >= LIMITE_PALAVRAS_TITULO_LONGO:
             pontos += PENALIDADE_TITULO_LONGO
 
             motivos.append(
@@ -686,10 +560,7 @@ class FiltroQualidade:
 
             motivos.append(
                 f"{PENALIDADE_ANUNCIO_GENERICO} "
-                "Anúncio com excesso de termos genéricos: "
-                + ", ".join(
-                    palavras_genericas[:4]
-                )
+                "Anúncio com excesso de termos genéricos: " + ", ".join(palavras_genericas[:4])
             )
 
         return pontos, motivos
@@ -701,43 +572,27 @@ class FiltroQualidade:
         if preco is None or preco <= 0:
             return (
                 PENALIDADE_SEM_PRECO,
-                [
-                    f"{PENALIDADE_SEM_PRECO} "
-                    "Produto sem preço válido"
-                ],
+                [f"{PENALIDADE_SEM_PRECO} " "Produto sem preço válido"],
                 True,
             )
 
         if preco < PRECO_MINIMO or preco > PRECO_MAXIMO:
             return (
                 PENALIDADE_PRECO_FORA_DA_FAIXA,
-                [
-                    f"{PENALIDADE_PRECO_FORA_DA_FAIXA} "
-                    f"Preço fora da faixa: R$ {preco:.2f}"
-                ],
+                [f"{PENALIDADE_PRECO_FORA_DA_FAIXA} " f"Preço fora da faixa: R$ {preco:.2f}"],
                 True,
             )
 
-        if (
-            FAIXA_PRECO_IDEAL_MINIMA
-            <= preco
-            <= FAIXA_PRECO_IDEAL_MAXIMA
-        ):
+        if FAIXA_PRECO_IDEAL_MINIMA <= preco <= FAIXA_PRECO_IDEAL_MAXIMA:
             return (
                 PONTOS_PRECO_IDEAL,
-                [
-                    f"+{PONTOS_PRECO_IDEAL} "
-                    "Preço na faixa ideal"
-                ],
+                [f"+{PONTOS_PRECO_IDEAL} " "Preço na faixa ideal"],
                 False,
             )
 
         return (
             PONTOS_PRECO_ACEITAVEL,
-            [
-                f"+{PONTOS_PRECO_ACEITAVEL} "
-                "Preço aceitável"
-            ],
+            [f"+{PONTOS_PRECO_ACEITAVEL} " "Preço aceitável"],
             False,
         )
 
@@ -759,38 +614,25 @@ class FiltroQualidade:
         else:
             return (
                 0,
-                [
-                    f"0 Desconto baixo: "
-                    f"{desconto:.0f}%"
-                ],
+                [f"0 Desconto baixo: " f"{desconto:.0f}%"],
             )
 
         return (
             pontos,
-            [
-                f"+{pontos} Desconto de "
-                f"{desconto:.0f}%"
-            ],
+            [f"+{pontos} Desconto de " f"{desconto:.0f}%"],
         )
 
     def _avaliar_categoria(
         self,
         categoria: str,
     ) -> tuple[int, list[str]]:
-        for nome, pontos in (
-            CATEGORIAS_PRIORITARIAS.items()
-        ):
-            nome_normalizado = self._normalizar_texto(
-                nome
-            )
+        for nome, pontos in CATEGORIAS_PRIORITARIAS.items():
+            nome_normalizado = self._normalizar_texto(nome)
 
             if nome_normalizado in categoria:
                 return (
                     pontos,
-                    [
-                        f"+{pontos} Categoria prioritária: "
-                        f"{nome}"
-                    ],
+                    [f"+{pontos} Categoria prioritária: " f"{nome}"],
                 )
 
         return 0, ["0 Categoria não reconhecida"]
@@ -802,22 +644,14 @@ class FiltroQualidade:
         if not link:
             return (
                 PENALIDADE_SEM_LINK,
-                [
-                    f"{PENALIDADE_SEM_LINK} "
-                    "Produto sem link"
-                ],
+                [f"{PENALIDADE_SEM_LINK} " "Produto sem link"],
                 True,
             )
 
-        if not link.startswith(
-            ("http://", "https://")
-        ):
+        if not link.startswith(("http://", "https://")):
             return (
                 PENALIDADE_SEM_LINK,
-                [
-                    f"{PENALIDADE_SEM_LINK} "
-                    "Link inválido"
-                ],
+                [f"{PENALIDADE_SEM_LINK} " "Link inválido"],
                 True,
             )
 
@@ -832,10 +666,7 @@ class FiltroQualidade:
 
         return (
             PENALIDADE_SEM_IMAGEM,
-            [
-                f"{PENALIDADE_SEM_IMAGEM} "
-                "Produto sem imagem"
-            ],
+            [f"{PENALIDADE_SEM_IMAGEM} " "Produto sem imagem"],
         )
 
     def _obter_trecho_principal_marca(
@@ -845,13 +676,9 @@ class FiltroQualidade:
         limite = len(titulo)
 
         for marcador in MARCADORES_COMPATIBILIDADE:
-            marcador_normalizado = self._normalizar_texto(
-                marcador
-            )
+            marcador_normalizado = self._normalizar_texto(marcador)
 
-            posicao = titulo.find(
-                marcador_normalizado
-            )
+            posicao = titulo.find(marcador_normalizado)
 
             if posicao >= 0:
                 limite = min(
@@ -878,9 +705,7 @@ class FiltroQualidade:
             )
 
             if correspondencia:
-                return self._normalizar_texto(
-                    correspondencia.group(1)
-                )
+                return self._normalizar_texto(correspondencia.group(1))
 
         return ""
 
@@ -888,26 +713,11 @@ class FiltroQualidade:
         self,
         produto: dict[str, Any],
     ) -> str:
-        titulo = self._normalizar_texto(
-            str(
-                produto.get("titulo")
-                or ""
-            )
-        )
+        titulo = self._normalizar_texto(str(produto.get("titulo") or ""))
 
-        marca = self._normalizar_texto(
-            str(
-                produto.get("marca_detectada")
-                or ""
-            )
-        )
+        marca = self._normalizar_texto(str(produto.get("marca_detectada") or ""))
 
-        tipo = self._normalizar_texto(
-            str(
-                produto.get("tipo_detectado")
-                or ""
-            )
-        )
+        tipo = self._normalizar_texto(str(produto.get("tipo_detectado") or ""))
 
         palavras_ignoradas = {
             "preto",
@@ -934,18 +744,11 @@ class FiltroQualidade:
             titulo,
         )
 
-        tokens_filtrados = [
-            token
-            for token in tokens
-            if token not in palavras_ignoradas
-        ]
+        tokens_filtrados = [token for token in tokens if token not in palavras_ignoradas]
 
         tokens_modelo = tokens_filtrados[:10]
 
-        return (
-            f"{marca}|{tipo}|"
-            + " ".join(tokens_modelo)
-        )
+        return f"{marca}|{tipo}|" + " ".join(tokens_modelo)
 
     @staticmethod
     def _extrair_capacidade_mah(
@@ -961,9 +764,7 @@ class FiltroQualidade:
             return None
 
         try:
-            return int(
-                correspondencia.group(1)
-            )
+            return int(correspondencia.group(1))
         except ValueError:
             return None
 
@@ -981,9 +782,7 @@ class FiltroQualidade:
             return None
 
         try:
-            return int(
-                correspondencia.group(1)
-            )
+            return int(correspondencia.group(1))
         except ValueError:
             return None
 
@@ -1012,9 +811,7 @@ class FiltroQualidade:
         for chave in chaves:
             valor = produto.get(chave)
 
-            numero = cls._converter_para_float(
-                valor
-            )
+            numero = cls._converter_para_float(valor)
 
             if numero is not None:
                 return numero
@@ -1090,12 +887,9 @@ class FiltroQualidade:
         texto: str,
         termo: str,
     ) -> int | None:
-        posicoes = (
-            FiltroQualidade
-            ._encontrar_todas_posicoes_termo(
-                texto,
-                termo,
-            )
+        posicoes = FiltroQualidade._encontrar_todas_posicoes_termo(
+            texto,
+            termo,
         )
 
         if not posicoes:
@@ -1108,21 +902,11 @@ class FiltroQualidade:
         texto: str,
         termo: str,
     ) -> list[int]:
-        termo_normalizado = (
-            FiltroQualidade._normalizar_texto(
-                termo
-            )
-        )
+        termo_normalizado = FiltroQualidade._normalizar_texto(termo)
 
-        termo_escapado = re.escape(
-            termo_normalizado
-        )
+        termo_escapado = re.escape(termo_normalizado)
 
-        padrao = (
-            rf"(?<![a-z0-9])"
-            rf"{termo_escapado}"
-            rf"(?![a-z0-9])"
-        )
+        padrao = rf"(?<![a-z0-9])" rf"{termo_escapado}" rf"(?![a-z0-9])"
 
         return [
             correspondencia.start()

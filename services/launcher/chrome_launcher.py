@@ -15,7 +15,6 @@ from typing import Final
 from urllib.error import URLError
 from urllib.request import urlopen
 
-
 HOST_CDP: Final = "127.0.0.1"
 PORTA_CDP: Final = 9222
 TEMPO_LIMITE_CHROME: Final = 20.0
@@ -109,9 +108,7 @@ def localizar_chrome() -> Path | None:
 
 def validar_estrutura_projeto() -> None:
     if not ARQUIVO_MAIN.is_file():
-        raise FileNotFoundError(
-            f"O arquivo main.py não foi encontrado em: {ARQUIVO_MAIN}"
-        )
+        raise FileNotFoundError(f"O arquivo main.py não foi encontrado em: {ARQUIVO_MAIN}")
 
     DIRETORIO_PERFIL_CDP.mkdir(parents=True, exist_ok=True)
 
@@ -140,8 +137,7 @@ def aguardar_cdp(processo_chrome: subprocess.Popen[bytes]) -> None:
     while time.monotonic() - inicio < TEMPO_LIMITE_CHROME:
         if processo_chrome.poll() is not None:
             raise RuntimeError(
-                "O Chrome foi encerrado antes de disponibilizar "
-                "a porta de depuração remota."
+                "O Chrome foi encerrado antes de disponibilizar " "a porta de depuração remota."
             )
 
         if cdp_esta_disponivel():
@@ -157,31 +153,23 @@ def aguardar_cdp(processo_chrome: subprocess.Popen[bytes]) -> None:
 
 def preparar_chrome() -> EstadoChrome:
     if cdp_esta_disponivel():
-        print(
-            "[OK] Chrome com CDP já está disponível "
-            f"na porta {PORTA_CDP}."
-        )
+        print("[OK] Chrome com CDP já está disponível " f"na porta {PORTA_CDP}.")
         return EstadoChrome()
 
     if porta_esta_aberta():
         raise RuntimeError(
-            f"A porta {PORTA_CDP} está ocupada, mas não responde "
-            "como um endpoint CDP do Chrome."
+            f"A porta {PORTA_CDP} está ocupada, mas não responde " "como um endpoint CDP do Chrome."
         )
 
     executavel_chrome = localizar_chrome()
 
     if executavel_chrome is None:
         raise FileNotFoundError(
-            "O Google Chrome não foi encontrado nos caminhos padrão "
-            "do Windows."
+            "O Google Chrome não foi encontrado nos caminhos padrão " "do Windows."
         )
 
     print(f"[OK] Chrome localizado: {executavel_chrome}")
-    print(
-        "[...] Iniciando Chrome com depuração remota "
-        f"na porta {PORTA_CDP}..."
-    )
+    print("[...] Iniciando Chrome com depuração remota " f"na porta {PORTA_CDP}...")
 
     processo = iniciar_chrome(executavel_chrome)
     estado = EstadoChrome(
@@ -249,10 +237,7 @@ def main() -> int:
         if codigo_saida == 0:
             print("[OK] Projeto finalizado com sucesso.")
         else:
-            print(
-                "[ERRO] O projeto terminou com o código "
-                f"{codigo_saida}."
-            )
+            print("[ERRO] O projeto terminou com o código " f"{codigo_saida}.")
 
         return codigo_saida
 

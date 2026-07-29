@@ -6,15 +6,14 @@ from urllib.parse import quote_plus
 from playwright.sync_api import (
     Browser,
     BrowserContext,
-    Error as PlaywrightError,
     Page,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from models.oferta import Oferta
 from scrapers.base_scraper import BaseScraper
-
 
 logger = logging.getLogger(__name__)
 
@@ -63,28 +62,14 @@ class MercadoLivreScraper(BaseScraper):
         termos_busca: list[str] | None = None,
         endpoint_cdp: str | None = None,
     ) -> None:
-        termos_recebidos = (
-            termos_busca
-            if termos_busca is not None
-            else self.TERMOS_PADRAO
-        )
+        termos_recebidos = termos_busca if termos_busca is not None else self.TERMOS_PADRAO
 
-        self.termos_busca = [
-            termo.strip()
-            for termo in termos_recebidos
-            if termo and termo.strip()
-        ]
+        self.termos_busca = [termo.strip() for termo in termos_recebidos if termo and termo.strip()]
 
         if not self.termos_busca:
-            raise ValueError(
-                "A lista de termos do Mercado Livre não pode estar vazia."
-            )
+            raise ValueError("A lista de termos do Mercado Livre não pode estar vazia.")
 
-        self.endpoint_cdp = (
-            endpoint_cdp.strip()
-            if endpoint_cdp
-            else self.ENDPOINT_CDP
-        )
+        self.endpoint_cdp = endpoint_cdp.strip() if endpoint_cdp else self.ENDPOINT_CDP
 
     def buscar_ofertas(
         self,
@@ -112,15 +97,11 @@ class MercadoLivreScraper(BaseScraper):
                     timeout=30000,
                 )
 
-                contexto = self._obter_contexto(
-                    navegador
-                )
+                contexto = self._obter_contexto(navegador)
 
                 pagina = contexto.new_page()
 
-                pagina.set_default_timeout(
-                    15000
-                )
+                pagina.set_default_timeout(15000)
 
                 try:
                     for indice, termo in enumerate(
@@ -128,8 +109,7 @@ class MercadoLivreScraper(BaseScraper):
                         start=1,
                     ):
                         logger.info(
-                            "Pesquisando no Mercado Livre "
-                            "(%s/%s): %s",
+                            "Pesquisando no Mercado Livre " "(%s/%s): %s",
                             indice,
                             len(self.termos_busca),
                             termo,
@@ -144,26 +124,19 @@ class MercadoLivreScraper(BaseScraper):
                         adicionadas = 0
 
                         for oferta in ofertas_termo:
-                            chave = self._criar_chave_oferta(
-                                oferta
-                            )
+                            chave = self._criar_chave_oferta(oferta)
 
                             if chave in chaves_processadas:
                                 continue
 
-                            chaves_processadas.add(
-                                chave
-                            )
+                            chaves_processadas.add(chave)
 
-                            ofertas.append(
-                                oferta
-                            )
+                            ofertas.append(oferta)
 
                             adicionadas += 1
 
                         logger.info(
-                            "Termo '%s': %s oferta(s) "
-                            "válida(s), %s nova(s).",
+                            "Termo '%s': %s oferta(s) " "válida(s), %s nova(s).",
                             termo,
                             len(ofertas_termo),
                             adicionadas,
@@ -202,8 +175,7 @@ class MercadoLivreScraper(BaseScraper):
             return navegador.contexts[0]
 
         logger.warning(
-            "Nenhum contexto existente foi encontrado no Chrome. "
-            "Criando um novo contexto."
+            "Nenhum contexto existente foi encontrado no Chrome. " "Criando um novo contexto."
         )
 
         return navegador.new_context(
@@ -216,16 +188,12 @@ class MercadoLivreScraper(BaseScraper):
         termo: str,
         limite: int,
     ) -> list[Oferta]:
-        termo_url = quote_plus(
-            termo
-        ).replace(
+        termo_url = quote_plus(termo).replace(
             "+",
             "-",
         )
 
-        url = self.URL_BUSCA.format(
-            termo=termo_url
-        )
+        url = self.URL_BUSCA.format(termo=termo_url)
 
         try:
             pagina.goto(
@@ -241,8 +209,7 @@ class MercadoLivreScraper(BaseScraper):
 
         except PlaywrightTimeoutError:
             logger.warning(
-                "Tempo esgotado durante a navegação "
-                "da busca '%s'. Continuando a tentativa.",
+                "Tempo esgotado durante a navegação " "da busca '%s'. Continuando a tentativa.",
                 termo,
             )
 
@@ -255,12 +222,9 @@ class MercadoLivreScraper(BaseScraper):
 
             return []
 
-        if self._pagina_possui_bloqueio(
-            pagina
-        ):
+        if self._pagina_possui_bloqueio(pagina):
             logger.warning(
-                "O Mercado Livre exibiu uma verificação "
-                "ou bloqueio para o termo '%s'.",
+                "O Mercado Livre exibiu uma verificação " "ou bloqueio para o termo '%s'.",
                 termo,
             )
 
@@ -272,9 +236,7 @@ class MercadoLivreScraper(BaseScraper):
         )
 
         if not carregou_produtos:
-            if self._pagina_possui_bloqueio(
-                pagina
-            ):
+            if self._pagina_possui_bloqueio(pagina):
                 logger.warning(
                     "O Mercado Livre exibiu uma verificação "
                     "ou bloqueio após carregar o termo '%s'.",
@@ -283,16 +245,13 @@ class MercadoLivreScraper(BaseScraper):
 
             return []
 
-        cartoes = self._obter_cartoes(
-            pagina
-        )
+        cartoes = self._obter_cartoes(pagina)
 
         quantidade_cartoes = cartoes.count()
 
         if quantidade_cartoes == 0:
             logger.warning(
-                "Nenhum cartão de produto encontrado "
-                "para o termo '%s'.",
+                "Nenhum cartão de produto encontrado " "para o termo '%s'.",
                 termo,
             )
 
@@ -311,27 +270,18 @@ class MercadoLivreScraper(BaseScraper):
 
         ofertas: list[Oferta] = []
 
-        for indice in range(
-            quantidade_analisar
-        ):
-            cartao = cartoes.nth(
-                indice
-            )
+        for indice in range(quantidade_analisar):
+            cartao = cartoes.nth(indice)
 
             try:
-                oferta = self._extrair_oferta(
-                    cartao
-                )
+                oferta = self._extrair_oferta(cartao)
 
                 if oferta is not None:
-                    ofertas.append(
-                        oferta
-                    )
+                    ofertas.append(oferta)
 
             except Exception:
                 logger.exception(
-                    "Erro ao processar o produto %s "
-                    "da busca '%s'.",
+                    "Erro ao processar o produto %s " "da busca '%s'.",
                     indice + 1,
                     termo,
                 )
@@ -352,16 +302,13 @@ class MercadoLivreScraper(BaseScraper):
                 timeout=15000,
             )
 
-            pagina.wait_for_timeout(
-                1000
-            )
+            pagina.wait_for_timeout(1000)
 
             return True
 
         except PlaywrightTimeoutError:
             logger.warning(
-                "Os cartões principais da busca '%s' "
-                "não apareceram em 15 segundos.",
+                "Os cartões principais da busca '%s' " "não apareceram em 15 segundos.",
                 termo,
             )
 
@@ -373,13 +320,10 @@ class MercadoLivreScraper(BaseScraper):
                     timeout=5000,
                 )
 
-                pagina.wait_for_timeout(
-                    1000
-                )
+                pagina.wait_for_timeout(1000)
 
                 logger.info(
-                    "A busca '%s' carregou usando o "
-                    "seletor alternativo '%s'.",
+                    "A busca '%s' carregou usando o " "seletor alternativo '%s'.",
                     termo,
                     seletor_alternativo,
                 )
@@ -391,8 +335,7 @@ class MercadoLivreScraper(BaseScraper):
 
             except PlaywrightError as erro:
                 logger.debug(
-                    "Erro ao testar o seletor '%s' "
-                    "na busca '%s': %s",
+                    "Erro ao testar o seletor '%s' " "na busca '%s': %s",
                     seletor_alternativo,
                     termo,
                     erro,
@@ -404,32 +347,25 @@ class MercadoLivreScraper(BaseScraper):
                 800,
             )
 
-            pagina.wait_for_timeout(
-                3000
-            )
+            pagina.wait_for_timeout(3000)
 
             pagina.mouse.wheel(
                 0,
                 -800,
             )
 
-            pagina.wait_for_timeout(
-                1000
-            )
+            pagina.wait_for_timeout(1000)
 
         except PlaywrightError:
             pass
 
         for seletor in self.SELETORES_CARTAO:
             try:
-                quantidade = pagina.locator(
-                    seletor
-                ).count()
+                quantidade = pagina.locator(seletor).count()
 
                 if quantidade > 0:
                     logger.info(
-                        "A busca '%s' carregou após a "
-                        "tentativa adicional. Seletor: %s.",
+                        "A busca '%s' carregou após a " "tentativa adicional. Seletor: %s.",
                         termo,
                         seletor,
                     )
@@ -440,8 +376,7 @@ class MercadoLivreScraper(BaseScraper):
                 continue
 
         logger.warning(
-            "Nenhum cartão de produto foi renderizado "
-            "para o termo '%s'.",
+            "Nenhum cartão de produto foi renderizado " "para o termo '%s'.",
             termo,
         )
 
@@ -452,9 +387,7 @@ class MercadoLivreScraper(BaseScraper):
         pagina: Page,
     ):
         for seletor in self.SELETORES_CARTAO:
-            cartoes = pagina.locator(
-                seletor
-            )
+            cartoes = pagina.locator(seletor)
 
             try:
                 quantidade = cartoes.count()
@@ -470,9 +403,7 @@ class MercadoLivreScraper(BaseScraper):
 
                 return cartoes
 
-        return pagina.locator(
-            self.SELETORES_CARTAO[0]
-        )
+        return pagina.locator(self.SELETORES_CARTAO[0])
 
     def _extrair_oferta(
         self,
@@ -524,32 +455,18 @@ class MercadoLivreScraper(BaseScraper):
             )
 
         if not imagem:
-            imagem = self._primeira_imagem_srcset(
-                cartao
-            )
+            imagem = self._primeira_imagem_srcset(cartao)
 
-        preco = self._extrair_preco_atual(
-            cartao
-        )
+        preco = self._extrair_preco_atual(cartao)
 
-        preco_antigo = self._extrair_preco_antigo(
-            cartao
-        )
+        preco_antigo = self._extrair_preco_antigo(cartao)
 
-        if (
-            not nome
-            or preco is None
-            or not link
-        ):
+        if not nome or preco is None or not link:
             return None
 
-        link = self._limpar_link(
-            link
-        )
+        link = self._limpar_link(link)
 
-        imagem = self._normalizar_imagem(
-            imagem
-        )
+        imagem = self._normalizar_imagem(imagem)
 
         return Oferta(
             nome=nome,
@@ -579,11 +496,7 @@ class MercadoLivreScraper(BaseScraper):
         if not srcset:
             return None
 
-        candidatos = [
-            item.strip()
-            for item in srcset.split(",")
-            if item.strip()
-        ]
+        candidatos = [item.strip() for item in srcset.split(",") if item.strip()]
 
         if not candidatos:
             return None
@@ -597,40 +510,21 @@ class MercadoLivreScraper(BaseScraper):
         cartao,
     ) -> float | None:
         seletores = [
-            (
-                ".poly-price__current "
-                ".andes-money-amount"
-            ),
-            (
-                ".ui-search-price__second-line "
-                ".andes-money-amount"
-            ),
-            (
-                ".poly-component__price "
-                ".andes-money-amount"
-            ),
-            (
-                ".andes-money-amount"
-            ),
+            (".poly-price__current " ".andes-money-amount"),
+            (".ui-search-price__second-line " ".andes-money-amount"),
+            (".poly-component__price " ".andes-money-amount"),
+            (".andes-money-amount"),
         ]
 
         for seletor in seletores:
-            elementos = cartao.locator(
-                seletor
-            )
+            elementos = cartao.locator(seletor)
 
             quantidade = elementos.count()
 
-            for indice in range(
-                quantidade
-            ):
-                elemento = elementos.nth(
-                    indice
-                )
+            for indice in range(quantidade):
+                elemento = elementos.nth(indice)
 
-                valor = self._extrair_valor_money_amount(
-                    elemento
-                )
+                valor = self._extrair_valor_money_amount(elemento)
 
                 if valor is not None:
                     return valor
@@ -642,44 +536,21 @@ class MercadoLivreScraper(BaseScraper):
         cartao,
     ) -> float | None:
         seletores = [
-            (
-                ".andes-money-amount--previous"
-            ),
-            (
-                ".andes-money-amount--previous "
-                ".andes-money-amount"
-            ),
-            (
-                ".ui-search-price__original-value"
-            ),
-            (
-                ".ui-search-price__original-value "
-                ".andes-money-amount"
-            ),
-            (
-                "s.andes-money-amount"
-            ),
-            (
-                ".poly-price__previous "
-                ".andes-money-amount"
-            ),
+            (".andes-money-amount--previous"),
+            (".andes-money-amount--previous " ".andes-money-amount"),
+            (".ui-search-price__original-value"),
+            (".ui-search-price__original-value " ".andes-money-amount"),
+            ("s.andes-money-amount"),
+            (".poly-price__previous " ".andes-money-amount"),
         ]
 
         for seletor in seletores:
-            elementos = cartao.locator(
-                seletor
-            )
+            elementos = cartao.locator(seletor)
 
             quantidade = elementos.count()
 
-            for indice in range(
-                quantidade
-            ):
-                valor = self._extrair_valor_money_amount(
-                    elementos.nth(
-                        indice
-                    )
-                )
+            for indice in range(quantidade):
+                valor = self._extrair_valor_money_amount(elementos.nth(indice))
 
                 if valor is not None:
                     return valor
@@ -690,29 +561,17 @@ class MercadoLivreScraper(BaseScraper):
         self,
         elemento,
     ) -> float | None:
-        texto_accessivel = elemento.get_attribute(
-            "aria-label"
-        )
+        texto_accessivel = elemento.get_attribute("aria-label")
 
         if texto_accessivel:
-            valor = self._converter_preco(
-                texto_accessivel
-            )
+            valor = self._converter_preco(texto_accessivel)
 
             if valor is not None:
                 return valor
 
-        fracao = self._texto_opcional(
-            elemento.locator(
-                ".andes-money-amount__fraction"
-            ).first
-        )
+        fracao = self._texto_opcional(elemento.locator(".andes-money-amount__fraction").first)
 
-        centavos = self._texto_opcional(
-            elemento.locator(
-                ".andes-money-amount__cents"
-            ).first
-        )
+        centavos = self._texto_opcional(elemento.locator(".andes-money-amount__cents").first)
 
         if fracao:
             texto = fracao
@@ -720,18 +579,12 @@ class MercadoLivreScraper(BaseScraper):
             if centavos:
                 texto += f",{centavos}"
 
-            valor = self._converter_preco(
-                texto
-            )
+            valor = self._converter_preco(texto)
 
             if valor is not None:
                 return valor
 
-        return self._converter_preco(
-            self._texto_opcional(
-                elemento
-            )
-        )
+        return self._converter_preco(self._texto_opcional(elemento))
 
     def _primeiro_texto(
         self,
@@ -739,21 +592,15 @@ class MercadoLivreScraper(BaseScraper):
         seletores: list[str],
     ) -> str | None:
         for seletor in seletores:
-            elementos = raiz.locator(
-                seletor
-            )
+            elementos = raiz.locator(seletor)
 
             if elementos.count() == 0:
                 continue
 
-            texto = self._texto_opcional(
-                elementos.first
-            )
+            texto = self._texto_opcional(elementos.first)
 
             if texto:
-                return " ".join(
-                    texto.split()
-                )
+                return " ".join(texto.split())
 
         return None
 
@@ -764,16 +611,12 @@ class MercadoLivreScraper(BaseScraper):
         atributo: str,
     ) -> str | None:
         for seletor in seletores:
-            elementos = raiz.locator(
-                seletor
-            )
+            elementos = raiz.locator(seletor)
 
             if elementos.count() == 0:
                 continue
 
-            valor = elementos.first.get_attribute(
-                atributo
-            )
+            valor = elementos.first.get_attribute(atributo)
 
             if valor:
                 return valor.strip()
@@ -788,9 +631,7 @@ class MercadoLivreScraper(BaseScraper):
             if elemento.count() == 0:
                 return None
 
-            texto = elemento.inner_text(
-                timeout=3000
-            ).strip()
+            texto = elemento.inner_text(timeout=3000).strip()
 
             return texto or None
 
@@ -844,13 +685,9 @@ class MercadoLivreScraper(BaseScraper):
         if not correspondencia:
             return None
 
-        parte_inteira = correspondencia.group(
-            1
-        )
+        parte_inteira = correspondencia.group(1)
 
-        parte_decimal = correspondencia.group(
-            2
-        )
+        parte_decimal = correspondencia.group(2)
 
         parte_inteira = re.sub(
             r"[^\d]",
@@ -861,9 +698,7 @@ class MercadoLivreScraper(BaseScraper):
         if not parte_inteira:
             return None
 
-        valor = float(
-            parte_inteira
-        )
+        valor = float(parte_inteira)
 
         if parte_decimal:
             valor += (
@@ -882,9 +717,7 @@ class MercadoLivreScraper(BaseScraper):
     def _limpar_link(
         link: str,
     ) -> str:
-        return link.split(
-            "#"
-        )[0].strip()
+        return link.split("#")[0].strip()
 
     @staticmethod
     def _normalizar_imagem(
@@ -902,13 +735,7 @@ class MercadoLivreScraper(BaseScraper):
     def _criar_chave_oferta(
         oferta: Oferta,
     ) -> str:
-        link = str(
-            oferta.link
-        ).split(
-            "?"
-        )[0].rstrip(
-            "/"
-        ).lower()
+        link = str(oferta.link).split("?")[0].rstrip("/").lower()
 
         if link:
             return link
@@ -919,11 +746,7 @@ class MercadoLivreScraper(BaseScraper):
             oferta.nome.lower(),
         ).strip()
 
-        return (
-            f"{oferta.loja.lower()}|"
-            f"{nome}|"
-            f"{oferta.preco:.2f}"
-        )
+        return f"{oferta.loja.lower()}|" f"{nome}|" f"{oferta.preco:.2f}"
 
     @staticmethod
     def _pagina_possui_bloqueio(
@@ -932,11 +755,7 @@ class MercadoLivreScraper(BaseScraper):
         try:
             titulo = pagina.title().lower()
 
-            conteudo = pagina.locator(
-                "body"
-            ).inner_text(
-                timeout=5000
-            ).lower()
+            conteudo = pagina.locator("body").inner_text(timeout=5000).lower()
 
         except PlaywrightError:
             return False
@@ -950,13 +769,6 @@ class MercadoLivreScraper(BaseScraper):
             "access denied",
         ]
 
-        texto_completo = (
-            titulo
-            + "\n"
-            + conteudo[:5000]
-        )
+        texto_completo = titulo + "\n" + conteudo[:5000]
 
-        return any(
-            indicador in texto_completo
-            for indicador in indicadores
-        )
+        return any(indicador in texto_completo for indicador in indicadores)

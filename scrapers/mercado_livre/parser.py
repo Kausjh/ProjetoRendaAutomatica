@@ -4,7 +4,6 @@ import re
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-
 PADRAO_DINHEIRO = re.compile(
     r"R\$\s*([\d.]+(?:,\d{1,2})?)",
     flags=re.IGNORECASE,
@@ -90,12 +89,8 @@ def extrair_precos_monetarios(
 
     precos: list[float] = []
 
-    for correspondencia in PADRAO_DINHEIRO.finditer(
-        texto_limpo
-    ):
-        numero = converter_numero_brasileiro(
-            correspondencia.group(1)
-        )
+    for correspondencia in PADRAO_DINHEIRO.finditer(texto_limpo):
+        numero = converter_numero_brasileiro(correspondencia.group(1))
 
         if numero is None:
             continue
@@ -112,9 +107,7 @@ def extrair_preco(
     if isinstance(texto, (int, float)):
         return converter_numero_brasileiro(texto)
 
-    precos = extrair_precos_monetarios(
-        str(texto or "")
-    )
+    precos = extrair_precos_monetarios(str(texto or ""))
 
     if precos:
         return precos[0]
@@ -133,16 +126,12 @@ def extrair_desconto(
     else:
         texto_limpo = limpar_espacos(str(texto))
 
-        correspondencia = PADRAO_DESCONTO.search(
-            texto_limpo
-        )
+        correspondencia = PADRAO_DESCONTO.search(texto_limpo)
 
         if not correspondencia:
             return None
 
-        desconto = float(
-            correspondencia.group(1)
-        )
+        desconto = float(correspondencia.group(1))
 
     if desconto <= 0 or desconto >= 100:
         return None
@@ -166,10 +155,7 @@ def calcular_desconto(
     if preco_anterior <= preco_atual:
         return None
 
-    desconto = (
-        (preco_anterior - preco_atual)
-        / preco_anterior
-    ) * 100
+    desconto = ((preco_anterior - preco_atual) / preco_anterior) * 100
 
     if desconto <= 0 or desconto >= 100:
         return None
@@ -184,15 +170,9 @@ def inferir_preco_anterior(
     if preco_atual is None:
         return None
 
-    precos = extrair_precos_monetarios(
-        texto_card
-    )
+    precos = extrair_precos_monetarios(texto_card)
 
-    candidatos = [
-        preco
-        for preco in precos
-        if preco > preco_atual
-    ]
+    candidatos = [preco for preco in precos if preco > preco_atual]
 
     if not candidatos:
         return None
@@ -222,13 +202,7 @@ def extrair_id_produto(
         )
 
         if correspondencia:
-            return (
-                correspondencia
-                .group(1)
-                .replace("-", "")
-                .replace("_", "")
-                .upper()
-            )
+            return correspondencia.group(1).replace("-", "").replace("_", "").upper()
 
     return ""
 
@@ -244,9 +218,7 @@ def normalizar_link(
     if link_limpo.startswith("//"):
         link_limpo = f"https:{link_limpo}"
 
-    if not link_limpo.startswith(
-        ("http://", "https://")
-    ):
+    if not link_limpo.startswith(("http://", "https://")):
         return link_limpo
 
     partes = urlsplit(link_limpo)
@@ -266,49 +238,27 @@ def criar_chave_unica(
     produto: dict[str, Any],
 ) -> str:
     produto_id = limpar_espacos(
-        str(
-            produto.get("id_produto")
-            or produto.get("produto_id")
-            or produto.get("id")
-            or ""
-        )
+        str(produto.get("id_produto") or produto.get("produto_id") or produto.get("id") or "")
     )
 
     if produto_id:
         return f"id:{produto_id.lower()}"
 
-    link = normalizar_link(
-        str(
-            produto.get("link")
-            or produto.get("url")
-            or ""
-        )
-    )
+    link = normalizar_link(str(produto.get("link") or produto.get("url") or ""))
 
     if link:
         link_sem_parametros = link.split("?")[0]
 
-        return (
-            "link:"
-            f"{link_sem_parametros.lower()}"
-        )
+        return "link:" f"{link_sem_parametros.lower()}"
 
     titulo = limpar_espacos(
-        str(
-            produto.get("titulo")
-            or produto.get("nome")
-            or produto.get("title")
-            or ""
-        )
+        str(produto.get("titulo") or produto.get("nome") or produto.get("title") or "")
     ).lower()
 
     preco = produto.get("preco")
 
     if titulo:
-        return (
-            f"titulo:{titulo}|"
-            f"preco:{preco}"
-        )
+        return f"titulo:{titulo}|" f"preco:{preco}"
 
     return ""
 
@@ -328,13 +278,9 @@ def montar_produto(
     imagem_limpa = limpar_espacos(imagem)
     categoria_limpa = limpar_espacos(categoria)
 
-    preco_atual = extrair_preco(
-        preco_texto
-    )
+    preco_atual = extrair_preco(preco_texto)
 
-    preco_anterior = extrair_preco(
-        preco_anterior_texto
-    )
+    preco_anterior = extrair_preco(preco_anterior_texto)
 
     if preco_anterior is None:
         preco_anterior = inferir_preco_anterior(
@@ -342,21 +288,13 @@ def montar_produto(
             preco_atual=preco_atual,
         )
 
-    if (
-        preco_atual is not None
-        and preco_anterior is not None
-        and preco_anterior <= preco_atual
-    ):
+    if preco_atual is not None and preco_anterior is not None and preco_anterior <= preco_atual:
         preco_anterior = None
 
-    desconto = extrair_desconto(
-        desconto_texto
-    )
+    desconto = extrair_desconto(desconto_texto)
 
     if desconto is None:
-        desconto = extrair_desconto(
-            texto_card
-        )
+        desconto = extrair_desconto(texto_card)
 
     if desconto is None:
         desconto = calcular_desconto(
@@ -365,9 +303,7 @@ def montar_produto(
         )
 
     produto = {
-        "id_produto": extrair_id_produto(
-            link_normalizado
-        ),
+        "id_produto": extrair_id_produto(link_normalizado),
         "titulo": titulo_limpo,
         "preco": preco_atual,
         "preco_anterior": preco_anterior,

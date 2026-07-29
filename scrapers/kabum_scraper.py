@@ -9,16 +9,15 @@ from urllib.parse import quote
 from playwright.sync_api import (
     Browser,
     BrowserContext,
-    Error as PlaywrightError,
     Locator,
     Page,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from models.oferta import Oferta
 from scrapers.base_scraper import BaseScraper
-
 
 logger = logging.getLogger(__name__)
 
@@ -64,28 +63,14 @@ class KabumScraper(BaseScraper):
         termos_busca: list[str] | None = None,
         endpoint_cdp: str | None = None,
     ) -> None:
-        termos = (
-            termos_busca
-            if termos_busca is not None
-            else self.TERMOS_PADRAO
-        )
+        termos = termos_busca if termos_busca is not None else self.TERMOS_PADRAO
 
-        self.termos_busca = [
-            termo.strip()
-            for termo in termos
-            if termo and termo.strip()
-        ]
+        self.termos_busca = [termo.strip() for termo in termos if termo and termo.strip()]
 
         if not self.termos_busca:
-            raise ValueError(
-                "A lista de termos da KaBuM! não pode estar vazia."
-            )
+            raise ValueError("A lista de termos da KaBuM! não pode estar vazia.")
 
-        self.endpoint_cdp = (
-            endpoint_cdp.strip()
-            if endpoint_cdp
-            else self.ENDPOINT_CDP
-        )
+        self.endpoint_cdp = endpoint_cdp.strip() if endpoint_cdp else self.ENDPOINT_CDP
 
     def buscar_ofertas(
         self,
@@ -98,9 +83,7 @@ class KabumScraper(BaseScraper):
         """
 
         if limite <= 0:
-            logger.warning(
-                "O limite da KaBuM! deve ser maior que zero."
-            )
+            logger.warning("O limite da KaBuM! deve ser maior que zero.")
             return []
 
         ofertas: list[Oferta] = []
@@ -118,9 +101,7 @@ class KabumScraper(BaseScraper):
                     timeout=30000,
                 )
 
-                contexto = self._obter_contexto(
-                    navegador
-                )
+                contexto = self._obter_contexto(navegador)
 
                 pagina = contexto.new_page()
                 pagina.set_default_timeout(15000)
@@ -150,8 +131,7 @@ class KabumScraper(BaseScraper):
                         )
 
                         logger.info(
-                            "Termo '%s': %s oferta(s), "
-                            "%s nova(s).",
+                            "Termo '%s': %s oferta(s), " "%s nova(s).",
                             termo,
                             len(ofertas_do_termo),
                             novas,
@@ -167,8 +147,7 @@ class KabumScraper(BaseScraper):
 
         except PlaywrightError as erro:
             logger.error(
-                "Não foi possível acessar o Chrome pela porta "
-                "9222: %s",
+                "Não foi possível acessar o Chrome pela porta " "9222: %s",
                 erro,
             )
             return []
@@ -197,9 +176,7 @@ class KabumScraper(BaseScraper):
         termo: str,
         limite: int,
     ) -> list[Oferta]:
-        url = self._montar_url_busca(
-            termo
-        )
+        url = self._montar_url_busca(termo)
 
         if not self._abrir_pagina_busca(
             pagina=pagina,
@@ -208,12 +185,9 @@ class KabumScraper(BaseScraper):
         ):
             return []
 
-        if self._pagina_possui_bloqueio(
-            pagina
-        ):
+        if self._pagina_possui_bloqueio(pagina):
             logger.warning(
-                "A KaBuM! apresentou uma verificação ou "
-                "bloqueio na busca por '%s'.",
+                "A KaBuM! apresentou uma verificação ou " "bloqueio na busca por '%s'.",
                 termo,
             )
             return []
@@ -224,9 +198,7 @@ class KabumScraper(BaseScraper):
         ):
             return []
 
-        cartoes = pagina.locator(
-            self.SELETOR_CARTAO
-        )
+        cartoes = pagina.locator(self.SELETOR_CARTAO)
 
         try:
             quantidade = cartoes.count()
@@ -295,16 +267,13 @@ class KabumScraper(BaseScraper):
                 timeout=20000,
             )
 
-            pagina.wait_for_timeout(
-                1500
-            )
+            pagina.wait_for_timeout(1500)
 
             return True
 
         except PlaywrightTimeoutError:
             logger.warning(
-                "Os produtos da busca '%s' não apareceram "
-                "dentro do tempo esperado.",
+                "Os produtos da busca '%s' não apareceram " "dentro do tempo esperado.",
                 termo,
             )
 
@@ -316,9 +285,7 @@ class KabumScraper(BaseScraper):
             )
             return False
 
-        return self._tentar_carregar_produtos_com_rolagem(
-            pagina
-        )
+        return self._tentar_carregar_produtos_com_rolagem(pagina)
 
     def _tentar_carregar_produtos_com_rolagem(
         self,
@@ -330,16 +297,9 @@ class KabumScraper(BaseScraper):
                 1200,
             )
 
-            pagina.wait_for_timeout(
-                3000
-            )
+            pagina.wait_for_timeout(3000)
 
-            return (
-                pagina.locator(
-                    self.SELETOR_CARTAO
-                ).count()
-                > 0
-            )
+            return pagina.locator(self.SELETOR_CARTAO).count() > 0
 
         except PlaywrightError:
             return False
@@ -359,36 +319,25 @@ class KabumScraper(BaseScraper):
                 break
 
             try:
-                dados = self._capturar_dados_do_cartao(
-                    cartoes.nth(indice)
-                )
+                dados = self._capturar_dados_do_cartao(cartoes.nth(indice))
 
-                oferta = self._criar_oferta(
-                    dados
-                )
+                oferta = self._criar_oferta(dados)
 
                 if oferta is None:
                     continue
 
-                chave = self._criar_chave_oferta(
-                    oferta
-                )
+                chave = self._criar_chave_oferta(oferta)
 
                 if chave in chaves_locais:
                     continue
 
-                chaves_locais.add(
-                    chave
-                )
+                chaves_locais.add(chave)
 
-                ofertas.append(
-                    oferta
-                )
+                ofertas.append(oferta)
 
             except PlaywrightError as erro:
                 logger.warning(
-                    "Erro ao capturar o produto %s da busca "
-                    "'%s': %s",
+                    "Erro ao capturar o produto %s da busca " "'%s': %s",
                     indice + 1,
                     termo,
                     erro,
@@ -396,8 +345,7 @@ class KabumScraper(BaseScraper):
 
             except Exception as erro:
                 logger.warning(
-                    "Erro ao processar o produto %s da busca "
-                    "'%s': %s",
+                    "Erro ao processar o produto %s da busca " "'%s': %s",
                     indice + 1,
                     termo,
                     erro,
@@ -482,24 +430,13 @@ class KabumScraper(BaseScraper):
         self,
         dados: dict[str, Any],
     ) -> Oferta | None:
-        nome = self._normalizar_texto(
-            dados.get("nome")
-        )
+        nome = self._normalizar_texto(dados.get("nome"))
 
-        link = dados.get(
-            "href"
-        )
+        link = dados.get("href")
 
-        preco = self._extrair_preco_atual_dos_dados(
-            dados
-        )
+        preco = self._extrair_preco_atual_dos_dados(dados)
 
-        if (
-            not nome
-            or not isinstance(link, str)
-            or not link.strip()
-            or preco is None
-        ):
+        if not nome or not isinstance(link, str) or not link.strip() or preco is None:
             return None
 
         preco_antigo = self._extrair_preco_antigo_dos_dados(
@@ -507,13 +444,9 @@ class KabumScraper(BaseScraper):
             preco_atual=preco,
         )
 
-        link_normalizado = self._normalizar_link(
-            link
-        )
+        link_normalizado = self._normalizar_link(link)
 
-        imagem = self._normalizar_imagem(
-            dados.get("imagem")
-        )
+        imagem = self._normalizar_imagem(dados.get("imagem"))
 
         return Oferta(
             nome=nome,
@@ -524,9 +457,7 @@ class KabumScraper(BaseScraper):
             imagem=imagem,
             moeda="R$",
             marketplace="kabum",
-            id_produto=self._extrair_id_produto(
-                link_normalizado
-            ),
+            id_produto=self._extrair_id_produto(link_normalizado),
         )
 
     def _extrair_preco_atual_dos_dados(
@@ -552,20 +483,14 @@ class KabumScraper(BaseScraper):
                 continue
 
             for texto in grupo:
-                preco = self._converter_preco(
-                    texto
-                )
+                preco = self._converter_preco(texto)
 
                 if preco is not None:
                     return preco
 
-        texto_card = dados.get(
-            "texto"
-        )
+        texto_card = dados.get("texto")
 
-        return self._extrair_preco_atual_do_texto(
-            texto_card
-        )
+        return self._extrair_preco_atual_do_texto(texto_card)
 
     def _extrair_preco_antigo_dos_dados(
         self,
@@ -592,24 +517,15 @@ class KabumScraper(BaseScraper):
         candidatos: list[float] = []
 
         for texto in textos:
-            valor = self._converter_preco(
-                texto
-            )
+            valor = self._converter_preco(texto)
 
-            if (
-                valor is not None
-                and valor > preco_atual
-            ):
-                candidatos.append(
-                    valor
-                )
+            if valor is not None and valor > preco_atual:
+                candidatos.append(valor)
 
         if not candidatos:
             return None
 
-        return min(
-            candidatos
-        )
+        return min(candidatos)
 
     def _extrair_preco_atual_do_texto(
         self,
@@ -630,31 +546,23 @@ class KabumScraper(BaseScraper):
         )
 
         correspondencia = re.search(
-            r"R\$\s*"
-            r"(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})"
-            r"\s*(?:Desconto.*?\s*)?"
-            r"No PIX",
+            r"R\$\s*" r"(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})" r"\s*(?:Desconto.*?\s*)?" r"No PIX",
             texto_normalizado,
             flags=re.IGNORECASE | re.DOTALL,
         )
 
         if correspondencia:
-            return self._converter_preco(
-                correspondencia.group(1)
-            )
+            return self._converter_preco(correspondencia.group(1))
 
         valores = re.findall(
-            r"R\$\s*"
-            r"(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})",
+            r"R\$\s*" r"(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})",
             texto_normalizado,
         )
 
         if not valores:
             return None
 
-        return self._converter_preco(
-            valores[-1]
-        )
+        return self._converter_preco(valores[-1])
 
     @staticmethod
     def _converter_preco(
@@ -663,36 +571,22 @@ class KabumScraper(BaseScraper):
         if not texto:
             return None
 
-        texto_normalizado = (
-            str(texto)
-            .replace("\xa0", " ")
-            .replace("R$", "")
-            .strip()
-        )
+        texto_normalizado = str(texto).replace("\xa0", " ").replace("R$", "").strip()
 
         correspondencia = re.search(
-            r"(\d{1,3}(?:\.\d{3})*|\d+)"
-            r"(?:,(\d{1,2}))?",
+            r"(\d{1,3}(?:\.\d{3})*|\d+)" r"(?:,(\d{1,2}))?",
             texto_normalizado,
         )
 
         if not correspondencia:
             return None
 
-        parte_inteira = (
-            correspondencia
-            .group(1)
-            .replace(".", "")
-        )
+        parte_inteira = correspondencia.group(1).replace(".", "")
 
-        parte_decimal = correspondencia.group(
-            2
-        )
+        parte_decimal = correspondencia.group(2)
 
         try:
-            valor = float(
-                parte_inteira
-            )
+            valor = float(parte_inteira)
 
             if parte_decimal:
                 centavos = parte_decimal.ljust(
@@ -700,9 +594,7 @@ class KabumScraper(BaseScraper):
                     "0",
                 )[:2]
 
-                valor += int(
-                    centavos
-                ) / 100
+                valor += int(centavos) / 100
 
         except ValueError:
             return None
@@ -725,9 +617,7 @@ class KabumScraper(BaseScraper):
         ):
             return None
 
-        texto = " ".join(
-            texto.split()
-        )
+        texto = " ".join(texto.split())
 
         return texto or None
 
@@ -741,9 +631,7 @@ class KabumScraper(BaseScraper):
             safe="",
         )
 
-        return cls.URL_BUSCA.format(
-            termo=termo_url
-        )
+        return cls.URL_BUSCA.format(termo=termo_url)
 
     @classmethod
     def _normalizar_link(
@@ -755,11 +643,7 @@ class KabumScraper(BaseScraper):
         if link.startswith("/"):
             link = cls.URL_BASE + link
 
-        return (
-            link
-            .split("#")[0]
-            .strip()
-        )
+        return link.split("#")[0].strip()
 
     @classmethod
     def _normalizar_imagem(
@@ -778,22 +662,12 @@ class KabumScraper(BaseScraper):
             return None
 
         if "," in imagem:
-            imagem = (
-                imagem
-                .split(",")[0]
-                .strip()
-            )
+            imagem = imagem.split(",")[0].strip()
 
         if " " in imagem:
-            imagem = (
-                imagem
-                .split(" ")[0]
-                .strip()
-            )
+            imagem = imagem.split(" ")[0].strip()
 
-        if imagem.startswith(
-            "data:image"
-        ):
+        if imagem.startswith("data:image"):
             return None
 
         if imagem.startswith("//"):
@@ -825,12 +699,7 @@ class KabumScraper(BaseScraper):
     def _criar_chave_oferta(
         oferta: Oferta,
     ) -> str:
-        link = (
-            oferta.link
-            .split("?")[0]
-            .rstrip("/")
-            .lower()
-        )
+        link = oferta.link.split("?")[0].rstrip("/").lower()
 
         if link:
             return link
@@ -841,11 +710,7 @@ class KabumScraper(BaseScraper):
             oferta.nome.lower(),
         ).strip()
 
-        return (
-            f"{oferta.loja.lower()}|"
-            f"{nome}|"
-            f"{oferta.preco:.2f}"
-        )
+        return f"{oferta.loja.lower()}|" f"{nome}|" f"{oferta.preco:.2f}"
 
     def _adicionar_ofertas_unicas(
         self,
@@ -856,20 +721,14 @@ class KabumScraper(BaseScraper):
         adicionadas = 0
 
         for oferta in candidatas:
-            chave = self._criar_chave_oferta(
-                oferta
-            )
+            chave = self._criar_chave_oferta(oferta)
 
             if chave in chaves_processadas:
                 continue
 
-            chaves_processadas.add(
-                chave
-            )
+            chaves_processadas.add(chave)
 
-            destino.append(
-                oferta
-            )
+            destino.append(oferta)
 
             adicionadas += 1
 
@@ -882,11 +741,7 @@ class KabumScraper(BaseScraper):
         try:
             titulo = pagina.title().lower()
 
-            conteudo = pagina.locator(
-                "body"
-            ).inner_text(
-                timeout=5000
-            ).lower()
+            conteudo = pagina.locator("body").inner_text(timeout=5000).lower()
 
         except PlaywrightError:
             return False
@@ -900,13 +755,6 @@ class KabumScraper(BaseScraper):
             "cloudflare",
         ]
 
-        texto_verificado = (
-            titulo
-            + "\n"
-            + conteudo[:5000]
-        )
+        texto_verificado = titulo + "\n" + conteudo[:5000]
 
-        return any(
-            indicador in texto_verificado
-            for indicador in indicadores
-        )
+        return any(indicador in texto_verificado for indicador in indicadores)

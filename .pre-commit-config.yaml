@@ -1,0 +1,35 @@
+repos:
+  # ==========================================================
+  # Formatação
+  # ==========================================================
+
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+
+  # ==========================================================
+  # Linter e organização de imports
+  # ==========================================================
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.3
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  # ==========================================================
+  # Verificações gerais
+  # ==========================================================
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: check-added-large-files

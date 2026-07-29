@@ -16,9 +16,7 @@ class HistoricoPrecosRepository:
     ) -> None:
         self.caminho_arquivo = Path(caminho_arquivo)
 
-        self.limite_registros_por_produto = (
-            limite_registros_por_produto
-        )
+        self.limite_registros_por_produto = limite_registros_por_produto
 
         self._dados = self._carregar()
 
@@ -38,9 +36,7 @@ class HistoricoPrecosRepository:
                 dados = json.load(arquivo)
 
             if not isinstance(dados, dict):
-                raise ValueError(
-                    "O histórico precisa ser um objeto JSON."
-                )
+                raise ValueError("O histórico precisa ser um objeto JSON.")
 
             dados.setdefault("versao", 1)
             dados.setdefault("atualizado_em", None)
@@ -64,15 +60,9 @@ class HistoricoPrecosRepository:
             exist_ok=True,
         )
 
-        self._dados["atualizado_em"] = (
-            datetime.now()
-            .astimezone()
-            .isoformat(timespec="seconds")
-        )
+        self._dados["atualizado_em"] = datetime.now().astimezone().isoformat(timespec="seconds")
 
-        caminho_temporario = self.caminho_arquivo.with_suffix(
-            ".tmp"
-        )
+        caminho_temporario = self.caminho_arquivo.with_suffix(".tmp")
 
         with caminho_temporario.open(
             "w",
@@ -94,9 +84,7 @@ class HistoricoPrecosRepository:
         self,
         chave_produto: str,
     ) -> dict[str, Any] | None:
-        produto = self._dados["produtos"].get(
-            chave_produto
-        )
+        produto = self._dados["produtos"].get(chave_produto)
 
         if produto is None:
             return None
@@ -156,24 +144,15 @@ class HistoricoPrecosRepository:
             [],
         )
 
-        data_atual = self._extrair_data(
-            coletado_em
-        )
+        data_atual = self._extrair_data(coletado_em)
 
         for registro in registros:
-            data_registro = self._extrair_data(
-                str(
-                    registro.get("coletado_em")
-                    or ""
-                )
-            )
+            data_registro = self._extrair_data(str(registro.get("coletado_em") or ""))
 
             if data_registro != data_atual:
                 continue
 
-            preco_existente = self._converter_float(
-                registro.get("preco")
-            )
+            preco_existente = self._converter_float(registro.get("preco"))
 
             registro["preco"] = round(
                 preco,
@@ -182,11 +161,7 @@ class HistoricoPrecosRepository:
 
             registro["coletado_em"] = coletado_em
 
-            return (
-                preco_existente is None
-                or round(preco_existente, 2)
-                != round(preco, 2)
-            )
+            return preco_existente is None or round(preco_existente, 2) != round(preco, 2)
 
         registros.append(
             {
@@ -195,20 +170,10 @@ class HistoricoPrecosRepository:
             }
         )
 
-        registros.sort(
-            key=lambda registro: str(
-                registro.get("coletado_em")
-                or ""
-            )
-        )
+        registros.sort(key=lambda registro: str(registro.get("coletado_em") or ""))
 
-        if (
-            len(registros)
-            > self.limite_registros_por_produto
-        ):
-            produto["registros"] = registros[
-                -self.limite_registros_por_produto:
-            ]
+        if len(registros) > self.limite_registros_por_produto:
+            produto["registros"] = registros[-self.limite_registros_por_produto :]
 
         return True
 

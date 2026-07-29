@@ -19,9 +19,7 @@ class NavegadorPersistente:
         configuracao: ConfiguracaoNavegador | None = None,
     ) -> None:
         self.configuracao = (
-            configuracao
-            if configuracao is not None
-            else ConfiguracaoNavegador.padrao()
+            configuracao if configuracao is not None else ConfiguracaoNavegador.padrao()
         )
 
         self._gerenciador_playwright = None
@@ -32,8 +30,7 @@ class NavegadorPersistente:
     def contexto(self) -> BrowserContext:
         if self._contexto is None:
             raise RuntimeError(
-                "O navegador ainda não foi iniciado. "
-                "Use iniciar() ou o bloco 'with'."
+                "O navegador ainda não foi iniciado. " "Use iniciar() ou o bloco 'with'."
             )
 
         return self._contexto
@@ -57,36 +54,28 @@ class NavegadorPersistente:
         self._playwright = self._gerenciador_playwright.start()
 
         try:
-            self._contexto = (
-                self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=str(
-                        self.configuracao.pasta_perfil
-                    ),
-                    headless=self.configuracao.headless,
-                    viewport=(
-                        {
-                            "width": self.configuracao.largura_viewport,
-                            "height": self.configuracao.altura_viewport,
-                        }
-                        if (
-                            self.configuracao.largura_viewport is not None
-                            and self.configuracao.altura_viewport is not None
-                        )
-                        else None
-                    ),
-                    args=[
-                        "--start-maximized",
-                    ],
-                )
+            self._contexto = self._playwright.chromium.launch_persistent_context(
+                user_data_dir=str(self.configuracao.pasta_perfil),
+                headless=self.configuracao.headless,
+                viewport=(
+                    {
+                        "width": self.configuracao.largura_viewport,
+                        "height": self.configuracao.altura_viewport,
+                    }
+                    if (
+                        self.configuracao.largura_viewport is not None
+                        and self.configuracao.altura_viewport is not None
+                    )
+                    else None
+                ),
+                args=[
+                    "--start-maximized",
+                ],
             )
 
-            self._contexto.set_default_timeout(
-                self.configuracao.timeout_padrao_ms
-            )
+            self._contexto.set_default_timeout(self.configuracao.timeout_padrao_ms)
 
-            self._contexto.set_default_navigation_timeout(
-                self.configuracao.timeout_navegacao_ms
-            )
+            self._contexto.set_default_navigation_timeout(self.configuracao.timeout_navegacao_ms)
 
         except Exception:
             self.fechar()

@@ -4,15 +4,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PASTA_RAIZ = Path(__file__).resolve().parents[1]
 
-PASTA_MERCADO_LIVRE = (
-    PASTA_RAIZ
-    / "data"
-    / "bruto"
-    / "mercado_livre"
-)
+PASTA_MERCADO_LIVRE = PASTA_RAIZ / "data" / "bruto" / "mercado_livre"
 
 
 class CarregadorProdutos:
@@ -26,19 +20,13 @@ class CarregadorProdutos:
         self,
     ) -> tuple[list[dict[str, Any]], dict[str, int]]:
         if not self.pasta_origem.exists():
-            raise FileNotFoundError(
-                "A pasta de produtos não existe:\n"
-                f"{self.pasta_origem}"
-            )
+            raise FileNotFoundError("A pasta de produtos não existe:\n" f"{self.pasta_origem}")
 
-        arquivos = sorted(
-            self.pasta_origem.glob("*.json")
-        )
+        arquivos = sorted(self.pasta_origem.glob("*.json"))
 
         if not arquivos:
             raise FileNotFoundError(
-                "Nenhum arquivo JSON foi encontrado em:\n"
-                f"{self.pasta_origem}"
+                "Nenhum arquivo JSON foi encontrado em:\n" f"{self.pasta_origem}"
             )
 
         produtos_unicos: dict[
@@ -49,18 +37,12 @@ class CarregadorProdutos:
         resumo_arquivos: dict[str, int] = {}
 
         for caminho_arquivo in arquivos:
-            produtos = self._carregar_arquivo(
-                caminho_arquivo
-            )
+            produtos = self._carregar_arquivo(caminho_arquivo)
 
-            resumo_arquivos[
-                caminho_arquivo.name
-            ] = len(produtos)
+            resumo_arquivos[caminho_arquivo.name] = len(produtos)
 
             for produto in produtos:
-                chave = self._criar_chave_produto(
-                    produto
-                )
+                chave = self._criar_chave_produto(produto)
 
                 if not chave:
                     continue
@@ -84,65 +66,39 @@ class CarregadorProdutos:
                 conteudo = json.load(arquivo)
 
         except json.JSONDecodeError as erro:
-            raise ValueError(
-                "JSON inválido no arquivo:\n"
-                f"{caminho_arquivo}"
-            ) from erro
+            raise ValueError("JSON inválido no arquivo:\n" f"{caminho_arquivo}") from erro
 
         if not isinstance(conteudo, list):
             raise ValueError(
-                "O conteúdo precisa ser uma lista "
-                "de produtos:\n"
-                f"{caminho_arquivo}"
+                "O conteúdo precisa ser uma lista " "de produtos:\n" f"{caminho_arquivo}"
             )
 
-        return [
-            item
-            for item in conteudo
-            if isinstance(item, dict)
-        ]
+        return [item for item in conteudo if isinstance(item, dict)]
 
     @staticmethod
     def _criar_chave_produto(
         produto: dict[str, Any],
     ) -> str:
-        link = str(
-            produto.get("link")
-            or produto.get("url")
-            or ""
-        ).strip()
+        link = str(produto.get("link") or produto.get("url") or "").strip()
 
         if link:
             link = link.split("?")[0]
             return f"link:{link.lower()}"
 
         produto_id = str(
-            produto.get("id")
-            or produto.get("produto_id")
-            or produto.get("id_produto")
-            or ""
+            produto.get("id") or produto.get("produto_id") or produto.get("id_produto") or ""
         ).strip()
 
         if produto_id:
             return f"id:{produto_id.lower()}"
 
         titulo = str(
-            produto.get("titulo")
-            or produto.get("title")
-            or produto.get("nome")
-            or ""
+            produto.get("titulo") or produto.get("title") or produto.get("nome") or ""
         ).strip()
 
-        preco = str(
-            produto.get("preco")
-            or produto.get("price")
-            or ""
-        ).strip()
+        preco = str(produto.get("preco") or produto.get("price") or "").strip()
 
         if titulo:
-            return (
-                f"titulo:{titulo.lower()}|"
-                f"preco:{preco}"
-            )
+            return f"titulo:{titulo.lower()}|" f"preco:{preco}"
 
         return ""

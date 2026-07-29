@@ -9,12 +9,10 @@ class BaseAfiliador(ABC):
     def consegue_afiliar(
         self,
         oferta: Oferta,
-    ) -> bool:
-        ...
+    ) -> bool: ...
 
     @abstractmethod
     def afiliar(
         self,
         oferta: Oferta,
-    ) -> Oferta:
-        ...
+    ) -> Oferta: ...

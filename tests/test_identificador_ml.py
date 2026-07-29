@@ -5,14 +5,10 @@ from services.identificador_mercado_livre import (
 
 def testar_link_produto():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://produto.mercadolivre.com.br/MLB-123456789-produto"
-        )
+    resultado = identificador.identificar(
+        "https://produto.mercadolivre.com.br/MLB-123456789-produto"
     )
 
     assert resultado.id_produto == "MLB123456789"
@@ -22,59 +18,37 @@ def testar_link_produto():
 
 def testar_link_afiliado():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://meli.la/ABCDE"
-        )
-    )
+    resultado = identificador.identificar("https://meli.la/ABCDE")
 
     assert resultado.eh_link_afiliado is True
 
 
 def testar_item_id():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://www.mercadolivre.com.br/?item_id=MLB987654321"
-        )
-    )
+    resultado = identificador.identificar("https://www.mercadolivre.com.br/?item_id=MLB987654321")
 
     assert resultado.id_anuncio == "MLB987654321"
 
 
 def testar_wid():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://www.mercadolivre.com.br/?wid=MLB111111111"
-        )
-    )
+    resultado = identificador.identificar("https://www.mercadolivre.com.br/?wid=MLB111111111")
 
     assert resultado.id_anuncio == "MLB111111111"
 
 
 def testar_normalizacao_hifen():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://produto.mercadolivre.com.br/MLB-123456789-produto"
-        )
+    resultado = identificador.identificar(
+        "https://produto.mercadolivre.com.br/MLB-123456789-produto"
     )
 
     assert resultado.id_produto == "MLB123456789"
@@ -82,14 +56,10 @@ def testar_normalizacao_hifen():
 
 def testar_normalizacao_underline():
 
-    identificador = (
-        IdentificadorMercadoLivre()
-    )
+    identificador = IdentificadorMercadoLivre()
 
-    resultado = (
-        identificador.identificar(
-            "https://produto.mercadolivre.com.br/MLB_123456789-produto"
-        )
+    resultado = identificador.identificar(
+        "https://produto.mercadolivre.com.br/MLB_123456789-produto"
     )
 
     assert resultado.id_produto == "MLB123456789"

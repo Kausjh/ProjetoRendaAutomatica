@@ -3,12 +3,9 @@ import tempfile
 from pathlib import Path
 
 from repositories.links_afiliados_mercado_livre_repository import (
-    LinksAfiliadosMercadoLivreRepository
+    LinksAfiliadosMercadoLivreRepository,
 )
-from services.identificador_mercado_livre import (
-    IdentificadorMercadoLivre
-)
-
+from services.identificador_mercado_livre import IdentificadorMercadoLivre
 
 LINK_ORIGINAL = (
     "https://www.mercadolivre.com.br/"
@@ -31,9 +28,7 @@ def executar_testes() -> None:
     print("=" * 80)
     print("TESTE 1 — EXTRAÇÃO DO CÓDIGO DO ANÚNCIO")
 
-    resultado = identificador.identificar(
-        LINK_ORIGINAL
-    )
+    resultado = identificador.identificar(LINK_ORIGINAL)
 
     print(f"Código do anúncio: {resultado.id_anuncio}")
     print(f"Código do produto: {resultado.id_produto}")
@@ -46,32 +41,20 @@ def executar_testes() -> None:
     print("=" * 80)
     print("TESTE 2 — VALIDAÇÃO DO LINK AFILIADO")
 
-    assert identificador.identificar(
-        LINK_AFILIADO
-    ).eh_link_afiliado
+    assert identificador.identificar(LINK_AFILIADO).eh_link_afiliado
 
-    assert not identificador.identificar(
-        "https://mercadolivre.com.br/produto"
-    ).eh_link_afiliado
+    assert not identificador.identificar("https://mercadolivre.com.br/produto").eh_link_afiliado
 
-    assert not identificador.identificar(
-        "https://site-falso.com/meli.la/teste"
-    ).eh_link_afiliado
+    assert not identificador.identificar("https://site-falso.com/meli.la/teste").eh_link_afiliado
 
     print("Resultado: aprovado")
 
     print("=" * 80)
     print("TESTE 3 — DOMÍNIO FALSO PARECIDO")
 
-    link_falso = (
-        "https://mercadolivre.com.br."
-        "site-malicioso.com/"
-        "MLB4577516683"
-    )
+    link_falso = "https://mercadolivre.com.br." "site-malicioso.com/" "MLB4577516683"
 
-    resultado = identificador.identificar(
-        link_falso
-    )
+    resultado = identificador.identificar(link_falso)
 
     assert resultado.id_anuncio is None
 
@@ -81,58 +64,29 @@ def executar_testes() -> None:
     print("TESTE 4 — CADASTRO E CONSULTA")
 
     with tempfile.TemporaryDirectory() as diretorio:
-        caminho_catalogo = (
-            Path(diretorio)
-            / "links_afiliados.json"
-        )
+        caminho_catalogo = Path(diretorio) / "links_afiliados.json"
 
-        repository = (
-            LinksAfiliadosMercadoLivreRepository(
-                caminho_arquivo=str(
-                    caminho_catalogo
-                )
-            )
-        )
+        repository = LinksAfiliadosMercadoLivreRepository(caminho_arquivo=str(caminho_catalogo))
 
-        registro = repository.cadastrar(
-            link_original=LINK_ORIGINAL,
-            link_afiliado=LINK_AFILIADO
-        )
+        registro = repository.cadastrar(link_original=LINK_ORIGINAL, link_afiliado=LINK_AFILIADO)
 
-        assert (
-            registro.item_id
-            == "MLB4577516683"
-        )
+        assert registro.item_id == "MLB4577516683"
 
         assert repository.quantidade() == 1
 
-        por_link = repository.buscar_por_link(
-            LINK_ORIGINAL
-        )
+        por_link = repository.buscar_por_link(LINK_ORIGINAL)
 
         assert por_link is not None
 
-        assert (
-            por_link.link_afiliado
-            == LINK_AFILIADO
-        )
+        assert por_link.link_afiliado == LINK_AFILIADO
 
-        por_codigo = repository.buscar_por_item_id(
-            "MLB-4577516683"
-        )
+        por_codigo = repository.buscar_por_item_id("MLB-4577516683")
 
         assert por_codigo is not None
 
-        assert (
-            por_codigo.link_afiliado
-            == LINK_AFILIADO
-        )
+        assert por_codigo.link_afiliado == LINK_AFILIADO
 
-        link_encontrado = (
-            repository.obter_link_afiliado(
-                LINK_ORIGINAL
-            )
-        )
+        link_encontrado = repository.obter_link_afiliado(LINK_ORIGINAL)
 
         assert link_encontrado == LINK_AFILIADO
 
@@ -143,16 +97,11 @@ def executar_testes() -> None:
 
         novo_link = "https://meli.la/NOVO123"
 
-        repository.cadastrar(
-            link_original=LINK_ORIGINAL,
-            link_afiliado=novo_link
-        )
+        repository.cadastrar(link_original=LINK_ORIGINAL, link_afiliado=novo_link)
 
         assert repository.quantidade() == 1
 
-        atualizado = repository.buscar_por_item_id(
-            "MLB4577516683"
-        )
+        atualizado = repository.buscar_por_item_id("MLB4577516683")
 
         assert atualizado is not None
         assert atualizado.link_afiliado == novo_link
@@ -162,11 +111,7 @@ def executar_testes() -> None:
         print("=" * 80)
         print("TESTE 6 — ARQUIVO JSON VÁLIDO")
 
-        dados = json.loads(
-            caminho_catalogo.read_text(
-                encoding="utf-8"
-            )
-        )
+        dados = json.loads(caminho_catalogo.read_text(encoding="utf-8"))
 
         assert "MLB4577516683" in dados
 

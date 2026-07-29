@@ -87,126 +87,63 @@ class CuradoriaComercial:
         "nintendo": 5.0,
     }
 
-    def analisar(
-        self,
-        oferta: Oferta
-    ) -> ResultadoCuradoriaComercial:
+    def analisar(self, oferta: Oferta) -> ResultadoCuradoriaComercial:
         motivos: list[str] = []
 
-        pontos_categoria = self._calcular_categoria(
-            oferta=oferta,
-            motivos=motivos
-        )
+        pontos_categoria = self._calcular_categoria(oferta=oferta, motivos=motivos)
 
-        marca, pontos_marca = self._calcular_marca(
-            oferta=oferta,
-            motivos=motivos
-        )
+        marca, pontos_marca = self._calcular_marca(oferta=oferta, motivos=motivos)
 
-        pontos_ticket = self._calcular_ticket(
-            oferta=oferta,
-            motivos=motivos
-        )
+        pontos_ticket = self._calcular_ticket(oferta=oferta, motivos=motivos)
 
-        nota = (
-            pontos_categoria
-            + pontos_marca
-            + pontos_ticket
-        )
+        nota = pontos_categoria + pontos_marca + pontos_ticket
 
-        nota = round(
-            min(
-                max(nota, 0.0),
-                self.NOTA_MAXIMA
-            ),
-            2
-        )
+        nota = round(min(max(nota, 0.0), self.NOTA_MAXIMA), 2)
 
         return ResultadoCuradoriaComercial(
             nota=nota,
             marca=marca,
-            pontos_categoria=round(
-                pontos_categoria,
-                2
-            ),
-            pontos_marca=round(
-                pontos_marca,
-                2
-            ),
-            pontos_ticket=round(
-                pontos_ticket,
-                2
-            ),
-            motivos=motivos
+            pontos_categoria=round(pontos_categoria, 2),
+            pontos_marca=round(pontos_marca, 2),
+            pontos_ticket=round(pontos_ticket, 2),
+            motivos=motivos,
         )
 
-    def _calcular_categoria(
-        self,
-        oferta: Oferta,
-        motivos: list[str]
-    ) -> float:
+    def _calcular_categoria(self, oferta: Oferta, motivos: list[str]) -> float:
         categoria = oferta.categoria
 
         if not categoria:
-            motivos.append(
-                "Categoria não identificada: +0.00"
-            )
+            motivos.append("Categoria não identificada: +0.00")
             return 0.0
 
-        pontos = self.PONTOS_CATEGORIAS.get(
-            categoria,
-            2.0
-        )
+        pontos = self.PONTOS_CATEGORIAS.get(categoria, 2.0)
 
-        motivos.append(
-            f"Categoria {categoria}: +{pontos:.2f}"
-        )
+        motivos.append(f"Categoria {categoria}: +{pontos:.2f}")
 
         return pontos
 
-    def _calcular_marca(
-        self,
-        oferta: Oferta,
-        motivos: list[str]
-    ) -> tuple[str | None, float]:
-        nome_normalizado = self._normalizar_texto(
-            oferta.nome
-        )
+    def _calcular_marca(self, oferta: Oferta, motivos: list[str]) -> tuple[str | None, float]:
+        nome_normalizado = self._normalizar_texto(oferta.nome)
 
         marcas_ordenadas = sorted(
-            self.PONTOS_MARCAS.items(),
-            key=lambda item: len(item[0]),
-            reverse=True
+            self.PONTOS_MARCAS.items(), key=lambda item: len(item[0]), reverse=True
         )
 
         for marca, pontos in marcas_ordenadas:
-            if self._contem_termo(
-                texto=nome_normalizado,
-                termo=marca
-            ):
-                motivos.append(
-                    f"Marca {marca}: +{pontos:.2f}"
-                )
+            if self._contem_termo(texto=nome_normalizado, termo=marca):
+                motivos.append(f"Marca {marca}: +{pontos:.2f}")
 
                 return marca, pontos
 
-        motivos.append(
-            "Marca prioritária não identificada: +0.00"
-        )
+        motivos.append("Marca prioritária não identificada: +0.00")
 
         return None, 0.0
 
-    def _calcular_ticket(
-        self,
-        oferta: Oferta,
-        motivos: list[str]
-    ) -> float:
+    def _calcular_ticket(self, oferta: Oferta, motivos: list[str]) -> float:
         preco = oferta.preco
 
         if preco <= 0:
-            motivos.append(
-                "Preço inválido: +0.00"
-            )
+            motivos.append("Preço inválido: +0.00")
             return 0.0
 
         if preco < 30:
@@ -237,59 +174,28 @@ class CuradoriaComercial:
             pontos = 2.0
             faixa = "ticket muito alto"
 
-        motivos.append(
-            f"{faixa}: +{pontos:.2f}"
-        )
+        motivos.append(f"{faixa}: +{pontos:.2f}")
 
         return pontos
 
-    def _normalizar_texto(
-        self,
-        texto: str
-    ) -> str:
+    def _normalizar_texto(self, texto: str) -> str:
         texto_sem_acentos = "".join(
             caractere
-            for caractere in unicodedata.normalize(
-                "NFKD",
-                texto
-            )
-            if not unicodedata.combining(
-                caractere
-            )
+            for caractere in unicodedata.normalize("NFKD", texto)
+            if not unicodedata.combining(caractere)
         )
 
         texto_normalizado = texto_sem_acentos.lower()
 
-        texto_normalizado = re.sub(
-            r"[^a-z0-9.+\- ]",
-            " ",
-            texto_normalizado
-        )
+        texto_normalizado = re.sub(r"[^a-z0-9.+\- ]", " ", texto_normalizado)
 
-        texto_normalizado = re.sub(
-            r"\s+",
-            " ",
-            texto_normalizado
-        )
+        texto_normalizado = re.sub(r"\s+", " ", texto_normalizado)
 
         return texto_normalizado.strip()
 
-    def _contem_termo(
-        self,
-        texto: str,
-        termo: str
-    ) -> bool:
-        termo_normalizado = self._normalizar_texto(
-            termo
-        )
+    def _contem_termo(self, texto: str, termo: str) -> bool:
+        termo_normalizado = self._normalizar_texto(termo)
 
-        padrao = (
-            r"(?<![a-z0-9])"
-            + re.escape(termo_normalizado)
-            + r"(?![a-z0-9])"
-        )
+        padrao = r"(?<![a-z0-9])" + re.escape(termo_normalizado) + r"(?![a-z0-9])"
 
-        return re.search(
-            padrao,
-            texto
-        ) is not None
+        return re.search(padrao, texto) is not None

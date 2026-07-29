@@ -1,18 +1,16 @@
 import json
-import time
 from pathlib import Path
 from typing import Any
 
 from playwright.sync_api import (
     Browser,
     ElementHandle,
-    Error as PlaywrightError,
     Locator,
     Page,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
-
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 URL_CDP = "http://127.0.0.1:9222"
 
@@ -31,22 +29,14 @@ ESPERA_ENTRE_SCROLLS_MS = 700
 
 def obter_pagina_afiliados(browser: Browser) -> Page:
     if not browser.contexts:
-        raise RuntimeError(
-            "Nenhum contexto do Chrome foi encontrado."
-        )
+        raise RuntimeError("Nenhum contexto do Chrome foi encontrado.")
 
     contexto = browser.contexts[0]
 
-    paginas = [
-        pagina
-        for pagina in contexto.pages
-        if not pagina.is_closed()
-    ]
+    paginas = [pagina for pagina in contexto.pages if not pagina.is_closed()]
 
     if not paginas:
-        raise RuntimeError(
-            "Nenhuma aba aberta foi encontrada no Chrome."
-        )
+        raise RuntimeError("Nenhuma aba aberta foi encontrada no Chrome.")
 
     for pagina in reversed(paginas):
         url = pagina.url.lower()
@@ -73,10 +63,7 @@ def localizar_secao_produtos(page: Page) -> Locator:
     )
 
     if titulo.count() == 0:
-        raise RuntimeError(
-            "Não encontrei a seção "
-            "'Produtos selecionados para você'."
-        )
+        raise RuntimeError("Não encontrei a seção " "'Produtos selecionados para você'.")
 
     titulo_visivel = None
 
@@ -88,10 +75,7 @@ def localizar_secao_produtos(page: Page) -> Locator:
             break
 
     if titulo_visivel is None:
-        raise RuntimeError(
-            "O título da seção de produtos existe, "
-            "mas não está visível."
-        )
+        raise RuntimeError("O título da seção de produtos existe, " "mas não está visível.")
 
     secao_handle = page.evaluate_handle(
         """
@@ -127,18 +111,18 @@ def localizar_secao_produtos(page: Page) -> Locator:
     elemento = secao_handle.as_element()
 
     if elemento is None:
-        raise RuntimeError(
-            "Não consegui identificar o contêiner da seção."
-        )
+        raise RuntimeError("Não consegui identificar o contêiner da seção.")
 
-    return page.locator(
-        "xpath=//*"
-    ).filter(
-        has=page.get_by_text(
-            "Produtos selecionados para você",
-            exact=True,
+    return (
+        page.locator("xpath=//*")
+        .filter(
+            has=page.get_by_text(
+                "Produtos selecionados para você",
+                exact=True,
+            )
         )
-    ).first
+        .first
+    )
 
 
 def localizar_botao_categorias_afiliados(page: Page) -> Locator:
@@ -160,9 +144,7 @@ def localizar_botao_categorias_afiliados(page: Page) -> Locator:
     caixa_titulo = titulo.bounding_box()
 
     if caixa_titulo is None:
-        raise RuntimeError(
-            "Não consegui obter a posição do título da seção."
-        )
+        raise RuntimeError("Não consegui obter a posição do título da seção.")
 
     for indice in range(botoes.count()):
         elemento = botoes.nth(indice)
@@ -179,17 +161,11 @@ def localizar_botao_categorias_afiliados(page: Page) -> Locator:
             centro_x = caixa["x"] + caixa["width"] / 2
             centro_y = caixa["y"] + caixa["height"] / 2
 
-            centro_titulo_x = (
-                caixa_titulo["x"] + caixa_titulo["width"] / 2
-            )
-            parte_inferior_titulo = (
-                caixa_titulo["y"] + caixa_titulo["height"]
-            )
+            centro_titulo_x = caixa_titulo["x"] + caixa_titulo["width"] / 2
+            parte_inferior_titulo = caixa_titulo["y"] + caixa_titulo["height"]
 
             distancia_vertical = centro_y - parte_inferior_titulo
-            distancia_horizontal = abs(
-                centro_x - centro_titulo_x
-            )
+            distancia_horizontal = abs(centro_x - centro_titulo_x)
 
             abaixo_do_titulo = distancia_vertical > 0
             perto_da_secao = distancia_vertical < 180
@@ -209,11 +185,7 @@ def localizar_botao_categorias_afiliados(page: Page) -> Locator:
         except PlaywrightError:
             continue
 
-    candidatos_validos = [
-        candidato
-        for candidato in candidatos
-        if candidato["valido"]
-    ]
+    candidatos_validos = [candidato for candidato in candidatos if candidato["valido"]]
 
     if not candidatos_validos:
         detalhes = "\n".join(
@@ -369,9 +341,7 @@ def localizar_painel_do_filtro(
     caixa_botao = botao.bounding_box()
 
     if caixa_botao is None:
-        raise RuntimeError(
-            "Não consegui obter a posição do botão Categorias."
-        )
+        raise RuntimeError("Não consegui obter a posição do botão Categorias.")
 
     handle = page.evaluate_handle(
         """
@@ -488,10 +458,7 @@ def localizar_painel_do_filtro(
     if painel is not None:
         return painel
 
-    print(
-        "[AVISO] Não encontrei um painel específico. "
-        "Usarei a área visível próxima ao botão."
-    )
+    print("[AVISO] Não encontrei um painel específico. " "Usarei a área visível próxima ao botão.")
 
     fallback = page.evaluate_handle(
         """
@@ -509,9 +476,7 @@ def localizar_painel_do_filtro(
     ).as_element()
 
     if fallback is None:
-        raise RuntimeError(
-            "Não consegui localizar o painel do filtro."
-        )
+        raise RuntimeError("Não consegui localizar o painel do filtro.")
 
     return fallback
 
@@ -580,17 +545,13 @@ def localizar_container_scroll(
     elemento = handle.as_element()
 
     if elemento is None:
-        raise RuntimeError(
-            "Não consegui identificar o contêiner rolável."
-        )
+        raise RuntimeError("Não consegui identificar o contêiner rolável.")
 
     return elemento
 
 
 def limpar_texto(texto: str) -> str:
-    return " ".join(
-        texto.replace("\u00a0", " ").split()
-    ).strip()
+    return " ".join(texto.replace("\u00a0", " ").split()).strip()
 
 
 def texto_valido(texto: str) -> bool:
@@ -801,18 +762,12 @@ def mapear_categorias(
             f"{posicao['scrollHeight']}"
         )
 
-        if (
-            posicao["fim"]
-            and rodadas_sem_novidade >= 2
-        ):
+        if posicao["fim"] and rodadas_sem_novidade >= 2:
             print("[OK] Final da lista detectado.")
             break
 
         if rodadas_sem_novidade >= MAXIMO_SEM_NOVIDADE:
-            print(
-                "[OK] Nenhum texto novo encontrado após "
-                f"{MAXIMO_SEM_NOVIDADE} tentativas."
-            )
+            print("[OK] Nenhum texto novo encontrado após " f"{MAXIMO_SEM_NOVIDADE} tentativas.")
             break
 
         resultado = executar_scroll(
@@ -823,9 +778,7 @@ def mapear_categorias(
         if resultado["antes"] == resultado["depois"]:
             rodadas_sem_novidade += 1
 
-        page.wait_for_timeout(
-            ESPERA_ENTRE_SCROLLS_MS
-        )
+        page.wait_for_timeout(ESPERA_ENTRE_SCROLLS_MS)
 
     return sorted(
         encontrados,
@@ -845,10 +798,7 @@ def salvar_resultados(categorias: list[str]) -> None:
     )
 
     conteudo = {
-        "origem": (
-            "Central de Afiliados - "
-            "Produtos selecionados para você"
-        ),
+        "origem": ("Central de Afiliados - " "Produtos selecionados para você"),
         "quantidade": len(categorias),
         "categorias": categorias,
     }
@@ -885,13 +835,9 @@ def main() -> None:
 
     try:
         with sync_playwright() as playwright:
-            print(
-                f"[INFO] Conectando ao Chrome em {URL_CDP}..."
-            )
+            print(f"[INFO] Conectando ao Chrome em {URL_CDP}...")
 
-            browser = playwright.chromium.connect_over_cdp(
-                URL_CDP
-            )
+            browser = playwright.chromium.connect_over_cdp(URL_CDP)
 
             page = obter_pagina_afiliados(browser)
 
@@ -902,9 +848,7 @@ def main() -> None:
 
             localizar_secao_produtos(page)
 
-            botao = localizar_botao_categorias_afiliados(
-                page
-            )
+            botao = localizar_botao_categorias_afiliados(page)
 
             abrir_filtro(
                 page,
@@ -953,42 +897,24 @@ def main() -> None:
 
             print()
             print("=" * 65)
-            print(
-                f"ITENS ENCONTRADOS: {len(categorias)}"
-            )
+            print(f"ITENS ENCONTRADOS: {len(categorias)}")
             print("=" * 65)
 
             for indice, categoria in enumerate(
                 categorias,
                 start=1,
             ):
-                print(
-                    f"{indice:02d}. {categoria}"
-                )
+                print(f"{indice:02d}. {categoria}")
 
             print()
-            print(
-                f"[OK] JSON salvo em: "
-                f"{ARQUIVO_CATEGORIAS}"
-            )
-            print(
-                f"[OK] Screenshot inicial: "
-                f"{SCREENSHOT_ABERTO}"
-            )
-            print(
-                f"[OK] Screenshot final: "
-                f"{SCREENSHOT_FINAL}"
-            )
-            print(
-                f"[OK] Textos brutos: "
-                f"{ARQUIVO_TEXTO_DEBUG}"
-            )
+            print(f"[OK] JSON salvo em: " f"{ARQUIVO_CATEGORIAS}")
+            print(f"[OK] Screenshot inicial: " f"{SCREENSHOT_ABERTO}")
+            print(f"[OK] Screenshot final: " f"{SCREENSHOT_FINAL}")
+            print(f"[OK] Textos brutos: " f"{ARQUIVO_TEXTO_DEBUG}")
 
     except PlaywrightTimeoutError as erro:
         print()
-        print(
-            "[ERRO] A página demorou demais para responder."
-        )
+        print("[ERRO] A página demorou demais para responder.")
         print(f"[DETALHES] {erro}")
 
     except PlaywrightError as erro:
@@ -998,10 +924,7 @@ def main() -> None:
 
     except Exception as erro:
         print()
-        print(
-            "[ERRO] Não foi possível mapear "
-            "as categorias do painel."
-        )
+        print("[ERRO] Não foi possível mapear " "as categorias do painel.")
         print(f"[DETALHES] {erro}")
 
 

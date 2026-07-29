@@ -250,17 +250,11 @@ class ClassificadorProduto:
         "mochila escolar",
     )
 
-    def classificar(
-        self,
-        oferta: Oferta
-    ) -> ResultadoClassificacaoProduto:
-        nome_normalizado = self._normalizar_texto(
-            oferta.nome
-        )
+    def classificar(self, oferta: Oferta) -> ResultadoClassificacaoProduto:
+        nome_normalizado = self._normalizar_texto(oferta.nome)
 
         termos_bloqueados = self._localizar_termos(
-            texto=nome_normalizado,
-            termos=self.TERMOS_BLOQUEADOS
+            texto=nome_normalizado, termos=self.TERMOS_BLOQUEADOS
         )
 
         if termos_bloqueados:
@@ -269,17 +263,10 @@ class ClassificadorProduto:
                 categoria=None,
                 relevancia=0,
                 termos_encontrados=termos_bloqueados,
-                motivo=(
-                    "Produto pertence a uma categoria bloqueada "
-                    "para o canal."
-                )
+                motivo=("Produto pertence a uma categoria bloqueada " "para o canal."),
             )
 
-        categoria, termos_categoria = (
-            self._identificar_categoria(
-                nome_normalizado
-            )
-        )
+        categoria, termos_categoria = self._identificar_categoria(nome_normalizado)
 
         if categoria is None:
             return ResultadoClassificacaoProduto(
@@ -287,28 +274,18 @@ class ClassificadorProduto:
                 categoria=None,
                 relevancia=0,
                 termos_encontrados=[],
-                motivo=(
-                    "Nenhuma categoria de hardware ou produto "
-                    "gamer foi identificada."
-                )
+                motivo=("Nenhuma categoria de hardware ou produto " "gamer foi identificada."),
             )
 
-        termos_gamer = self._localizar_termos(
-            texto=nome_normalizado,
-            termos=self.TERMOS_GAMER
-        )
+        termos_gamer = self._localizar_termos(texto=nome_normalizado, termos=self.TERMOS_GAMER)
 
         termos_modelo = self._localizar_termos(
-            texto=nome_normalizado,
-            termos=self.TERMOS_MODELO_HARDWARE
+            texto=nome_normalizado, termos=self.TERMOS_MODELO_HARDWARE
         )
 
         relevancia = 55.0
 
-        relevancia += min(
-            len(termos_categoria) * 8,
-            24
-        )
+        relevancia += min(len(termos_categoria) * 8, 24)
 
         if termos_gamer:
             relevancia += 10
@@ -316,18 +293,9 @@ class ClassificadorProduto:
         if termos_modelo:
             relevancia += 11
 
-        relevancia = min(
-            relevancia,
-            100
-        )
+        relevancia = min(relevancia, 100)
 
-        termos_encontrados = list(
-            dict.fromkeys(
-                termos_categoria
-                + termos_gamer
-                + termos_modelo
-            )
-        )
+        termos_encontrados = list(dict.fromkeys(termos_categoria + termos_gamer + termos_modelo))
 
         return ResultadoClassificacaoProduto(
             eh_nicho=True,
@@ -337,16 +305,11 @@ class ClassificadorProduto:
             motivo=(
                 f"Produto classificado como '{categoria}' "
                 f"com relevância de {relevancia:.2f}/100."
-            )
+            ),
         )
 
-    def aplicar_classificacao(
-        self,
-        oferta: Oferta
-    ) -> ResultadoClassificacaoProduto:
-        resultado = self.classificar(
-            oferta
-        )
+    def aplicar_classificacao(self, oferta: Oferta) -> ResultadoClassificacaoProduto:
+        resultado = self.classificar(oferta)
 
         oferta.eh_nicho = resultado.eh_nicho
         oferta.categoria = resultado.categoria
@@ -356,18 +319,12 @@ class ClassificadorProduto:
 
         return resultado
 
-    def _identificar_categoria(
-        self,
-        texto: str
-    ) -> tuple[str | None, list[str]]:
+    def _identificar_categoria(self, texto: str) -> tuple[str | None, list[str]]:
         melhor_categoria: str | None = None
         melhores_termos: list[str] = []
 
         for categoria, termos in self.CATEGORIAS.items():
-            termos_encontrados = self._localizar_termos(
-                texto=texto,
-                termos=termos
-            )
+            termos_encontrados = self._localizar_termos(texto=texto, termos=termos)
 
             if len(termos_encontrados) > len(melhores_termos):
                 melhor_categoria = categoria
@@ -375,71 +332,33 @@ class ClassificadorProduto:
 
         return melhor_categoria, melhores_termos
 
-    def _localizar_termos(
-        self,
-        texto: str,
-        termos: tuple[str, ...]
-    ) -> list[str]:
+    def _localizar_termos(self, texto: str, termos: tuple[str, ...]) -> list[str]:
         encontrados: list[str] = []
 
         for termo in termos:
-            termo_normalizado = self._normalizar_texto(
-                termo
-            )
+            termo_normalizado = self._normalizar_texto(termo)
 
-            if self._contem_termo(
-                texto=texto,
-                termo=termo_normalizado
-            ):
-                encontrados.append(
-                    termo
-                )
+            if self._contem_termo(texto=texto, termo=termo_normalizado):
+                encontrados.append(termo)
 
         return encontrados
 
-    def _contem_termo(
-        self,
-        texto: str,
-        termo: str
-    ) -> bool:
-        padrao = (
-            r"(?<![a-z0-9])"
-            + re.escape(termo)
-            + r"(?![a-z0-9])"
-        )
+    def _contem_termo(self, texto: str, termo: str) -> bool:
+        padrao = r"(?<![a-z0-9])" + re.escape(termo) + r"(?![a-z0-9])"
 
-        return re.search(
-            padrao,
-            texto
-        ) is not None
+        return re.search(padrao, texto) is not None
 
-    def _normalizar_texto(
-        self,
-        texto: str
-    ) -> str:
+    def _normalizar_texto(self, texto: str) -> str:
         texto_sem_acentos = "".join(
             caractere
-            for caractere in unicodedata.normalize(
-                "NFKD",
-                texto
-            )
-            if not unicodedata.combining(
-                caractere
-            )
+            for caractere in unicodedata.normalize("NFKD", texto)
+            if not unicodedata.combining(caractere)
         )
 
         texto_normalizado = texto_sem_acentos.lower()
 
-        texto_normalizado = re.sub(
-            r"[^a-z0-9.+\- ]",
-            " ",
-            texto_normalizado
-        )
+        texto_normalizado = re.sub(r"[^a-z0-9.+\- ]", " ", texto_normalizado)
 
-        texto_normalizado = re.sub(
-            r"\s+",
-            " ",
-            texto_normalizado
-        )
+        texto_normalizado = re.sub(r"\s+", " ", texto_normalizado)
 
         return texto_normalizado.strip()

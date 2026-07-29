@@ -12,7 +12,6 @@ from scrapers.mercado_livre.parser import (
     montar_produto,
 )
 
-
 SELETOR_CARD = "li.poly-card"
 SELETOR_TITULO = ".poly-component__title"
 SELETOR_PRECO_ATUAL = ".poly-price__current"
@@ -35,11 +34,7 @@ SELETORES_DESCONTO = (
 
 PASTA_RAIZ = Path(__file__).resolve().parents[2]
 
-PASTA_DADOS_BRUTOS = (
-    PASTA_RAIZ
-    / "data"
-    / "bruto"
-)
+PASTA_DADOS_BRUTOS = PASTA_RAIZ / "data" / "bruto"
 
 
 class ColetorProdutosMercadoLivre:
@@ -52,32 +47,20 @@ class ColetorProdutosMercadoLivre:
         limite_scrolls: int = 150,
     ) -> None:
         self.pagina = pagina
-        self.categoria = (
-            categoria
-            or "Não informada"
-        )
+        self.categoria = categoria or "Não informada"
 
-        self.tempo_espera_scroll = (
-            tempo_espera_scroll
-        )
+        self.tempo_espera_scroll = tempo_espera_scroll
 
-        self.tentativas_sem_crescimento = (
-            tentativas_sem_crescimento
-        )
+        self.tentativas_sem_crescimento = tentativas_sem_crescimento
 
         self.limite_scrolls = limite_scrolls
 
     def coletar(
         self,
     ) -> list[dict[str, Any]]:
-        print(
-            f"\nCategoria: {self.categoria}"
-        )
+        print(f"\nCategoria: {self.categoria}")
 
-        print(
-            "Iniciando coleta e "
-            "scroll automático...\n"
-        )
+        print("Iniciando coleta e " "scroll automático...\n")
 
         produtos_por_chave: dict[
             str,
@@ -91,32 +74,19 @@ class ColetorProdutosMercadoLivre:
             1,
             self.limite_scrolls + 1,
         ):
-            self._coletar_cards_visiveis(
-                produtos_por_chave
-            )
+            self._coletar_cards_visiveis(produtos_por_chave)
 
-            quantidade_atual = len(
-                produtos_por_chave
-            )
+            quantidade_atual = len(produtos_por_chave)
 
-            print(
-                f"Scroll {numero_scroll:03d} | "
-                f"Produtos únicos: "
-                f"{quantidade_atual}"
-            )
+            print(f"Scroll {numero_scroll:03d} | " f"Produtos únicos: " f"{quantidade_atual}")
 
             if quantidade_atual > quantidade_anterior:
                 ciclos_sem_crescimento = 0
-                quantidade_anterior = (
-                    quantidade_atual
-                )
+                quantidade_anterior = quantidade_atual
             else:
                 ciclos_sem_crescimento += 1
 
-            if (
-                ciclos_sem_crescimento
-                >= self.tentativas_sem_crescimento
-            ):
+            if ciclos_sem_crescimento >= self.tentativas_sem_crescimento:
                 print(
                     "\nNenhum produto novo "
                     "apareceu após "
@@ -127,19 +97,11 @@ class ColetorProdutosMercadoLivre:
 
             self._rolar_pagina()
 
-            time.sleep(
-                self.tempo_espera_scroll
-            )
+            time.sleep(self.tempo_espera_scroll)
 
-        produtos = list(
-            produtos_por_chave.values()
-        )
+        produtos = list(produtos_por_chave.values())
 
-        print(
-            "\nColeta encerrada: "
-            f"{len(produtos)} "
-            "produtos únicos."
-        )
+        print("\nColeta encerrada: " f"{len(produtos)} " "produtos únicos.")
 
         return produtos
 
@@ -150,101 +112,60 @@ class ColetorProdutosMercadoLivre:
             dict[str, Any],
         ],
     ) -> None:
-        cards = self.pagina.locator(
-            SELETOR_CARD
-        )
+        cards = self.pagina.locator(SELETOR_CARD)
 
         quantidade_cards = cards.count()
 
-        for indice in range(
-            quantidade_cards
-        ):
+        for indice in range(quantidade_cards):
             card = cards.nth(indice)
 
             try:
-                produto = (
-                    self._extrair_produto_do_card(
-                        card
-                    )
-                )
+                produto = self._extrair_produto_do_card(card)
 
                 if not produto:
                     continue
 
-                chave = criar_chave_unica(
-                    produto
-                )
+                chave = criar_chave_unica(produto)
 
                 if not chave:
                     continue
 
-                produtos_por_chave[
-                    chave
-                ] = produto
+                produtos_por_chave[chave] = produto
 
             except Exception as erro:
-                print(
-                    "Aviso: não foi possível "
-                    f"ler o card {indice + 1}: "
-                    f"{erro}"
-                )
+                print("Aviso: não foi possível " f"ler o card {indice + 1}: " f"{erro}")
 
     def _extrair_produto_do_card(
         self,
         card: Locator,
     ) -> dict[str, Any] | None:
-        titulo_locator = card.locator(
-            SELETOR_TITULO
-        ).first
+        titulo_locator = card.locator(SELETOR_TITULO).first
 
         if titulo_locator.count() == 0:
             return None
 
-        titulo = titulo_locator.inner_text(
-            timeout=3000
-        ).strip()
+        titulo = titulo_locator.inner_text(timeout=3000).strip()
 
-        link = (
-            titulo_locator.get_attribute(
-                "href"
-            )
-            or ""
+        link = titulo_locator.get_attribute("href") or ""
+
+        preco_texto = self._extrair_texto_primeiro_seletor(
+            card=card,
+            seletores=(SELETOR_PRECO_ATUAL,),
         )
 
-        preco_texto = (
-            self._extrair_texto_primeiro_seletor(
-                card=card,
-                seletores=(
-                    SELETOR_PRECO_ATUAL,
-                ),
-            )
+        preco_anterior_texto = self._extrair_texto_primeiro_seletor(
+            card=card,
+            seletores=(SELETORES_PRECO_ANTERIOR),
         )
 
-        preco_anterior_texto = (
-            self._extrair_texto_primeiro_seletor(
-                card=card,
-                seletores=(
-                    SELETORES_PRECO_ANTERIOR
-                ),
-            )
+        desconto_texto = self._extrair_texto_primeiro_seletor(
+            card=card,
+            seletores=(SELETORES_DESCONTO),
         )
 
-        desconto_texto = (
-            self._extrair_texto_primeiro_seletor(
-                card=card,
-                seletores=(
-                    SELETORES_DESCONTO
-                ),
-            )
-        )
+        texto_card = self._extrair_texto_card(card)
 
-        texto_card = self._extrair_texto_card(
-            card
-        )
-
-        imagem = self._extrair_imagem(
-            card
-        )
+        imagem = self._extrair_imagem(card)
 
         if not titulo or not link:
             return None
@@ -252,9 +173,7 @@ class ColetorProdutosMercadoLivre:
         return montar_produto(
             titulo=titulo,
             preco_texto=preco_texto,
-            preco_anterior_texto=(
-                preco_anterior_texto
-            ),
+            preco_anterior_texto=(preco_anterior_texto),
             desconto_texto=desconto_texto,
             texto_card=texto_card,
             link=link,
@@ -269,16 +188,12 @@ class ColetorProdutosMercadoLivre:
     ) -> str:
         for seletor in seletores:
             try:
-                localizador = card.locator(
-                    seletor
-                ).first
+                localizador = card.locator(seletor).first
 
                 if localizador.count() == 0:
                     continue
 
-                texto = localizador.inner_text(
-                    timeout=1500
-                ).strip()
+                texto = localizador.inner_text(timeout=1500).strip()
 
                 if texto:
                     return texto
@@ -293,9 +208,7 @@ class ColetorProdutosMercadoLivre:
         card: Locator,
     ) -> str:
         try:
-            return card.inner_text(
-                timeout=3000
-            ).strip()
+            return card.inner_text(timeout=3000).strip()
         except Exception:
             return ""
 
@@ -303,9 +216,7 @@ class ColetorProdutosMercadoLivre:
     def _extrair_imagem(
         card: Locator,
     ) -> str:
-        imagem_locator = card.locator(
-            "img"
-        ).first
+        imagem_locator = card.locator("img").first
 
         if imagem_locator.count() == 0:
             return ""
@@ -318,27 +229,15 @@ class ColetorProdutosMercadoLivre:
         )
 
         for atributo in atributos:
-            valor = (
-                imagem_locator.get_attribute(
-                    atributo
-                )
-            )
+            valor = imagem_locator.get_attribute(atributo)
 
             if not valor:
                 continue
 
             if atributo == "srcset":
-                primeiro_item = (
-                    valor
-                    .split(",")[0]
-                    .strip()
-                )
+                primeiro_item = valor.split(",")[0].strip()
 
-                return (
-                    primeiro_item
-                    .split(" ")[0]
-                    .strip()
-                )
+                return primeiro_item.split(" ")[0].strip()
 
             return valor.strip()
 
@@ -361,10 +260,7 @@ class ColetorProdutosMercadoLivre:
         produtos: list[dict[str, Any]],
         nome_arquivo: str,
     ) -> Path:
-        caminho_arquivo = (
-            PASTA_DADOS_BRUTOS
-            / nome_arquivo
-        )
+        caminho_arquivo = PASTA_DADOS_BRUTOS / nome_arquivo
 
         caminho_arquivo.parent.mkdir(
             parents=True,
@@ -382,9 +278,6 @@ class ColetorProdutosMercadoLivre:
                 indent=4,
             )
 
-        print(
-            "\nArquivo salvo em:"
-            f"\n{caminho_arquivo}"
-        )
+        print("\nArquivo salvo em:" f"\n{caminho_arquivo}")
 
         return caminho_arquivo

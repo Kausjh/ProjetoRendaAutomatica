@@ -5,7 +5,6 @@ from affiliates.resultado_link_afiliado import (
     ResultadoLinkAfiliado,
 )
 
-
 logger = logging.getLogger(__name__)
 
 # 63.8738, -149.7525
@@ -20,9 +19,7 @@ class GeradorLinkAfiliado:
         self,
         afiliador: BaseAfiliador,
     ) -> None:
-        self.afiliadores.append(
-            afiliador
-        )
+        self.afiliadores.append(afiliador)
 
     def gerar(
         self,
@@ -30,14 +27,11 @@ class GeradorLinkAfiliado:
     ) -> ResultadoLinkAfiliado:
         for afiliador in self.afiliadores:
             try:
-                suporta_link = afiliador.suporta(
-                    link_original
-                )
+                suporta_link = afiliador.suporta(link_original)
 
             except Exception:
                 logger.exception(
-                    "Falha ao verificar se o afiliador '%s' "
-                    "suporta o link: %s",
+                    "Falha ao verificar se o afiliador '%s' " "suporta o link: %s",
                     afiliador.nome,
                     link_original,
                 )
@@ -48,24 +42,18 @@ class GeradorLinkAfiliado:
                 continue
 
             try:
-                link_publicacao = afiliador.gerar_link(
-                    link_original
-                )
+                link_publicacao = afiliador.gerar_link(link_original)
 
             except Exception:
                 logger.exception(
-                    "Falha ao gerar link com o afiliador '%s'. "
-                    "O link original será mantido: %s",
+                    "Falha ao gerar link com o afiliador '%s'. " "O link original será mantido: %s",
                     afiliador.nome,
                     link_original,
                 )
 
                 link_publicacao = link_original
 
-            if (
-                not isinstance(link_publicacao, str)
-                or not link_publicacao.strip()
-            ):
+            if not isinstance(link_publicacao, str) or not link_publicacao.strip():
                 logger.warning(
                     "O afiliador '%s' retornou um link inválido. "
                     "O link original será mantido: %s",
@@ -81,9 +69,7 @@ class GeradorLinkAfiliado:
                 link_original=link_original,
                 link_publicacao=link_publicacao,
                 afiliador_utilizado=afiliador.nome,
-                foi_transformado=(
-                    link_publicacao != link_original
-                ),
+                foi_transformado=(link_publicacao != link_original),
             )
 
         return ResultadoLinkAfiliado(
