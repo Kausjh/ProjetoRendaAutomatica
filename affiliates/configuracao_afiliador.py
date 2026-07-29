@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # 63.8738, -149.7525
 
 
@@ -12,9 +11,7 @@ class ConfiguracaoAfiliador:
     ativo: bool
     prioridade: int
     dominios: list[str]
-    parametros: dict[str, str] = field(
-        default_factory=dict
-    )
+    parametros: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def criar_de_dict(
@@ -22,41 +19,31 @@ class ConfiguracaoAfiliador:
         dados: dict[str, Any],
         indice: int,
     ) -> "ConfiguracaoAfiliador":
-        contexto = (
-            f"Afiliador na posição {indice}"
-        )
+        contexto = f"Afiliador na posição {indice}"
 
-        nome = dados.get(
-            "nome"
-        )
+        nome = dados.get("nome")
 
-        if not isinstance(
-            nome,
-            str,
-        ) or not nome.strip():
-            raise ValueError(
-                f"{contexto}: o campo 'nome' precisa ser "
-                "uma string não vazia."
+        if (
+            not isinstance(
+                nome,
+                str,
             )
+            or not nome.strip()
+        ):
+            raise ValueError(f"{contexto}: o campo 'nome' precisa ser " "uma string não vazia.")
 
-        tipo = dados.get(
-            "tipo"
-        )
+        tipo = dados.get("tipo")
 
-        if not isinstance(
-            tipo,
-            str,
-        ) or not tipo.strip():
-            raise ValueError(
-                f"{contexto}: o campo 'tipo' precisa ser "
-                "uma string não vazia."
+        if (
+            not isinstance(
+                tipo,
+                str,
             )
+            or not tipo.strip()
+        ):
+            raise ValueError(f"{contexto}: o campo 'tipo' precisa ser " "uma string não vazia.")
 
-        tipo_normalizado = (
-            tipo
-            .strip()
-            .lower()
-        )
+        tipo_normalizado = tipo.strip().lower()
 
         tipos_suportados = {
             "mercado_livre",
@@ -80,39 +67,31 @@ class ConfiguracaoAfiliador:
             ativo,
             bool,
         ):
-            raise ValueError(
-                f"{contexto}: o campo 'ativo' precisa ser "
-                "true ou false."
-            )
+            raise ValueError(f"{contexto}: o campo 'ativo' precisa ser " "true ou false.")
 
         prioridade = dados.get(
             "prioridade",
             0,
         )
 
+        if not isinstance(
+            prioridade,
+            int,
+        ) or isinstance(
+            prioridade,
+            bool,
+        ):
+            raise ValueError(f"{contexto}: o campo 'prioridade' precisa " "ser um número inteiro.")
+
+        dominios_brutos = dados.get("dominios")
+
         if (
             not isinstance(
-                prioridade,
-                int,
+                dominios_brutos,
+                list,
             )
-            or isinstance(
-                prioridade,
-                bool,
-            )
+            or not dominios_brutos
         ):
-            raise ValueError(
-                f"{contexto}: o campo 'prioridade' precisa "
-                "ser um número inteiro."
-            )
-
-        dominios_brutos = dados.get(
-            "dominios"
-        )
-
-        if not isinstance(
-            dominios_brutos,
-            list,
-        ) or not dominios_brutos:
             raise ValueError(
                 f"{contexto}: o campo 'dominios' precisa ser "
                 "uma lista com pelo menos um domínio."
@@ -121,36 +100,30 @@ class ConfiguracaoAfiliador:
         dominios: list[str] = []
 
         for dominio in dominios_brutos:
-            if not isinstance(
-                dominio,
-                str,
-            ) or not dominio.strip():
+            if (
+                not isinstance(
+                    dominio,
+                    str,
+                )
+                or not dominio.strip()
+            ):
                 raise ValueError(
-                    f"{contexto}: todos os domínios precisam "
-                    "ser strings não vazias."
+                    f"{contexto}: todos os domínios precisam " "ser strings não vazias."
                 )
 
-            dominio_normalizado = (
-                dominio
-                .strip()
-                .lower()
-            )
+            dominio_normalizado = dominio.strip().lower()
 
             if "://" in dominio_normalizado:
                 raise ValueError(
-                    f"{contexto}: informe somente o domínio, "
-                    f"sem http ou https: '{dominio}'."
+                    f"{contexto}: informe somente o domínio, " f"sem http ou https: '{dominio}'."
                 )
 
             if "/" in dominio_normalizado:
                 raise ValueError(
-                    f"{contexto}: o domínio não pode possuir "
-                    f"caminhos: '{dominio}'."
+                    f"{contexto}: o domínio não pode possuir " f"caminhos: '{dominio}'."
                 )
 
-            dominios.append(
-                dominio_normalizado
-            )
+            dominios.append(dominio_normalizado)
 
         parametros_brutos = dados.get(
             "parametros",
@@ -161,40 +134,31 @@ class ConfiguracaoAfiliador:
             parametros_brutos,
             dict,
         ):
-            raise ValueError(
-                f"{contexto}: o campo 'parametros' precisa "
-                "ser um objeto JSON."
-            )
+            raise ValueError(f"{contexto}: o campo 'parametros' precisa " "ser um objeto JSON.")
 
         parametros: dict[str, str] = {}
 
         for chave, valor in parametros_brutos.items():
-            if not isinstance(
-                chave,
-                str,
-            ) or not chave.strip():
-                raise ValueError(
-                    f"{contexto}: cada parâmetro precisa "
-                    "possuir uma chave válida."
+            if (
+                not isinstance(
+                    chave,
+                    str,
                 )
+                or not chave.strip()
+            ):
+                raise ValueError(f"{contexto}: cada parâmetro precisa " "possuir uma chave válida.")
 
             if not isinstance(
                 valor,
                 str,
             ):
                 raise ValueError(
-                    f"{contexto}: o valor do parâmetro "
-                    f"'{chave}' precisa ser uma string."
+                    f"{contexto}: o valor do parâmetro " f"'{chave}' precisa ser uma string."
                 )
 
-            parametros[
-                chave.strip()
-            ] = valor
+            parametros[chave.strip()] = valor
 
-        if (
-            tipo_normalizado == "parametros"
-            and not parametros
-        ):
+        if tipo_normalizado == "parametros" and not parametros:
             raise ValueError(
                 f"{contexto}: afiliadores do tipo "
                 "'parametros' precisam possuir pelo menos "

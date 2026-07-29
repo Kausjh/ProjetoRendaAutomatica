@@ -9,14 +9,9 @@ class PendenciasAfiliacaoRepository:
 
     def __init__(self):
 
-        self.arquivo = (
-            Path("database")
-            / "pendencias_afiliacao.json"
-        )
+        self.arquivo = Path("database") / "pendencias_afiliacao.json"
 
-        self.arquivo.parent.mkdir(
-            exist_ok=True
-        )
+        self.arquivo.parent.mkdir(exist_ok=True)
 
         if not self.arquivo.exists():
 
@@ -26,19 +21,12 @@ class PendenciasAfiliacaoRepository:
 
         try:
 
-            conteudo = (
-                self.arquivo.read_text(
-                    encoding="utf-8"
-                )
-                .strip()
-            )
+            conteudo = self.arquivo.read_text(encoding="utf-8").strip()
 
             if not conteudo:
                 return []
 
-            return json.loads(
-                conteudo
-            )
+            return json.loads(conteudo)
 
         except (
             FileNotFoundError,
@@ -71,27 +59,19 @@ class PendenciasAfiliacaoRepository:
 
         pendencias = self.carregar()
 
-        agora = (
-            datetime.now()
-            .isoformat(timespec="seconds")
-        )
+        agora = datetime.now().isoformat(timespec="seconds")
 
         for pendencia in pendencias:
 
             if (
-                pendencia["marketplace"]
-                == oferta.marketplace
-                and
-                pendencia["id_anuncio"]
-                == oferta.id_anuncio
+                pendencia["marketplace"] == oferta.marketplace
+                and pendencia["id_anuncio"] == oferta.id_anuncio
             ):
 
                 pendencia["ultima_vez"] = agora
                 pendencia["quantidade"] += 1
 
-                self.salvar(
-                    pendencias
-                )
+                self.salvar(pendencias)
 
                 return
 
@@ -108,6 +88,4 @@ class PendenciasAfiliacaoRepository:
             }
         )
 
-        self.salvar(
-            pendencias
-        )
+        self.salvar(pendencias)

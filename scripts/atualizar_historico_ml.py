@@ -23,7 +23,6 @@ from services.analisador_historico_precos import (
     AnalisadorHistoricoPrecos,
 )
 
-
 RAIZ_PROJETO = Path(__file__).resolve().parents[1]
 
 
@@ -31,9 +30,7 @@ def carregar_json(
     caminho: Path,
 ) -> Any:
     if not caminho.exists():
-        raise FileNotFoundError(
-            f"Arquivo não encontrado: {caminho}"
-        )
+        raise FileNotFoundError(f"Arquivo não encontrado: {caminho}")
 
     with caminho.open(
         "r",
@@ -51,9 +48,7 @@ def salvar_json(
         exist_ok=True,
     )
 
-    caminho_temporario = caminho.with_suffix(
-        ".tmp"
-    )
+    caminho_temporario = caminho.with_suffix(".tmp")
 
     with caminho_temporario.open(
         "w",
@@ -66,9 +61,7 @@ def salvar_json(
             indent=2,
         )
 
-    caminho_temporario.replace(
-        caminho
-    )
+    caminho_temporario.replace(caminho)
 
 
 def localizar_arquivos_coleta() -> list[Path]:
@@ -77,23 +70,16 @@ def localizar_arquivos_coleta() -> list[Path]:
     encontrados: list[Path] = []
 
     for nome_arquivo in ARQUIVOS_COLETA_ML:
-        candidatos = list(
-            pasta_data.rglob(
-                nome_arquivo
-            )
-        )
+        candidatos = list(pasta_data.rglob(nome_arquivo))
 
         candidatos = [
             caminho
             for caminho in candidatos
-            if "processado" not in caminho.parts
-            and "historico" not in caminho.parts
+            if "processado" not in caminho.parts and "historico" not in caminho.parts
         ]
 
         if not candidatos:
-            print(
-                f"[AVISO] Não encontrado: {nome_arquivo}"
-            )
+            print(f"[AVISO] Não encontrado: {nome_arquivo}")
 
             continue
 
@@ -102,9 +88,7 @@ def localizar_arquivos_coleta() -> list[Path]:
             reverse=True,
         )
 
-        encontrados.append(
-            candidatos[0]
-        )
+        encontrados.append(candidatos[0])
 
     return encontrados
 
@@ -131,9 +115,7 @@ def extrair_lista_produtos(
         "resultados",
         "ofertas",
     ):
-        valor = dados.get(
-            chave
-        )
+        valor = dados.get(chave)
 
         if isinstance(
             valor,
@@ -156,16 +138,12 @@ def obter_texto(
     *chaves: str,
 ) -> str:
     for chave in chaves:
-        valor = produto.get(
-            chave
-        )
+        valor = produto.get(chave)
 
         if valor is None:
             continue
 
-        texto = str(
-            valor
-        ).strip()
+        texto = str(valor).strip()
 
         if texto:
             return texto
@@ -181,9 +159,7 @@ def obter_preco(
         "price",
         "preco_atual",
     ):
-        valor = produto.get(
-            chave
-        )
+        valor = produto.get(chave)
 
         if valor is None or isinstance(
             valor,
@@ -195,18 +171,14 @@ def obter_preco(
             valor,
             (int, float),
         ):
-            preco = float(
-                valor
-            )
+            preco = float(valor)
 
             if preco > 0:
                 return preco
 
             continue
 
-        texto = str(
-            valor
-        ).strip()
+        texto = str(valor).strip()
 
         texto = texto.replace(
             "R$",
@@ -232,9 +204,7 @@ def obter_preco(
             )
 
         try:
-            preco = float(
-                texto
-            )
+            preco = float(texto)
 
         except ValueError:
             continue
@@ -256,22 +226,13 @@ def carregar_produtos_coletados() -> list[dict[str, Any]]:
     todos_produtos: list[dict[str, Any]] = []
 
     for caminho in arquivos:
-        dados = carregar_json(
-            caminho
-        )
+        dados = carregar_json(caminho)
 
-        produtos = extrair_lista_produtos(
-            dados
-        )
+        produtos = extrair_lista_produtos(dados)
 
-        print(
-            f"- {caminho.name}: "
-            f"{len(produtos)} produtos"
-        )
+        print(f"- {caminho.name}: " f"{len(produtos)} produtos")
 
-        todos_produtos.extend(
-            produtos
-        )
+        todos_produtos.extend(produtos)
 
     return todos_produtos
 
@@ -287,22 +248,14 @@ def criar_mapa_analises(
     ] = {}
 
     for produto in produtos:
-        preco = obter_preco(
-            produto
-        )
+        preco = obter_preco(produto)
 
         if preco is None:
             continue
 
-        chave = analisador.criar_chave_produto(
-            produto
-        )
+        chave = analisador.criar_chave_produto(produto)
 
-        registros_anteriores = (
-            repositorio.obter_registros(
-                chave
-            )
-        )
+        registros_anteriores = repositorio.obter_registros(chave)
 
         analise = analisador.analisar(
             preco_atual=preco,
@@ -319,26 +272,18 @@ def registrar_precos_atuais(
     repositorio: HistoricoPrecosRepository,
     analisador: AnalisadorHistoricoPrecos,
 ) -> tuple[int, int]:
-    coletado_em = (
-        datetime.now()
-        .astimezone()
-        .isoformat(timespec="seconds")
-    )
+    coletado_em = datetime.now().astimezone().isoformat(timespec="seconds")
 
     processados = 0
     alterados = 0
 
     for produto in produtos:
-        preco = obter_preco(
-            produto
-        )
+        preco = obter_preco(produto)
 
         if preco is None:
             continue
 
-        chave = analisador.criar_chave_produto(
-            produto
-        )
+        chave = analisador.criar_chave_produto(produto)
 
         titulo = obter_texto(
             produto,
@@ -384,32 +329,22 @@ def aplicar_historico_ao_ranking(
     analises: dict[str, dict[str, Any]],
     analisador: AnalisadorHistoricoPrecos,
 ) -> list[dict[str, Any]]:
-    ranking_atualizado: list[
-        dict[str, Any]
-    ] = []
+    ranking_atualizado: list[dict[str, Any]] = []
 
     for produto in ranking:
-        chave = analisador.criar_chave_produto(
-            produto
-        )
+        chave = analisador.criar_chave_produto(produto)
 
-        analise = analises.get(
-            chave
-        )
+        analise = analises.get(chave)
 
         if analise is None:
-            preco = obter_preco(
-                produto
-            )
+            preco = obter_preco(produto)
 
             analise = analisador.analisar(
                 preco_atual=preco,
                 registros_anteriores=[],
             )
 
-        nota_tecnica = produto.get(
-            "nota_tecnica"
-        )
+        nota_tecnica = produto.get("nota_tecnica")
 
         if not isinstance(
             nota_tecnica,
@@ -425,10 +360,7 @@ def aplicar_historico_ao_ranking(
             0,
         )
 
-        nota_final = round(
-            float(nota_tecnica)
-            + float(nota_historico)
-        )
+        nota_final = round(float(nota_tecnica) + float(nota_historico))
 
         produto_atualizado = {
             **produto,
@@ -446,27 +378,16 @@ def aplicar_historico_ao_ranking(
             )
         )
 
-        motivo_historico = analise.get(
-            "motivo_historico"
-        )
+        motivo_historico = analise.get("motivo_historico")
 
         if motivo_historico:
-            prefixo = (
-                "+"
-                if nota_historico > 0
-                else ""
-            )
+            prefixo = "+" if nota_historico > 0 else ""
 
-            motivos.append(
-                f"{prefixo}{nota_historico} Histórico: "
-                f"{motivo_historico}"
-            )
+            motivos.append(f"{prefixo}{nota_historico} Histórico: " f"{motivo_historico}")
 
         produto_atualizado["motivos"] = motivos
 
-        ranking_atualizado.append(
-            produto_atualizado
-        )
+        ranking_atualizado.append(produto_atualizado)
 
     ranking_atualizado.sort(
         key=lambda produto: (
@@ -515,9 +436,7 @@ def exibir_top(
             "Sem título",
         )
 
-        preco = produto.get(
-            "preco"
-        )
+        preco = produto.get("preco")
 
         nota_tecnica = produto.get(
             "nota_tecnica",
@@ -554,56 +473,33 @@ def exibir_top(
         )
 
         print()
-        print(
-            f"{indice:02d}. {titulo}"
-        )
+        print(f"{indice:02d}. {titulo}")
 
-        print(
-            f"Preço: {preco_formatado}"
-        )
+        print(f"Preço: {preco_formatado}")
 
-        print(
-            f"Nota técnica: {nota_tecnica}"
-        )
+        print(f"Nota técnica: {nota_tecnica}")
 
-        print(
-            f"Nota histórica: {nota_historico}"
-        )
+        print(f"Nota histórica: {nota_historico}")
 
-        print(
-            f"Nota final: {nota_final}"
-        )
+        print(f"Nota final: {nota_final}")
 
-        print(
-            f"Histórico: {classificacao} "
-            f"({observacoes} registros anteriores)"
-        )
+        print(f"Histórico: {classificacao} " f"({observacoes} registros anteriores)")
 
-        mediana = produto.get(
-            "preco_mediano_historico"
-        )
+        mediana = produto.get("preco_mediano_historico")
 
-        minimo = produto.get(
-            "preco_minimo_historico"
-        )
+        minimo = produto.get("preco_minimo_historico")
 
         if isinstance(
             mediana,
             (int, float),
         ):
-            print(
-                f"Mediana histórica: "
-                f"R$ {mediana:.2f}"
-            )
+            print(f"Mediana histórica: " f"R$ {mediana:.2f}")
 
         if isinstance(
             minimo,
             (int, float),
         ):
-            print(
-                f"Menor preço anterior: "
-                f"R$ {minimo:.2f}"
-            )
+            print(f"Menor preço anterior: " f"R$ {minimo:.2f}")
 
 
 def main() -> None:
@@ -611,38 +507,23 @@ def main() -> None:
     print("HISTÓRICO DE PREÇOS - MERCADO LIVRE")
     print("=" * 70)
 
-    caminho_historico = (
-        RAIZ_PROJETO
-        / ARQUIVO_HISTORICO_ML
-    )
+    caminho_historico = RAIZ_PROJETO / ARQUIVO_HISTORICO_ML
 
-    caminho_ranking = (
-        RAIZ_PROJETO
-        / ARQUIVO_RANKING_ML
-    )
+    caminho_ranking = RAIZ_PROJETO / ARQUIVO_RANKING_ML
 
-    caminho_aprovadas = (
-        RAIZ_PROJETO
-        / ARQUIVO_APROVADAS_ML
-    )
+    caminho_aprovadas = RAIZ_PROJETO / ARQUIVO_APROVADAS_ML
 
     repositorio = HistoricoPrecosRepository(
         caminho_arquivo=caminho_historico,
-        limite_registros_por_produto=(
-            LIMITE_REGISTROS_POR_PRODUTO
-        ),
+        limite_registros_por_produto=(LIMITE_REGISTROS_POR_PRODUTO),
     )
 
     analisador = AnalisadorHistoricoPrecos()
 
-    produtos_coletados = (
-        carregar_produtos_coletados()
-    )
+    produtos_coletados = carregar_produtos_coletados()
 
     if not produtos_coletados:
-        raise RuntimeError(
-            "Nenhum produto coletado foi encontrado."
-        )
+        raise RuntimeError("Nenhum produto coletado foi encontrado.")
 
     analises = criar_mapa_analises(
         produtos=produtos_coletados,
@@ -650,25 +531,18 @@ def main() -> None:
         analisador=analisador,
     )
 
-    ranking = carregar_json(
-        caminho_ranking
-    )
+    ranking = carregar_json(caminho_ranking)
 
     if not isinstance(
         ranking,
         list,
     ):
-        raise RuntimeError(
-            "O ranking completo precisa ser "
-            "uma lista de produtos."
-        )
+        raise RuntimeError("O ranking completo precisa ser " "uma lista de produtos.")
 
-    ranking_atualizado = (
-        aplicar_historico_ao_ranking(
-            ranking=ranking,
-            analises=analises,
-            analisador=analisador,
-        )
+    ranking_atualizado = aplicar_historico_ao_ranking(
+        ranking=ranking,
+        analises=analises,
+        analisador=analisador,
     )
 
     filtro = FiltroQualidade()
@@ -688,12 +562,10 @@ def main() -> None:
         aprovadas,
     )
 
-    processados, alterados = (
-        registrar_precos_atuais(
-            produtos=produtos_coletados,
-            repositorio=repositorio,
-            analisador=analisador,
-        )
+    processados, alterados = registrar_precos_atuais(
+        produtos=produtos_coletados,
+        repositorio=repositorio,
+        analisador=analisador,
     )
 
     print()
@@ -701,34 +573,17 @@ def main() -> None:
     print("RESUMO DO HISTÓRICO")
     print("=" * 70)
 
-    print(
-        f"Produtos coletados: "
-        f"{len(produtos_coletados)}"
-    )
+    print(f"Produtos coletados: " f"{len(produtos_coletados)}")
 
-    print(
-        f"Preços válidos processados: "
-        f"{processados}"
-    )
+    print(f"Preços válidos processados: " f"{processados}")
 
-    print(
-        f"Registros inseridos ou atualizados: "
-        f"{alterados}"
-    )
+    print(f"Registros inseridos ou atualizados: " f"{alterados}")
 
-    print(
-        f"Produtos existentes no histórico: "
-        f"{repositorio.quantidade_produtos()}"
-    )
+    print(f"Produtos existentes no histórico: " f"{repositorio.quantidade_produtos()}")
 
-    print(
-        f"Produtos selecionados: "
-        f"{len(aprovadas)}"
-    )
+    print(f"Produtos selecionados: " f"{len(aprovadas)}")
 
-    exibir_top(
-        aprovadas
-    )
+    exibir_top(aprovadas)
 
     print()
     print("=" * 70)
@@ -737,21 +592,15 @@ def main() -> None:
 
     print()
     print("Histórico:")
-    print(
-        caminho_historico
-    )
+    print(caminho_historico)
 
     print()
     print("Ranking atualizado:")
-    print(
-        caminho_ranking
-    )
+    print(caminho_ranking)
 
     print()
     print("Ofertas aprovadas:")
-    print(
-        caminho_aprovadas
-    )
+    print(caminho_aprovadas)
 
 
 if __name__ == "__main__":

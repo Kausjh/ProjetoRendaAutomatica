@@ -1,11 +1,9 @@
 from models.oferta import Oferta
-
-from services.afiliadores.afiliador_ofertas import (
-    AfiliadorOfertas,
-)
-
 from repositories.pendencias_afiliacao_repository import (
     PendenciasAfiliacaoRepository,
+)
+from services.afiliadores.afiliador_ofertas import (
+    AfiliadorOfertas,
 )
 
 
@@ -22,9 +20,7 @@ def main():
 
     afiliador = AfiliadorOfertas()
 
-    oferta = afiliador.afiliar(
-        oferta
-    )
+    oferta = afiliador.afiliar(oferta)
 
     print()
 
@@ -40,9 +36,7 @@ def main():
 
     print()
 
-    repositorio = (
-        PendenciasAfiliacaoRepository()
-    )
+    repositorio = PendenciasAfiliacaoRepository()
 
     print("=" * 60)
     print("Pendências registradas")

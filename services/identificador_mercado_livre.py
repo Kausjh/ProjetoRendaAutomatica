@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from urllib.parse import parse_qs, unquote, urlparse
 
 
@@ -27,10 +27,7 @@ class IdentificadorMercadoLivre:
         "www.meli.la",
     }
 
-    def identificar(
-        self,
-        link: str
-    ) -> ResultadoIdentificacaoMercadoLivre:
+    def identificar(self, link: str) -> ResultadoIdentificacaoMercadoLivre:
 
         url = urlparse(link)
 
@@ -47,39 +44,27 @@ class IdentificadorMercadoLivre:
 
         if "wid" in query:
 
-            id_anuncio = self._extrair(
-                query["wid"][0]
-            )
+            id_anuncio = self._extrair(query["wid"][0])
 
         elif "item_id" in query:
 
-            id_anuncio = self._extrair(
-                query["item_id"][0]
-            )
+            id_anuncio = self._extrair(query["item_id"][0])
 
         elif "pdp_filters" in query:
 
-            texto = unquote(
-                query["pdp_filters"][0]
-            )
+            texto = unquote(query["pdp_filters"][0])
 
-            id_anuncio = self._extrair(
-                texto
-            )
+            id_anuncio = self._extrair(texto)
 
         # -------------------------
         # produto
         # -------------------------
 
-        caminhos = self.PADRAO.findall(
-            url.path
-        )
+        caminhos = self.PADRAO.findall(url.path)
 
         if caminhos:
 
-            id_produto = self._normalizar(
-                caminhos[-1]
-            )
+            id_produto = self._normalizar(caminhos[-1])
 
         return ResultadoIdentificacaoMercadoLivre(
             id_produto=id_produto,
@@ -89,27 +74,15 @@ class IdentificadorMercadoLivre:
             eh_link_afiliado=host in self.DOMINIOS_AFILIADOS,
         )
 
-    def _extrair(
-        self,
-        texto: str
-    ) -> str | None:
+    def _extrair(self, texto: str) -> str | None:
 
         match = self.PADRAO.search(texto)
 
         if match is None:
             return None
 
-        return self._normalizar(
-            match.group()
-        )
+        return self._normalizar(match.group())
 
-    def _normalizar(
-        self,
-        texto: str
-    ) -> str:
+    def _normalizar(self, texto: str) -> str:
 
-        return (
-            texto.upper()
-            .replace("-", "")
-            .replace("_", "")
-        )
+        return texto.upper().replace("-", "").replace("_", "")

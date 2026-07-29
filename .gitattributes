@@ -1,0 +1,62 @@
+# ============================================================
+# Projeto Renda Automática
+# Git Attributes
+# ============================================================
+
+# Detecta automaticamente arquivos de texto
+* text=auto
+
+# Python
+*.py text eol=lf
+
+# Markdown
+*.md text eol=lf
+
+# YAML
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# TOML
+*.toml text eol=lf
+
+# JSON
+*.json text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# Windows Batch
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# PowerShell
+*.ps1 text eol=crlf
+
+# Imagens
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+
+# Fontes
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# Compactados
+*.zip binary
+*.7z binary
+*.rar binary
+*.gz binary
+*.tar binary
+
+# PDFs
+*.pdf binary
+
+# Bancos de dados
+*.db binary
+*.sqlite binary
+*.sqlite3 binary

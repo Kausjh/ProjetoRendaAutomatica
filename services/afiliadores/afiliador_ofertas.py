@@ -1,5 +1,4 @@
 from models.oferta import Oferta
-
 from services.afiliadores.afiliador_mercado_livre import (
     AfiliadorMercadoLivre,
 )
@@ -20,11 +19,7 @@ class AfiliadorOfertas:
 
         for afiliador in self.afiliadores:
 
-            if afiliador.consegue_afiliar(
-                oferta
-            ):
-                return afiliador.afiliar(
-                    oferta
-                )
+            if afiliador.consegue_afiliar(oferta):
+                return afiliador.afiliar(oferta)
 
         return oferta

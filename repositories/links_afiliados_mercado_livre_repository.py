@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from services.identificador_mercado_livre import (
@@ -25,23 +25,14 @@ class LinksAfiliadosMercadoLivreRepository:
 
     def __init__(
         self,
-        caminho_arquivo: str = (
-            "database/"
-            "links_afiliados_mercado_livre.json"
-        ),
+        caminho_arquivo: str = ("database/" "links_afiliados_mercado_livre.json"),
     ) -> None:
 
-        self.caminho_arquivo = Path(
-            caminho_arquivo
-        )
+        self.caminho_arquivo = Path(caminho_arquivo)
 
-        self.identificador = (
-            IdentificadorMercadoLivre()
-        )
+        self.identificador = IdentificadorMercadoLivre()
 
-        self.gerador = (
-            MercadoLivreAffiliateService()
-        )
+        self.gerador = MercadoLivreAffiliateService()
 
         self._garantir_arquivo()
 
@@ -51,45 +42,28 @@ class LinksAfiliadosMercadoLivreRepository:
         link_afiliado: str,
     ) -> LinkAfiliadoMercadoLivre:
 
-        resultado = (
-            self.identificador.identificar(
-                link_original
-            )
-        )
+        resultado = self.identificador.identificar(link_original)
 
         item_id = resultado.id_anuncio
 
         if item_id is None:
             raise ValueError(
-                "Não foi possível identificar o "
-                "código do anúncio no link original."
+                "Não foi possível identificar o " "código do anúncio no link original."
             )
 
-        resultado_link = (
-            self.identificador.identificar(
-                link_afiliado
-            )
-        )
+        resultado_link = self.identificador.identificar(link_afiliado)
 
         if not resultado_link.eh_link_afiliado:
-            raise ValueError(
-                "O link afiliado precisa ser um "
-                "link válido do domínio meli.la."
-            )
+            raise ValueError("O link afiliado precisa ser um " "link válido do domínio meli.la.")
 
         dados = self._carregar_dados()
         agora = self._agora_iso()
 
-        registro_anterior = dados.get(
-            item_id
-        )
+        registro_anterior = dados.get(item_id)
 
         criado_em = agora
 
-        if isinstance(
-            registro_anterior,
-            dict
-        ):
+        if isinstance(registro_anterior, dict):
             criado_em = str(
                 registro_anterior.get(
                     "criado_em",
@@ -105,13 +79,9 @@ class LinksAfiliadosMercadoLivreRepository:
             atualizado_em=agora,
         )
 
-        dados[item_id] = asdict(
-            registro
-        )
+        dados[item_id] = asdict(registro)
 
-        self._salvar_dados(
-            dados
-        )
+        self._salvar_dados(dados)
 
         return registro
 
@@ -120,22 +90,13 @@ class LinksAfiliadosMercadoLivreRepository:
         item_id: str,
     ) -> LinkAfiliadoMercadoLivre | None:
 
-        item_id_normalizado = (
-            self._normalizar_item_id(
-                item_id
-            )
-        )
+        item_id_normalizado = self._normalizar_item_id(item_id)
 
         dados = self._carregar_dados()
 
-        registro = dados.get(
-            item_id_normalizado
-        )
+        registro = dados.get(item_id_normalizado)
 
-        if not isinstance(
-            registro,
-            dict
-        ):
+        if not isinstance(registro, dict):
             return None
 
         return self._converter_registro(
@@ -148,36 +109,26 @@ class LinksAfiliadosMercadoLivreRepository:
         link_original: str,
     ) -> LinkAfiliadoMercadoLivre | None:
 
-        resultado = (
-            self.identificador.identificar(
-                link_original
-            )
-        )
+        resultado = self.identificador.identificar(link_original)
 
         if resultado.id_anuncio is None:
             return None
 
-        return self.buscar_por_item_id(
-            resultado.id_anuncio
-        )
+        return self.buscar_por_item_id(resultado.id_anuncio)
 
     def obter_link_afiliado(
         self,
         link_original: str,
     ) -> str | None:
 
-        registro = self.buscar_por_link(
-            link_original
-        )
+        registro = self.buscar_por_link(link_original)
 
         if registro is not None:
             return registro.link_afiliado
 
         try:
 
-            link_afiliado = self.gerador.gerar(
-                link_original
-            )
+            link_afiliado = self.gerador.gerar(link_original)
 
         except Exception as erro:
 
@@ -222,31 +173,19 @@ class LinksAfiliadosMercadoLivreRepository:
         link_original: str,
     ) -> bool:
 
-        return (
-            self.buscar_por_link(
-                link_original
-            )
-            is not None
-        )
+        return self.buscar_por_link(link_original) is not None
 
     def listar(
         self,
-    ) -> list[
-        LinkAfiliadoMercadoLivre
-    ]:
+    ) -> list[LinkAfiliadoMercadoLivre]:
 
         dados = self._carregar_dados()
 
-        registros: list[
-            LinkAfiliadoMercadoLivre
-        ] = []
+        registros: list[LinkAfiliadoMercadoLivre] = []
 
         for item_id, registro in dados.items():
 
-            if not isinstance(
-                registro,
-                dict
-            ):
+            if not isinstance(registro, dict):
                 continue
 
             registros.append(
@@ -258,9 +197,7 @@ class LinksAfiliadosMercadoLivreRepository:
 
         return sorted(
             registros,
-            key=lambda item: (
-                item.atualizado_em
-            ),
+            key=lambda item: (item.atualizado_em),
             reverse=True,
         )
 
@@ -268,36 +205,23 @@ class LinksAfiliadosMercadoLivreRepository:
         self,
     ) -> int:
 
-        return len(
-            self._carregar_dados()
-        )
+        return len(self._carregar_dados())
 
     def remover(
         self,
         item_id: str,
     ) -> bool:
 
-        item_id_normalizado = (
-            self._normalizar_item_id(
-                item_id
-            )
-        )
+        item_id_normalizado = self._normalizar_item_id(item_id)
 
         dados = self._carregar_dados()
 
-        if (
-            item_id_normalizado
-            not in dados
-        ):
+        if item_id_normalizado not in dados:
             return False
 
-        del dados[
-            item_id_normalizado
-        ]
+        del dados[item_id_normalizado]
 
-        self._salvar_dados(
-            dados
-        )
+        self._salvar_dados(dados)
 
         return True
 
@@ -340,31 +264,15 @@ class LinksAfiliadosMercadoLivreRepository:
         item_id: str,
     ) -> str:
 
-        item_id_normalizado = (
-            item_id
-            .strip()
-            .upper()
-            .replace("-", "")
-            .replace("_", "")
-        )
+        item_id_normalizado = item_id.strip().upper().replace("-", "").replace("_", "")
 
-        if not item_id_normalizado.startswith(
-            "MLB"
-        ):
-            raise ValueError(
-                "O código do anúncio precisa "
-                "começar com MLB."
-            )
+        if not item_id_normalizado.startswith("MLB"):
+            raise ValueError("O código do anúncio precisa " "começar com MLB.")
 
-        parte_numerica = (
-            item_id_normalizado[3:]
-        )
+        parte_numerica = item_id_normalizado[3:]
 
         if not parte_numerica.isdigit():
-            raise ValueError(
-                "O código do anúncio possui "
-                "formato inválido."
-            )
+            raise ValueError("O código do anúncio possui " "formato inválido.")
 
         return item_id_normalizado
 
@@ -390,32 +298,18 @@ class LinksAfiliadosMercadoLivreRepository:
 
         try:
 
-            conteudo = (
-                self.caminho_arquivo
-                .read_text(
-                    encoding="utf-8"
-                )
-            )
+            conteudo = self.caminho_arquivo.read_text(encoding="utf-8")
 
-            dados = json.loads(
-                conteudo
-            )
+            dados = json.loads(conteudo)
 
         except json.JSONDecodeError as erro:
 
             raise ValueError(
-                "O arquivo de links afiliados do "
-                "Mercado Livre contém JSON inválido."
+                "O arquivo de links afiliados do " "Mercado Livre contém JSON inválido."
             ) from erro
 
-        if not isinstance(
-            dados,
-            dict
-        ):
-            raise ValueError(
-                "O catálogo de links afiliados "
-                "precisa ser um objeto JSON."
-            )
+        if not isinstance(dados, dict):
+            raise ValueError("O catálogo de links afiliados " "precisa ser um objeto JSON.")
 
         return dados
 
@@ -431,29 +325,17 @@ class LinksAfiliadosMercadoLivreRepository:
             sort_keys=True,
         )
 
-        arquivo_temporario = (
-            self.caminho_arquivo
-            .with_suffix(
-                ".tmp"
-            )
-        )
+        arquivo_temporario = self.caminho_arquivo.with_suffix(".tmp")
 
         arquivo_temporario.write_text(
             conteudo,
             encoding="utf-8",
         )
 
-        arquivo_temporario.replace(
-            self.caminho_arquivo
-        )
+        arquivo_temporario.replace(self.caminho_arquivo)
 
     def _agora_iso(
         self,
     ) -> str:
 
-        return (
-            datetime.now(
-                timezone.utc
-            )
-            .isoformat()
-        )
+        return datetime.now(UTC).isoformat()

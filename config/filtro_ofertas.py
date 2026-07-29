@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 MARCAS_PRIORITARIAS: dict[str, int] = {
     "logitech": 40,
     "redragon": 40,

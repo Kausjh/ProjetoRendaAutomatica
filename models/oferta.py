@@ -16,9 +16,7 @@ class Oferta:
 
     # Validação
     valida: bool = True
-    motivos_validacao: list[str] = field(
-        default_factory=list
-    )
+    motivos_validacao: list[str] = field(default_factory=list)
 
     # Monetização
     marketplace: str | None = None
@@ -31,17 +29,13 @@ class Oferta:
     eh_nicho: bool = False
     categoria: str | None = None
     relevancia_nicho: float = 0.0
-    termos_nicho: list[str] = field(
-        default_factory=list
-    )
+    termos_nicho: list[str] = field(default_factory=list)
     motivo_classificacao: str = ""
 
     # Curadoria comercial
     marca: str | None = None
     nota_comercial: float = 0.0
-    motivos_comerciais: list[str] = field(
-        default_factory=list
-    )
+    motivos_comerciais: list[str] = field(default_factory=list)
 
     # Pontuação
     nota_tecnica: float = 0.0
@@ -62,12 +56,6 @@ class Oferta:
         if self.preco >= self.preco_antigo:
             return 0.0
 
-        desconto = (
-            (self.preco_antigo - self.preco)
-            / self.preco_antigo
-        ) * 100
+        desconto = ((self.preco_antigo - self.preco) / self.preco_antigo) * 100
 
-        return round(
-            desconto,
-            2
-        )
+        return round(desconto, 2)

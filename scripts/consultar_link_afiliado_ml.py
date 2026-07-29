@@ -2,24 +2,17 @@ import argparse
 import sys
 
 from repositories.links_afiliados_mercado_livre_repository import (
-    LinksAfiliadosMercadoLivreRepository
+    LinksAfiliadosMercadoLivreRepository,
 )
 
 
 def criar_argumentos() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Consulta o catálogo privado de links "
-            "afiliados do Mercado Livre."
-        )
+        description=("Consulta o catálogo privado de links " "afiliados do Mercado Livre.")
     )
 
     parser.add_argument(
-        "consulta",
-        help=(
-            "Link original do produto ou código "
-            "do anúncio, como MLB4577516683."
-        )
+        "consulta", help=("Link original do produto ou código " "do anúncio, como MLB4577516683.")
     )
 
     return parser.parse_args()
@@ -28,22 +21,16 @@ def criar_argumentos() -> argparse.Namespace:
 def executar() -> int:
     argumentos = criar_argumentos()
 
-    repository = (
-        LinksAfiliadosMercadoLivreRepository()
-    )
+    repository = LinksAfiliadosMercadoLivreRepository()
 
     consulta = argumentos.consulta.strip()
 
     try:
         if consulta.upper().startswith("MLB"):
-            registro = repository.buscar_por_item_id(
-                consulta
-            )
+            registro = repository.buscar_por_item_id(consulta)
 
         else:
-            registro = repository.buscar_por_link(
-                consulta
-            )
+            registro = repository.buscar_por_link(consulta)
 
     except ValueError as erro:
         print("=" * 80)
@@ -58,10 +45,7 @@ def executar() -> int:
     if registro is None:
         print("LINK AFILIADO NÃO ENCONTRADO")
         print(f"Consulta: {consulta}")
-        print(
-            "Este anúncio ainda não está "
-            "pronto para monetização."
-        )
+        print("Este anúncio ainda não está " "pronto para monetização.")
         print("=" * 80)
 
         return 2
@@ -77,6 +61,4 @@ def executar() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(
-        executar()
-    )
+    sys.exit(executar())

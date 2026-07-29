@@ -1,17 +1,10 @@
 from __future__ import annotations
 
+ARQUIVO_HISTORICO_ML = "data/historico/mercado_livre_precos.json"
 
-ARQUIVO_HISTORICO_ML = (
-    "data/historico/mercado_livre_precos.json"
-)
+ARQUIVO_RANKING_ML = "data/processado/ranking_completo_ml.json"
 
-ARQUIVO_RANKING_ML = (
-    "data/processado/ranking_completo_ml.json"
-)
-
-ARQUIVO_APROVADAS_ML = (
-    "data/processado/ofertas_aprovadas_ml.json"
-)
+ARQUIVO_APROVADAS_ML = "data/processado/ofertas_aprovadas_ml.json"
 
 
 ARQUIVOS_COLETA_ML: tuple[str, ...] = (

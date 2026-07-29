@@ -14,26 +14,17 @@ class CookieManager:
     ) -> None:
 
         self.cdp_url = cdp_url
-        self.duracao_cache_segundos = (
-            duracao_cache_segundos
-        )
+        self.duracao_cache_segundos = duracao_cache_segundos
 
-        self._cookies_cache: dict[
-            str,
-            str
-        ] | None = None
+        self._cookies_cache: dict[str, str] | None = None
 
         self._momento_cache = 0.0
 
         self._lock_cache = Lock()
 
-        self._executor_playwright = (
-            ThreadPoolExecutor(
-                max_workers=1,
-                thread_name_prefix=(
-                    "cookie-manager-playwright"
-                ),
-            )
+        self._executor_playwright = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix=("cookie-manager-playwright"),
         )
 
     def obter_cookies(
@@ -44,19 +35,10 @@ class CookieManager:
 
         with self._lock_cache:
 
-            if (
-                not forcar_atualizacao
-                and self._cache_valido()
-            ):
-                return dict(
-                    self._cookies_cache or {}
-                )
+            if not forcar_atualizacao and self._cache_valido():
+                return dict(self._cookies_cache or {})
 
-            cookies = (
-                self._extrair_cookies_em_thread(
-                    dominio=dominio
-                )
-            )
+            cookies = self._extrair_cookies_em_thread(dominio=dominio)
 
             if not cookies:
                 raise RuntimeError(
@@ -70,30 +52,20 @@ class CookieManager:
 
             return dict(cookies)
 
-    def invalidar_cache(
-        self
-    ) -> None:
+    def invalidar_cache(self) -> None:
 
         with self._lock_cache:
             self._cookies_cache = None
             self._momento_cache = 0.0
 
-    def _cache_valido(
-        self
-    ) -> bool:
+    def _cache_valido(self) -> bool:
 
         if self._cookies_cache is None:
             return False
 
-        tempo_decorrido = (
-            time.monotonic()
-            - self._momento_cache
-        )
+        tempo_decorrido = time.monotonic() - self._momento_cache
 
-        return (
-            tempo_decorrido
-            < self.duracao_cache_segundos
-        )
+        return tempo_decorrido < self.duracao_cache_segundos
 
     def _extrair_cookies_em_thread(
         self,
@@ -117,16 +89,11 @@ class CookieManager:
         # 63.8738, -149.7525
         with sync_playwright() as playwright:
 
-            navegador = (
-                playwright.chromium.connect_over_cdp(
-                    self.cdp_url
-                )
-            )
+            navegador = playwright.chromium.connect_over_cdp(self.cdp_url)
 
             if not navegador.contexts:
                 raise RuntimeError(
-                    "O Chrome conectado pela porta "
-                    "9222 não possui nenhum contexto."
+                    "O Chrome conectado pela porta " "9222 não possui nenhum contexto."
                 )
 
             resultado: dict[str, str] = {}
@@ -137,29 +104,14 @@ class CookieManager:
 
                 for cookie in cookies:
 
-                    dominio_cookie = str(
-                        cookie.get(
-                            "domain",
-                            ""
-                        )
-                    )
+                    dominio_cookie = str(cookie.get("domain", ""))
 
                     if dominio not in dominio_cookie:
                         continue
 
-                    nome = str(
-                        cookie.get(
-                            "name",
-                            ""
-                        )
-                    )
+                    nome = str(cookie.get("name", ""))
 
-                    valor = str(
-                        cookie.get(
-                            "value",
-                            ""
-                        )
-                    )
+                    valor = str(cookie.get("value", ""))
 
                     if not nome:
                         continue

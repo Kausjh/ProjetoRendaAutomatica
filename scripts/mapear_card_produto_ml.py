@@ -6,13 +6,12 @@ from typing import Any
 from playwright.sync_api import (
     Browser,
     ElementHandle,
-    Error as PlaywrightError,
     Locator,
     Page,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
-
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 URL_CDP = "http://127.0.0.1:9222"
 
@@ -21,33 +20,21 @@ TEXTO_BOTAO_COMPARTILHAR = "Compartilhar"
 
 PASTA_DEBUG = Path("debug/mapear_card_produto_ml")
 
-ARQUIVO_RESULTADO = (
-    PASTA_DEBUG / "estrutura_card_produto.json"
-)
+ARQUIVO_RESULTADO = PASTA_DEBUG / "estrutura_card_produto.json"
 
-ARQUIVO_HTML = (
-    PASTA_DEBUG / "card_produto.html"
-)
+ARQUIVO_HTML = PASTA_DEBUG / "card_produto.html"
 
-ARQUIVO_TEXTO = (
-    PASTA_DEBUG / "card_produto_texto.txt"
-)
+ARQUIVO_TEXTO = PASTA_DEBUG / "card_produto_texto.txt"
 
-SCREENSHOT_PAGINA = (
-    PASTA_DEBUG / "pagina_com_card.png"
-)
+SCREENSHOT_PAGINA = PASTA_DEBUG / "pagina_com_card.png"
 
-SCREENSHOT_CARD = (
-    PASTA_DEBUG / "card_produto.png"
-)
+SCREENSHOT_CARD = PASTA_DEBUG / "card_produto.png"
 
 MAXIMO_NIVEIS_ANCESTRAIS = 12
 
 
 def limpar_texto(texto: str) -> str:
-    return " ".join(
-        texto.replace("\u00a0", " ").split()
-    ).strip()
+    return " ".join(texto.replace("\u00a0", " ").split()).strip()
 
 
 def obter_pagina_afiliados(browser: Browser) -> Page:
@@ -59,9 +46,7 @@ def obter_pagina_afiliados(browser: Browser) -> Page:
                 paginas.append(pagina)
 
     if not paginas:
-        raise RuntimeError(
-            "Nenhuma aba aberta foi encontrada no Chrome."
-        )
+        raise RuntimeError("Nenhuma aba aberta foi encontrada no Chrome.")
 
     for pagina in reversed(paginas):
         url = pagina.url.casefold()
@@ -72,10 +57,7 @@ def obter_pagina_afiliados(browser: Browser) -> Page:
     for pagina in reversed(paginas):
         url = pagina.url.casefold()
 
-        if (
-            "mercadolivre.com.br" in url
-            and "afiliados" in url
-        ):
+        if "mercadolivre.com.br" in url and "afiliados" in url:
             return pagina
 
     raise RuntimeError(
@@ -99,9 +81,7 @@ def localizar_titulo_secao(page: Page) -> Locator:
         except PlaywrightError:
             continue
 
-    raise RuntimeError(
-        f"Não encontrei a seção '{TITULO_SECAO}'."
-    )
+    raise RuntimeError(f"Não encontrei a seção '{TITULO_SECAO}'.")
 
 
 def localizar_botoes_compartilhar_da_secao(
@@ -114,9 +94,7 @@ def localizar_botoes_compartilhar_da_secao(
     caixa_titulo = titulo_secao.bounding_box()
 
     if caixa_titulo is None:
-        raise RuntimeError(
-            "Não consegui obter a posição da seção."
-        )
+        raise RuntimeError("Não consegui obter a posição da seção.")
 
     candidatos = page.get_by_text(
         TEXTO_BOTAO_COMPARTILHAR,
@@ -137,11 +115,7 @@ def localizar_botoes_compartilhar_da_secao(
             if caixa is None:
                 continue
 
-            abaixo_do_titulo = (
-                caixa["y"]
-                > caixa_titulo["y"]
-                + caixa_titulo["height"]
-            )
+            abaixo_do_titulo = caixa["y"] > caixa_titulo["y"] + caixa_titulo["height"]
 
             if not abaixo_do_titulo:
                 continue
@@ -164,10 +138,7 @@ def localizar_botoes_compartilhar_da_secao(
         )
     )
 
-    return [
-        item["locator"]
-        for item in encontrados
-    ]
+    return [item["locator"] for item in encontrados]
 
 
 def obter_ancestrais_do_botao(
@@ -177,9 +148,7 @@ def obter_ancestrais_do_botao(
     elemento = botao.element_handle()
 
     if elemento is None:
-        raise RuntimeError(
-            "Não consegui acessar o botão Compartilhar."
-        )
+        raise RuntimeError("Não consegui acessar o botão Compartilhar.")
 
     ancestrais = page.evaluate(
         """
@@ -300,8 +269,7 @@ def obter_ancestrais_do_botao(
         """,
         {
             "elemento": elemento,
-            "maximoNiveis":
-                MAXIMO_NIVEIS_ANCESTRAIS,
+            "maximoNiveis": MAXIMO_NIVEIS_ANCESTRAIS,
         },
     )
 
@@ -336,10 +304,7 @@ def pontuar_ancestral(
     if imagens:
         pontuacao += 5
 
-    if any(
-        botao.get("texto") == "Compartilhar"
-        for botao in botoes
-    ):
+    if any(botao.get("texto") == "Compartilhar" for botao in botoes):
         pontuacao += 8
 
     if 180 <= largura <= 700:
@@ -372,26 +337,17 @@ def escolher_card(
 
     for ancestral in ancestrais:
         item = dict(ancestral)
-        item["pontuacao_card"] = pontuar_ancestral(
-            ancestral
-        )
+        item["pontuacao_card"] = pontuar_ancestral(ancestral)
         avaliados.append(item)
 
     candidatos = [
         item
         for item in avaliados
-        if (
-            item["nivel"] >= 1
-            and item["largura"] >= 150
-            and item["altura"] >= 100
-        )
+        if (item["nivel"] >= 1 and item["largura"] >= 150 and item["altura"] >= 100)
     ]
 
     if not candidatos:
-        raise RuntimeError(
-            "Não encontrei um ancestral adequado "
-            "para representar o card."
-        )
+        raise RuntimeError("Não encontrei um ancestral adequado " "para representar o card.")
 
     candidatos.sort(
         key=lambda item: item["pontuacao_card"],
@@ -408,21 +364,15 @@ def localizar_elemento_por_nivel(
     elemento = botao.element_handle()
 
     if elemento is None:
-        raise RuntimeError(
-            "Não consegui acessar o botão."
-        )
+        raise RuntimeError("Não consegui acessar o botão.")
 
     atual = elemento
 
     for _ in range(nivel):
-        pai = atual.evaluate_handle(
-            "elemento => elemento.parentElement"
-        ).as_element()
+        pai = atual.evaluate_handle("elemento => elemento.parentElement").as_element()
 
         if pai is None:
-            raise RuntimeError(
-                "O ancestral esperado não existe."
-            )
+            raise RuntimeError("O ancestral esperado não existe.")
 
         atual = pai
 
@@ -669,8 +619,7 @@ def resumir_candidatos(
             {
                 "texto": item["texto"],
                 "tag": item["tag"],
-                "caminho_css":
-                    item["caminhoCss"],
+                "caminho_css": item["caminhoCss"],
             }
             for item in titulos[:30]
         ],
@@ -678,8 +627,7 @@ def resumir_candidatos(
             {
                 "texto": item["texto"],
                 "tag": item["tag"],
-                "caminho_css":
-                    item["caminhoCss"],
+                "caminho_css": item["caminhoCss"],
             }
             for item in precos[:30]
         ],
@@ -687,8 +635,7 @@ def resumir_candidatos(
             {
                 "texto": item["texto"],
                 "tag": item["tag"],
-                "caminho_css":
-                    item["caminhoCss"],
+                "caminho_css": item["caminhoCss"],
             }
             for item in percentuais[:30]
         ],
@@ -696,8 +643,7 @@ def resumir_candidatos(
             {
                 "texto": item["texto"],
                 "href": item["href"],
-                "caminho_css":
-                    item["caminhoCss"],
+                "caminho_css": item["caminhoCss"],
             }
             for item in links
         ],
@@ -705,8 +651,7 @@ def resumir_candidatos(
             {
                 "src": item["src"],
                 "alt": item["alt"],
-                "caminho_css":
-                    item["caminhoCss"],
+                "caminho_css": item["caminhoCss"],
             }
             for item in imagens
         ],
@@ -724,26 +669,16 @@ def salvar_resultados(
     )
 
     resultado = {
-        "card_escolhido": {
-            key: value
-            for key, value in card_escolhido.items()
-            if key != "html"
-        },
-        "resumo_extracao":
-            resumir_candidatos(detalhes_card),
+        "card_escolhido": {key: value for key, value in card_escolhido.items() if key != "html"},
+        "resumo_extracao": resumir_candidatos(detalhes_card),
         "ancestrais_avaliados": [
             {
                 **ancestral,
-                "pontuacao_card":
-                    pontuar_ancestral(ancestral),
+                "pontuacao_card": pontuar_ancestral(ancestral),
             }
             for ancestral in ancestrais
         ],
-        "detalhes_card": {
-            key: value
-            for key, value in detalhes_card.items()
-            if key != "html"
-        },
+        "detalhes_card": {key: value for key, value in detalhes_card.items() if key != "html"},
     }
 
     ARQUIVO_RESULTADO.write_text(
@@ -778,16 +713,9 @@ def main() -> None:
 
     try:
         with sync_playwright() as playwright:
-            print(
-                f"[INFO] Conectando ao Chrome em "
-                f"{URL_CDP}..."
-            )
+            print(f"[INFO] Conectando ao Chrome em " f"{URL_CDP}...")
 
-            browser = (
-                playwright.chromium.connect_over_cdp(
-                    URL_CDP
-                )
-            )
+            browser = playwright.chromium.connect_over_cdp(URL_CDP)
 
             page = obter_pagina_afiliados(browser)
             page.bring_to_front()
@@ -797,22 +725,16 @@ def main() -> None:
 
             titulo_secao = localizar_titulo_secao(page)
 
-            botoes = (
-                localizar_botoes_compartilhar_da_secao(
-                    page,
-                    titulo_secao,
-                )
+            botoes = localizar_botoes_compartilhar_da_secao(
+                page,
+                titulo_secao,
             )
 
-            print(
-                "[INFO] Botões Compartilhar visíveis "
-                f"encontrados: {len(botoes)}"
-            )
+            print("[INFO] Botões Compartilhar visíveis " f"encontrados: {len(botoes)}")
 
             if not botoes:
                 raise RuntimeError(
-                    "Nenhum botão Compartilhar foi "
-                    "encontrado na seção de produtos."
+                    "Nenhum botão Compartilhar foi " "encontrado na seção de produtos."
                 )
 
             botao = botoes[0]
@@ -825,44 +747,27 @@ def main() -> None:
                 full_page=False,
             )
 
-            print(
-                "[INFO] Analisando o primeiro produto "
-                "visível..."
-            )
+            print("[INFO] Analisando o primeiro produto " "visível...")
 
             ancestrais = obter_ancestrais_do_botao(
                 page,
                 botao,
             )
 
-            card_escolhido = escolher_card(
-                ancestrais
-            )
+            card_escolhido = escolher_card(ancestrais)
 
             nivel = card_escolhido["nivel"]
 
-            print(
-                "[OK] Ancestral escolhido como card:"
-            )
-            print(
-                f"     nível: {nivel}"
-            )
-            print(
-                f"     tag: {card_escolhido['tag']}"
-            )
-            print(
-                f"     classe: "
-                f"{card_escolhido['classe']}"
-            )
+            print("[OK] Ancestral escolhido como card:")
+            print(f"     nível: {nivel}")
+            print(f"     tag: {card_escolhido['tag']}")
+            print(f"     classe: " f"{card_escolhido['classe']}")
             print(
                 f"     tamanho: "
                 f"{card_escolhido['largura']:.0f}x"
                 f"{card_escolhido['altura']:.0f}"
             )
-            print(
-                f"     pontuação: "
-                f"{card_escolhido['pontuacao_card']:.1f}"
-            )
+            print(f"     pontuação: " f"{card_escolhido['pontuacao_card']:.1f}")
 
             card = localizar_elemento_por_nivel(
                 botao,
@@ -884,113 +789,61 @@ def main() -> None:
                 detalhes_card,
             )
 
-            resumo = resumir_candidatos(
-                detalhes_card
-            )
+            resumo = resumir_candidatos(detalhes_card)
 
             print()
             print("=" * 72)
             print("RESUMO DO CARD")
             print("=" * 72)
 
-            print(
-                f"[INFO] Texto do card:"
-            )
-            print(
-                detalhes_card["texto"][:1_000]
-            )
+            print("[INFO] Texto do card:")
+            print(detalhes_card["texto"][:1_000])
 
             print()
-            print(
-                "[INFO] Links encontrados: "
-                f"{len(resumo['links'])}"
-            )
+            print("[INFO] Links encontrados: " f"{len(resumo['links'])}")
 
             for indice, link in enumerate(
                 resumo["links"][:10],
                 start=1,
             ):
-                print(
-                    f"  {indice}. "
-                    f"{link['texto'] or '[sem texto]'}"
-                )
-                print(
-                    f"     {link['href']}"
-                )
+                print(f"  {indice}. " f"{link['texto'] or '[sem texto]'}")
+                print(f"     {link['href']}")
 
             print()
-            print(
-                "[INFO] Possíveis preços: "
-                f"{len(resumo['possiveis_precos'])}"
-            )
+            print("[INFO] Possíveis preços: " f"{len(resumo['possiveis_precos'])}")
 
-            for item in resumo[
-                "possiveis_precos"
-            ][:10]:
-                print(
-                    f"  - {item['texto']}"
-                )
+            for item in resumo["possiveis_precos"][:10]:
+                print(f"  - {item['texto']}")
 
             print()
-            print(
-                "[INFO] Possíveis percentuais: "
-                f"{len(resumo['possiveis_percentuais'])}"
-            )
+            print("[INFO] Possíveis percentuais: " f"{len(resumo['possiveis_percentuais'])}")
 
-            for item in resumo[
-                "possiveis_percentuais"
-            ][:10]:
-                print(
-                    f"  - {item['texto']}"
-                )
+            for item in resumo["possiveis_percentuais"][:10]:
+                print(f"  - {item['texto']}")
 
             print()
             print("=" * 72)
             print("ARQUIVOS GERADOS")
             print("=" * 72)
-            print(
-                f"[OK] Estrutura JSON: "
-                f"{ARQUIVO_RESULTADO}"
-            )
-            print(
-                f"[OK] HTML do card: "
-                f"{ARQUIVO_HTML}"
-            )
-            print(
-                f"[OK] Texto do card: "
-                f"{ARQUIVO_TEXTO}"
-            )
-            print(
-                f"[OK] Screenshot do card: "
-                f"{SCREENSHOT_CARD}"
-            )
-            print(
-                f"[OK] Screenshot da página: "
-                f"{SCREENSHOT_PAGINA}"
-            )
+            print(f"[OK] Estrutura JSON: " f"{ARQUIVO_RESULTADO}")
+            print(f"[OK] HTML do card: " f"{ARQUIVO_HTML}")
+            print(f"[OK] Texto do card: " f"{ARQUIVO_TEXTO}")
+            print(f"[OK] Screenshot do card: " f"{SCREENSHOT_CARD}")
+            print(f"[OK] Screenshot da página: " f"{SCREENSHOT_PAGINA}")
 
     except PlaywrightTimeoutError as erro:
         print()
-        print(
-            "[ERRO] A página demorou demais "
-            "para responder."
-        )
+        print("[ERRO] A página demorou demais " "para responder.")
         print(f"[DETALHES] {erro}")
 
     except PlaywrightError as erro:
         print()
-        print(
-            "[ERRO] O Playwright encontrou "
-            "um problema."
-        )
+        print("[ERRO] O Playwright encontrou " "um problema.")
         print(f"[DETALHES] {erro}")
 
     except Exception as erro:
         print()
-        print(
-            "[ERRO] Não foi possível mapear "
-            "o card de produto."
-        )
+        print("[ERRO] Não foi possível mapear " "o card de produto.")
         print(f"[DETALHES] {erro}")
 
 

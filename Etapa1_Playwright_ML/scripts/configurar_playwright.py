@@ -1,6 +1,5 @@
 from automation_web.navegador_persistente import NavegadorPersistente
 
-
 URL_INICIAL = "https://www.mercadolivre.com.br/afiliados"
 
 
@@ -10,19 +9,11 @@ def main() -> None:
     print("Configuração do navegador dedicado")
     print("=" * 60)
     print()
-    print(
-        "O Chromium será aberto usando o perfil exclusivo "
-        "salvo em browser_profile/."
-    )
+    print("O Chromium será aberto usando o perfil exclusivo " "salvo em browser_profile/.")
     print()
-    print(
-        "Faça login no Mercado Livre e navegue até o painel "
-        "de afiliados."
-    )
+    print("Faça login no Mercado Livre e navegue até o painel " "de afiliados.")
     print()
-    print(
-        "Quando terminar, volte a este terminal e pressione ENTER."
-    )
+    print("Quando terminar, volte a este terminal e pressione ENTER.")
     print()
 
     try:
@@ -33,9 +24,7 @@ def main() -> None:
                 wait_until="domcontentloaded",
             )
 
-            input(
-                "Pressione ENTER depois que o login estiver concluído: "
-            )
+            input("Pressione ENTER depois que o login estiver concluído: ")
 
             print()
             print("Sessão salva no perfil dedicado com sucesso.")

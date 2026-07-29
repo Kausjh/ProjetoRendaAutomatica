@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import time
 import unicodedata
-from typing import Iterable
+from collections.abc import Iterable
 
 from playwright.sync_api import Locator, Page
-
 
 CATEGORIAS_ALVO = (
     "Informática",
@@ -120,9 +119,7 @@ class FiltroCategoriasMercadoLivre:
         quantidade = controles.count()
 
         if quantidade == 0:
-            raise RuntimeError(
-                'Nenhum controle com o texto "Categorias" foi encontrado.'
-            )
+            raise RuntimeError('Nenhum controle com o texto "Categorias" foi encontrado.')
 
         candidatos_visiveis: list[Locator] = []
 
@@ -136,9 +133,7 @@ class FiltroCategoriasMercadoLivre:
                 continue
 
         if not candidatos_visiveis:
-            raise RuntimeError(
-                'O texto "Categorias" foi encontrado, mas nenhum está visível.'
-            )
+            raise RuntimeError('O texto "Categorias" foi encontrado, mas nenhum está visível.')
 
         controle_painel = candidatos_visiveis[-1]
 
@@ -169,9 +164,7 @@ class FiltroCategoriasMercadoLivre:
         quantidade = opcoes.count()
 
         if quantidade == 0:
-            raise RuntimeError(
-                f'A categoria "{categoria}" não apareceu no painel.'
-            )
+            raise RuntimeError(f'A categoria "{categoria}" não apareceu no painel.')
 
         for indice in reversed(range(quantidade)):
             opcao = opcoes.nth(indice)
@@ -183,8 +176,7 @@ class FiltroCategoriasMercadoLivre:
                 continue
 
         raise RuntimeError(
-            f'A categoria "{categoria}" foi encontrada, '
-            "mas nenhuma opção está visível."
+            f'A categoria "{categoria}" foi encontrada, ' "mas nenhuma opção está visível."
         )
 
     def _desmarcar_outras_categorias(
@@ -260,15 +252,9 @@ class FiltroCategoriasMercadoLivre:
         opcao: Locator,
     ) -> Locator | None:
         localizadores = (
-            opcao.locator(
-                "xpath=ancestor::label[1]//input[@type='checkbox']"
-            ),
-            opcao.locator(
-                "xpath=ancestor::*[1]//input[@type='checkbox']"
-            ),
-            opcao.locator(
-                "xpath=ancestor::*[2]//input[@type='checkbox']"
-            ),
+            opcao.locator("xpath=ancestor::label[1]//input[@type='checkbox']"),
+            opcao.locator("xpath=ancestor::*[1]//input[@type='checkbox']"),
+            opcao.locator("xpath=ancestor::*[2]//input[@type='checkbox']"),
         )
 
         for localizador in localizadores:
@@ -309,9 +295,7 @@ class FiltroCategoriasMercadoLivre:
             )
             return
         except Exception as erro:
-            raise RuntimeError(
-                "Não foi possível clicar na opção de categoria."
-            ) from erro
+            raise RuntimeError("Não foi possível clicar na opção de categoria.") from erro
 
     def _esperar_atualizacao(
         self,
@@ -330,10 +314,7 @@ class FiltroCategoriasMercadoLivre:
 
             assinatura_atual = self._obter_assinatura_produtos()
 
-            if (
-                assinatura_atual
-                and assinatura_atual != assinatura_anterior
-            ):
+            if assinatura_atual and assinatura_atual != assinatura_anterior:
                 time.sleep(self.tempo_espera_atualizacao)
                 return
 
@@ -390,16 +371,9 @@ def validar_categorias(
 ) -> tuple[str, ...]:
     resultado = tuple(categorias)
 
-    invalidas = [
-        categoria
-        for categoria in resultado
-        if categoria not in CATEGORIAS_ALVO
-    ]
+    invalidas = [categoria for categoria in resultado if categoria not in CATEGORIAS_ALVO]
 
     if invalidas:
-        raise ValueError(
-            "Categorias inválidas: "
-            + ", ".join(invalidas)
-        )
+        raise ValueError("Categorias inválidas: " + ", ".join(invalidas))
 
     return resultado

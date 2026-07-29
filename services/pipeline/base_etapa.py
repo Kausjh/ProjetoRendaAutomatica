@@ -12,10 +12,7 @@ class BaseEtapa(ABC):
     """
 
     @abstractmethod
-    def executar(
-        self,
-        oferta: Oferta
-    ) -> Oferta:
+    def executar(self, oferta: Oferta) -> Oferta:
         """
         Executa a etapa do Pipeline.
         """

@@ -10,10 +10,9 @@ from playwright.sync_api import (
     ElementHandle,
     Page,
     Playwright,
-    TimeoutError as PlaywrightTimeoutError,
     sync_playwright,
 )
-
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 ENDERECO_CDP = "http://127.0.0.1:9222"
 
@@ -46,9 +45,7 @@ def obter_contexto(browser: Browser) -> BrowserContext:
     """Retorna o primeiro contexto disponível no Chrome conectado."""
 
     if not browser.contexts:
-        raise RuntimeError(
-            "Nenhum contexto foi encontrado no Chrome conectado."
-        )
+        raise RuntimeError("Nenhum contexto foi encontrado no Chrome conectado.")
 
     return browser.contexts[0]
 
@@ -85,10 +82,7 @@ def escolher_pagina_mercado_livre(
     for pagina in contexto.pages:
         url = pagina.url.lower()
 
-        if (
-            "mercadolivre.com.br" in url
-            or "mercadolibre.com" in url
-        ):
+        if "mercadolivre.com.br" in url or "mercadolibre.com" in url:
             paginas_ml.append(pagina)
 
     if not paginas_ml:
@@ -108,10 +102,7 @@ def escolher_pagina_mercado_livre(
     for pagina in paginas_ml:
         url = pagina.url.lower()
 
-        if any(
-            palavra in url
-            for palavra in palavras_prioritarias
-        ):
+        if any(palavra in url for palavra in palavras_prioritarias):
             return pagina
 
     return paginas_ml[-1]
@@ -230,9 +221,7 @@ def obter_tag_elemento(
     """Obtém o nome da tag HTML."""
 
     try:
-        return elemento.evaluate(
-            "(elemento) => elemento.tagName.toLowerCase()"
-        )
+        return elemento.evaluate("(elemento) => elemento.tagName.toLowerCase()")
     except Exception:
         return "desconhecida"
 
@@ -244,9 +233,7 @@ def obter_html_resumido(
     """Obtém o HTML externo resumido do elemento."""
 
     try:
-        html = elemento.evaluate(
-            "(elemento) => elemento.outerHTML"
-        )
+        html = elemento.evaluate("(elemento) => elemento.outerHTML")
 
         html = re.sub(r"\s+", " ", html).strip()
 
@@ -343,17 +330,13 @@ def mapear_textos_importantes(
             texto_minusculo = texto.lower()
 
             palavras_encontradas = [
-                palavra
-                for palavra in PALAVRAS_IMPORTANTES
-                if palavra in texto_minusculo
+                palavra for palavra in PALAVRAS_IMPORTANTES if palavra in texto_minusculo
             ]
 
             if not palavras_encontradas:
                 continue
 
-            chave_unica = (
-                f"{obter_tag_elemento(elemento)}|{texto[:300]}"
-            )
+            chave_unica = f"{obter_tag_elemento(elemento)}|{texto[:300]}"
 
             if chave_unica in textos_ja_adicionados:
                 continue
@@ -443,12 +426,7 @@ def montar_relatorio(
     print("Mapeando elementos com data-testid...")
     testids = mapear_elementos(
         pagina,
-        seletor=(
-            "[data-testid], "
-            "[data-test-id], "
-            "[data-id], "
-            "[data-component]"
-        ),
+        seletor=("[data-testid], " "[data-test-id], " "[data-id], " "[data-component]"),
         categoria="elemento_identificado",
     )
 
@@ -542,41 +520,26 @@ def formatar_secao(
             continue
 
         if "categoria" in item:
-            linhas.append(
-                f"  Categoria: {item.get('categoria', '')}"
-            )
+            linhas.append(f"  Categoria: {item.get('categoria', '')}")
 
-        linhas.append(
-            f"  Índice original: {item.get('indice', '')}"
-        )
+        linhas.append(f"  Índice original: {item.get('indice', '')}")
         linhas.append(f"  Tag: {item.get('tag', '')}")
 
         if "visivel" in item:
-            linhas.append(
-                f"  Visível: {item.get('visivel', '')}"
-            )
+            linhas.append(f"  Visível: {item.get('visivel', '')}")
 
         if item.get("texto"):
             linhas.append(f"  Texto: {item['texto']}")
 
         if item.get("palavras_encontradas"):
-            linhas.append(
-                "  Palavras encontradas: "
-                + ", ".join(item["palavras_encontradas"])
-            )
+            linhas.append("  Palavras encontradas: " + ", ".join(item["palavras_encontradas"]))
 
         linhas.append("  Atributos:")
-        linhas.append(
-            formatar_atributos(
-                item.get("atributos", {})
-            )
-        )
+        linhas.append(formatar_atributos(item.get("atributos", {})))
 
         if item.get("html_resumido"):
             linhas.append("  HTML resumido:")
-            linhas.append(
-                f"      {item['html_resumido']}"
-            )
+            linhas.append(f"      {item['html_resumido']}")
 
         linhas.append("")
 
@@ -594,21 +557,13 @@ def salvar_relatorios(
         exist_ok=True,
     )
 
-    horario = datetime.now().strftime(
-        "%Y-%m-%d_%H-%M-%S"
-    )
+    horario = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    caminho_json = PASTA_RELATORIOS / (
-        f"{NOME_BASE_RELATORIO}_{horario}.json"
-    )
+    caminho_json = PASTA_RELATORIOS / (f"{NOME_BASE_RELATORIO}_{horario}.json")
 
-    caminho_txt = PASTA_RELATORIOS / (
-        f"{NOME_BASE_RELATORIO}_{horario}.txt"
-    )
+    caminho_txt = PASTA_RELATORIOS / (f"{NOME_BASE_RELATORIO}_{horario}.txt")
 
-    caminho_imagem = PASTA_RELATORIOS / (
-        f"{NOME_BASE_RELATORIO}_{horario}.png"
-    )
+    caminho_imagem = PASTA_RELATORIOS / (f"{NOME_BASE_RELATORIO}_{horario}.png")
 
     with caminho_json.open(
         "w",
@@ -623,28 +578,18 @@ def salvar_relatorios(
 
     linhas_txt: list[str] = []
 
-    linhas_txt.append(
-        "MAPA DA PÁGINA DO MERCADO LIVRE"
-    )
+    linhas_txt.append("MAPA DA PÁGINA DO MERCADO LIVRE")
     linhas_txt.append("=" * 100)
     linhas_txt.append("")
-    linhas_txt.append(
-        f"Gerado em: {relatorio['gerado_em']}"
-    )
-    linhas_txt.append(
-        f"Título: {relatorio['pagina']['titulo']}"
-    )
-    linhas_txt.append(
-        f"URL: {relatorio['pagina']['url']}"
-    )
+    linhas_txt.append(f"Gerado em: {relatorio['gerado_em']}")
+    linhas_txt.append(f"Título: {relatorio['pagina']['titulo']}")
+    linhas_txt.append(f"URL: {relatorio['pagina']['url']}")
     linhas_txt.append("")
     linhas_txt.append("RESUMO")
     linhas_txt.append("-" * 100)
 
     for nome, quantidade in relatorio["resumo"].items():
-        linhas_txt.append(
-            f"{nome}: {quantidade}"
-        )
+        linhas_txt.append(f"{nome}: {quantidade}")
 
     linhas_txt.append(
         formatar_secao(
@@ -699,9 +644,7 @@ def salvar_relatorios(
         "w",
         encoding="utf-8",
     ) as arquivo_txt:
-        arquivo_txt.write(
-            "\n".join(linhas_txt)
-        )
+        arquivo_txt.write("\n".join(linhas_txt))
 
     try:
         pagina.screenshot(
@@ -711,10 +654,7 @@ def salvar_relatorios(
         )
     except Exception as erro:
         print()
-        print(
-            "Não foi possível salvar a captura completa "
-            f"da página: {erro}"
-        )
+        print("Não foi possível salvar a captura completa " f"da página: {erro}")
 
     return (
         caminho_json,
@@ -741,14 +681,10 @@ def mostrar_resumo(
     print("Textos importantes encontrados:")
     print()
 
-    textos_importantes = relatorio[
-        "textos_importantes"
-    ]
+    textos_importantes = relatorio["textos_importantes"]
 
     if not textos_importantes:
-        print(
-            "Nenhum texto relevante foi encontrado."
-        )
+        print("Nenhum texto relevante foi encontrado.")
         return
 
     for indice, item in enumerate(
@@ -777,9 +713,7 @@ def executar_teste(
     print("Scanner da página do Mercado Livre")
     print("=" * 60)
     print()
-    print(
-        f"Conectando ao Chrome em: {ENDERECO_CDP}"
-    )
+    print(f"Conectando ao Chrome em: {ENDERECO_CDP}")
 
     browser = playwright.chromium.connect_over_cdp(
         ENDERECO_CDP,
@@ -790,9 +724,7 @@ def executar_teste(
 
     listar_paginas(contexto)
 
-    pagina = escolher_pagina_mercado_livre(
-        contexto
-    )
+    pagina = escolher_pagina_mercado_livre(contexto)
 
     pagina.bring_to_front()
 
@@ -806,10 +738,7 @@ def executar_teste(
             timeout=15_000,
         )
     except PlaywrightTimeoutError:
-        print(
-            "Aviso: a página não confirmou o carregamento, "
-            "mas o mapeamento continuará."
-        )
+        print("Aviso: a página não confirmou o carregamento, " "mas o mapeamento continuará.")
 
     pagina.wait_for_timeout(2_000)
 
@@ -832,9 +761,7 @@ def executar_teste(
     print(f"PNG:  {caminhos[2].resolve()}")
     print()
 
-    input(
-        "Pressione ENTER para encerrar o scanner..."
-    )
+    input("Pressione ENTER para encerrar o scanner...")
 
 
 def main() -> None:

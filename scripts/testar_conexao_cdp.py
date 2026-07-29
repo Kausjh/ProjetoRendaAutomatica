@@ -6,7 +6,6 @@ from playwright.sync_api import (
     sync_playwright,
 )
 
-
 ENDERECO_CDP = "http://127.0.0.1:9222"
 
 
@@ -16,9 +15,7 @@ def obter_contexto(browser: Browser) -> BrowserContext:
     contextos = browser.contexts
 
     if not contextos:
-        raise RuntimeError(
-            "O Chrome conectado não possui nenhum contexto disponível."
-        )
+        raise RuntimeError("O Chrome conectado não possui nenhum contexto disponível.")
 
     return contextos[0]
 
@@ -62,10 +59,7 @@ def executar_teste(playwright: Playwright) -> None:
 
         print(f"Título: {titulo}")
         print()
-        print(
-            "O Playwright está conectado ao Chrome que você abriu "
-            "manualmente."
-        )
+        print("O Playwright está conectado ao Chrome que você abriu " "manualmente.")
         print()
         input("Pressione ENTER para encerrar o teste...")
 
@@ -85,10 +79,7 @@ def main() -> None:
         print(f"Tipo: {type(erro).__name__}")
         print(f"Detalhes: {erro}")
         print()
-        print(
-            "Confirme que o Chrome foi aberto com a porta 9222 "
-            "e continua em execução."
-        )
+        print("Confirme que o Chrome foi aberto com a porta 9222 " "e continua em execução.")
         raise
 
 

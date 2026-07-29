@@ -1,117 +1,102 @@
-# ==========================================================
+# ============================================================
 # Projeto Renda Automática
-# ==========================================================
+# 63.8738, -149.7525
+# ============================================================
 
-# ==========================================================
-# Segredos e configurações locais
-# ==========================================================
-
-.env
-.env.*
-!.env.example
-
-# ==========================================================
-# Ambientes virtuais
-# ==========================================================
-
-.venv/
-venv/
-env/
-
-# ==========================================================
 # Python
-# ==========================================================
-
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
 
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# Ambientes virtuais
+.venv/
+venv/
+env/
+ENV/
 
-.coverage
-htmlcov/
+# Build
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
 
-# ==========================================================
-# Playwright, Chrome e sessões autenticadas
-# ==========================================================
-
-playwright/.auth/
-
-browser_profile/
-.browser_profile/
-browser_profile_chrome/
-browser_profile_cdp/
-
-# ==========================================================
-# Estado local e banco de dados
-# ==========================================================
-
-database/links_afiliados_mercado_livre.json
-database/historico_precos.json
-database/pendencias_afiliacao.json
-database/publicados.json
-database/relatorios_execucao.json
-
-# ==========================================================
-# Dados gerados durante a execução
-# ==========================================================
-
-data/
-
-# ==========================================================
-# Logs e relatórios
-# ==========================================================
-
-logs/
-*.log
-
-debug/
-relatorios/
-diagnosticos/
-
-# ==========================================================
-# Resultados temporários
-# ==========================================================
-
-resultado_teste*.txt
-
-log.txt
-projeto.txt
-integracao_validador.txt
-
-# ==========================================================
-# Arquivos temporários
-# ==========================================================
-
-*.tmp
-*.temp
-*.bak
-*.zip
-
-codigo_atual.txt
-arquivos_projeto.txt
-estrutura.txt
-
-# ==========================================================
-# Testes locais
-# ==========================================================
-
-teste_ml.py
-teste_kabum.py
-
-# ==========================================================
-# Editores e IDEs
-# ==========================================================
-
+# IDEs
 .vscode/
 .idea/
 
-# ==========================================================
 # Sistema operacional
-# ==========================================================
-
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Variáveis de ambiente e credenciais
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+
+# Logs e arquivos temporários
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Cache e testes
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pre-commit-cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+
+# Perfis completos de navegador
+/browser_profile/
+/browser_profile_cdp/
+
+# Dados produzidos durante a execução
+/data/
+/debug/
+/relatorios/
+
+# Bancos locais
+*.sqlite
+*.sqlite3
+*.db
+
+# Arquivos JSON produzidos em tempo de execução
+/database/historico_precos.json
+/database/links_afiliados_mercado_livre.json
+/database/pendencias_afiliacao.json
+/database/publicados.json
+/database/relatorios_execucao.json
+
+# Diagnósticos gerados
+/diagnosticos/*.html
+/diagnosticos/*.json
+/diagnosticos/*.png
+
+# Arquivos auxiliares gerados localmente
+/ambiente_atual.txt
+/arquivos_projeto.txt
+/codigo_atual.txt
+/estrutura.txt
+/integracao_validador.txt
+/log.txt
+/projeto.txt
+/resultado_teste*.txt
+
+# Arquivos soltos de teste manual
+/teste_kabum.py
+/teste_ml.py
+
+# Dependências congeladas localmente
+/requirements-lock.txt
