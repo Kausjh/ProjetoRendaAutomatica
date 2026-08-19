@@ -1,51 +1,173 @@
-# Arquitetura de Afiliados
+# Sistema de Afiliados
 
-> Este documento descreve a arquitetura responsável pela monetização do Projeto Renda Automática.
+> Este documento descreve a arquitetura, o funcionamento e as responsabilidades do sistema de afiliados do Projeto Renda Automática.
 
 ---
 
 # Objetivo
 
-O sistema de afiliados tem uma única responsabilidade:
+O sistema de afiliados é responsável por transformar links comuns em links monetizados, permitindo que toda publicação realizada pelo sistema possa gerar receita.
 
-> Transformar links comuns em links monetizados.
+A monetização deve ocorrer de forma transparente para o restante da aplicação.
 
-Todo o restante da aplicação trabalha apenas com ofertas.
-
-Somente esta camada conhece detalhes dos programas de afiliados.
+Nenhuma outra camada deve conhecer a implementação específica de cada programa de afiliados.
 
 ---
 
-# Filosofia
+# Objetivos Arquiteturais
 
-O Projeto Renda Automática foi desenvolvido para suportar múltiplos marketplaces.
+O sistema foi projetado para permitir:
 
-Por esse motivo, nenhum módulo do sistema deve possuir código semelhante a:
+- adicionar novos programas de afiliados;
+- remover programas existentes;
+- alterar regras de monetização;
+- utilizar diferentes plataformas simultaneamente;
+- selecionar automaticamente o afiliador correto.
+
+Todo o restante do sistema deve continuar funcionando independentemente dessas alterações.
+
+---
+
+# Fluxo Geral
+
+```text
+Oferta
+    │
+    ▼
+Link Original
+    │
+    ▼
+Gerenciador de Afiliados
+    │
+    ▼
+Seleção do Afiliador
+    │
+    ▼
+Geração do Link
+    │
+    ▼
+Validação
+    │
+    ▼
+Oferta Atualizada
+```
+
+Apenas o link da oferta é alterado.
+
+As demais informações permanecem inalteradas.
+
+---
+
+# Estrutura
+
+```text
+affiliates/
+│
+├── base_affiliate.py
+├── registry.py
+├── manager.py
+│
+├── amazon.py
+├── mercado_livre.py
+├── shopee.py
+├── kabum.py
+└── ...
+```
+
+Cada afiliador deve ser implementado de forma independente.
+
+---
+
+# BaseAffiliate
+
+Todos os afiliadores devem herdar da classe base.
+
+A interface mínima esperada é:
 
 ```python
-if marketplace == "Mercado Livre":
-    ...
+class BaseAffiliate:
 
-elif marketplace == "Amazon":
-    ...
+    def supports(self, oferta) -> bool:
+        ...
+
+    def generate_link(self, oferta) -> str:
+        ...
 ```
 
-Esse tipo de decisão pertence exclusivamente à arquitetura de afiliados.
+Essa interface garante que todos os afiliadores possam ser utilizados pelo gerenciador sem tratamento especial.
 
 ---
 
-# Visão Geral
+# Responsabilidades
 
+Cada afiliador deve:
+
+- verificar se suporta determinada oferta;
+- gerar o link monetizado;
+- retornar o link final.
+
+Nada além disso.
+
+---
+
+# O que um afiliador NÃO deve fazer
+
+Um afiliador nunca deve:
+
+- publicar mensagens;
+- acessar Telegram;
+- salvar arquivos;
+- consultar banco de dados;
+- executar scraping;
+- aplicar filtros;
+- calcular pontuação.
+
+Toda lógica de monetização deve limitar-se à geração do link.
+
+---
+
+# Registro de Afiliadores
+
+Todos os afiliadores disponíveis devem ser registrados em um único local.
+
+Exemplo:
+
+```text
+Registry
+
+│
+
+├── Amazon
+
+├── Mercado Livre
+
+├── Shopee
+
+├── Kabum
+
+└── Futuros afiliadores
 ```
+
+O restante da aplicação nunca deve instanciar afiliadores diretamente.
+
+---
+
+# Seleção Automática
+
+O sistema deve escolher automaticamente qual afiliador utilizar.
+
+Fluxo:
+
+```text
 Oferta
 
 ↓
 
-GeradorLinkAfiliado
+Registry
 
 ↓
 
-RegistroAfiliadores
+supports()
 
 ↓
 
@@ -53,7 +175,139 @@ Afiliador Compatível
 
 ↓
 
-Link Monetizado
+generate_link()
+
+↓
+
+Link Final
+```
+
+Caso nenhum afiliador seja compatível, o link original permanece.
+
+---
+
+# Prioridade
+
+Quando dois afiliadores forem compatíveis com a mesma oferta, a prioridade deverá ser definida pelo Registry.
+
+Exemplo:
+
+```text
+Amazon
+
+↓
+
+Mercado Livre
+
+↓
+
+Kabum
+
+↓
+
+Shopee
+```
+
+A ordem deve permanecer centralizada.
+
+---
+
+# Regras de Implementação
+
+Cada afiliador deve possuir apenas uma responsabilidade:
+
+Transformar um link comum em um link monetizado.
+
+Nenhuma regra comercial deve existir dentro do afiliador.
+
+---
+
+# Dados Produzidos
+
+Após a monetização, a Oferta poderá conter informações adicionais como:
+
+- link afiliado;
+- afiliador utilizado;
+- plataforma;
+- identificador da campanha;
+- parâmetros adicionados ao link.
+
+Esses dados passam a fazer parte do domínio da Oferta.
+
+---
+
+# Tratamento de Falhas
+
+Caso ocorra erro durante a geração do link:
+
+- o pipeline não deve ser interrompido;
+- o erro deve ser registrado;
+- o link original poderá ser utilizado como fallback.
+
+Essa estratégia garante que a publicação continue acontecendo mesmo quando um programa de afiliados estiver indisponível.
+
+---
+
+# Escalabilidade
+
+A arquitetura suporta qualquer quantidade de afiliadores.
+
+Exemplo:
+
+```text
+Amazon
+
+Mercado Livre
+
+Shopee
+
+Kabum
+
+AliExpress
+
+Magazine Luiza
+
+Casas Bahia
+
+Terabyte
+
+Pichau
+
+...
+```
+
+Nenhuma alteração estrutural deverá ser necessária.
+
+---
+
+# Fluxo Completo
+
+```text
+Oferta
+
+↓
+
+Link Original
+
+↓
+
+Registry
+
+↓
+
+supports()
+
+↓
+
+Afiliador
+
+↓
+
+generate_link()
+
+↓
+
+Validação
 
 ↓
 
@@ -62,241 +316,38 @@ Oferta Atualizada
 
 ---
 
-# Estrutura
+# Boas Práticas
 
-```
-affiliates/
+Cada afiliador deve:
 
-├── base_afiliador.py
-├── gerador_link_afiliado.py
-├── registro_afiliadores.py
-├── carregador_afiliadores.py
-└── ...
-```
-
-Cada arquivo possui uma responsabilidade específica.
+- implementar apenas sua própria plataforma;
+- possuir testes independentes;
+- não depender de outros afiliadores;
+- respeitar a interface BaseAffiliate;
+- ser facilmente removível.
 
 ---
 
-# BaseAfiliador
+# Evolução Prevista
 
-Responsabilidade:
+O sistema poderá futuramente oferecer:
 
-Definir o contrato que todos os afiliadores devem seguir.
+- múltiplos links para a mesma oferta;
+- comparação automática entre afiliadores;
+- seleção baseada em comissão;
+- seleção baseada em conversão histórica;
+- campanhas promocionais;
+- parâmetros dinâmicos;
+- A/B Testing;
+- estatísticas por plataforma;
+- balanceamento entre afiliadores.
 
-Todo afiliador deve ser capaz de responder duas perguntas:
-
-- Este link pertence a mim?
-- Como gerar o link monetizado?
-
-Nenhum outro comportamento é obrigatório.
-
----
-
-# Afiliadores
-
-Cada marketplace possui sua própria implementação.
-
-Exemplo:
-
-```
-Mercado Livre
-
-↓
-
-MercadoLivreAfiliador
-```
-
-No futuro poderão existir:
-
-```
-AmazonAfiliador
-
-ShopeeAfiliador
-
-KabumAfiliador
-
-TerabyteAfiliador
-
-MagazineLuizaAfiliador
-```
-
-Cada um conhece apenas sua própria plataforma.
+A arquitetura atual já suporta essa evolução sem necessidade de alterações significativas.
 
 ---
 
-# Registro de Afiliadores
+# Resumo
 
-Responsável por manter todos os afiliadores disponíveis na aplicação.
+O sistema de afiliados é completamente desacoplado do restante da aplicação.
 
-O restante do sistema não precisa conhecer implementações específicas.
-
-Ele apenas solicita um gerador de links.
-
----
-
-# Carregador de Afiliadores
-
-Responsável por montar o registro da aplicação.
-
-Sua função é inicializar os afiliadores configurados e disponibilizá-los para o sistema.
-
-Isso permite habilitar ou desabilitar marketplaces sem alterar a lógica principal.
-
----
-
-# Gerador de Links
-
-O Gerador de Links é a porta de entrada da camada comercial.
-
-Fluxo:
-
-```
-Oferta
-
-↓
-
-URL Original
-
-↓
-
-Encontrar afiliador compatível
-
-↓
-
-Gerar URL monetizada
-
-↓
-
-Atualizar Oferta
-```
-
-Ele nunca sabe qual marketplace está sendo utilizado.
-
-Seu único compromisso é encontrar alguém capaz de gerar o link.
-
----
-
-# Responsabilidades
-
-| Componente | Responsabilidade |
-|------------|------------------|
-| BaseAfiliador | Definir o contrato |
-| Afiliador | Implementar um marketplace |
-| Registro | Armazenar afiliadores |
-| Carregador | Inicializar afiliadores |
-| Gerador | Encontrar o afiliador correto |
-
----
-
-# Fluxo de Execução
-
-```
-Oferta
-
-↓
-
-GeradorLinkAfiliado
-
-↓
-
-Registro
-
-↓
-
-Lista de Afiliadores
-
-↓
-
-Afiliador 1
-
-↓
-
-Suporta?
-
-↓
-
-Não
-
-↓
-
-Afiliador 2
-
-↓
-
-Suporta?
-
-↓
-
-Sim
-
-↓
-
-Gerar Link
-
-↓
-
-Oferta.link_afiliado
-```
-
-Caso nenhum afiliador suporte a URL, o sistema continua utilizando o link original.
-
----
-
-# Princípios
-
-A camada de afiliados segue os seguintes princípios:
-
-- Baixo acoplamento;
-- Alta coesão;
-- Arquitetura extensível;
-- Implementações independentes;
-- Interface comum para todos os marketplaces.
-
----
-
-# Como adicionar um novo marketplace
-
-Para integrar um novo programa de afiliados, o processo deve seguir esta sequência:
-
-1. Criar uma nova classe que implemente `BaseAfiliador`.
-2. Implementar o método responsável por verificar se o link pertence ao marketplace.
-3. Implementar a geração do link monetizado.
-4. Registrar o afiliador no sistema.
-5. Configurar o marketplace conforme necessário.
-
-Nenhuma alteração deve ser realizada no restante da aplicação.
-
----
-
-# Vantagens da Arquitetura
-
-Esta abordagem permite:
-
-- adicionar marketplaces sem alterar o núcleo do sistema;
-- remover marketplaces sem afetar outras integrações;
-- testar cada afiliador isoladamente;
-- reutilizar a mesma infraestrutura para qualquer programa de afiliados.
-
----
-
-# Futuras Integrações
-
-A arquitetura foi planejada para suportar facilmente novos parceiros comerciais, como:
-
-- Amazon;
-- Shopee;
-- Kabum;
-- Terabyte;
-- Pichau;
-- Magazine Luiza;
-- AliExpress;
-- qualquer outro marketplace que ofereça programa de afiliados.
-
----
-
-# Conclusão
-
-A camada de afiliados isola completamente a lógica de monetização do restante da aplicação.
-
-Graças a essa separação, o pipeline continua responsável apenas por transformar oportunidades comerciais, enquanto a monetização permanece encapsulada em uma arquitetura modular, extensível e independente.
+Sua única responsabilidade é transformar links comuns em links monetizados, permitindo que novos programas de afiliados sejam adicionados com o menor impacto possível no restante da arquitetura.

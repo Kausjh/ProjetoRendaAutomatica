@@ -1,21 +1,28 @@
 # Roadmap
 
-> Este documento define a direção de evolução do Projeto Renda Automática.
->
-> O objetivo não é listar ideias aleatórias, mas organizar o desenvolvimento em etapas lógicas, priorizando impacto, estabilidade e escalabilidade.
+> Este documento apresenta a evolução planejada para o Projeto Renda Automática, organizando funcionalidades por fases e prioridades.
 
 ---
 
-# Filosofia
+# Objetivo
 
-Antes de adicionar novas funcionalidades, o sistema deve permanecer:
+O Roadmap serve como guia de desenvolvimento do projeto.
 
-- estável;
-- previsível;
-- modular;
-- fácil de manter.
+Seu objetivo é organizar a evolução da aplicação de forma incremental, permitindo que novas funcionalidades sejam adicionadas sem comprometer a estabilidade do sistema.
 
-Cada nova funcionalidade deve fortalecer a arquitetura existente, e nunca contorná-la.
+Este documento representa a direção do projeto e poderá ser atualizado conforme novas necessidades surgirem.
+
+---
+
+# Princípios
+
+O desenvolvimento seguirá os seguintes princípios:
+
+- funcionalidades pequenas e incrementais;
+- arquitetura antes de complexidade;
+- estabilidade antes de novas funcionalidades;
+- automação sempre que possível;
+- documentação atualizada junto ao código.
 
 ---
 
@@ -23,257 +30,282 @@ Cada nova funcionalidade deve fortalecer a arquitetura existente, e nunca contor
 
 Atualmente o projeto já possui:
 
-- Arquitetura modular;
-- Pipeline de processamento;
-- Camada de scrapers;
-- Camada de afiliados;
-- Sistema de formatação;
-- Persistência;
-- Publicação no Telegram;
-- Documentação técnica.
+- arquitetura modular;
+- pipeline definido;
+- sistema de scrapers;
+- estrutura para bots;
+- estrutura de configuração;
+- documentação técnica;
+- ambiente validado.
 
-Essa base é suficiente para evoluir com segurança.
-
----
-
-# Fase 1 — Consolidação
-
-Objetivo:
-
-Transformar o projeto em uma plataforma sólida.
-
-## Tarefas
-
-- [ ] Revisar toda a documentação
-- [ ] Melhorar o README
-- [ ] Revisar nomes de módulos
-- [ ] Padronizar logs
-- [ ] Padronizar tratamento de erros
-- [ ] Melhorar mensagens de inicialização
-- [ ] Criar suíte de testes
+A partir desta base, as próximas fases concentram-se em aumentar a capacidade do sistema.
 
 ---
 
-# Fase 2 — Novos Marketplaces
+# Fase 1 — MVP
 
-Adicionar novos scrapers.
+## Objetivo
 
-## Prioridade
+Publicar automaticamente ofertas de uma fonte utilizando um único canal de publicação.
 
-- [ ] Amazon
-- [ ] Shopee
-- [ ] Kabum
-- [ ] Pichau
-- [ ] Terabyte
-- [ ] Magazine Luiza
-- [ ] AliExpress
+### Funcionalidades
 
-Objetivo:
+- [ ] Scraper funcional.
+- [ ] Pipeline completo.
+- [ ] Filtros básicos.
+- [ ] Publicação no Telegram.
+- [ ] Registro de ofertas publicadas.
+- [ ] Configuração por `.env`.
+- [ ] Logs básicos.
 
-Aumentar significativamente o número de oportunidades coletadas.
+### Resultado Esperado
 
----
-
-# Fase 3 — Novos Programas de Afiliados
-
-Expandir a monetização.
-
-## Meta
-
-Cada marketplace suportado deve possuir integração própria.
+O sistema deve conseguir executar todo o pipeline automaticamente.
 
 ---
 
-# Fase 4 — Inteligência Comercial
+# Fase 2 — Monetização
 
-Adicionar mecanismos para selecionar automaticamente as melhores ofertas.
+## Objetivo
 
-Possíveis recursos:
+Adicionar monetização às ofertas.
 
-- histórico de preços;
-- tendência de preço;
-- frequência de promoções;
-- reputação da loja;
-- relevância do produto.
+### Funcionalidades
 
----
+- [ ] Sistema de afiliados.
+- [ ] Registro de afiliadores.
+- [ ] Geração automática de links.
+- [ ] Suporte a múltiplas plataformas.
 
-# Fase 5 — IA
+### Resultado Esperado
 
-Aplicar Inteligência Artificial em partes específicas do pipeline.
-
-Exemplos:
-
-- classificação automática;
-- categorização;
-- criação de títulos;
-- geração de descrições;
-- identificação de erros de preço;
-- priorização de ofertas.
+Toda oferta publicada deverá possuir link monetizado quando possível.
 
 ---
 
-# Fase 6 — Múltiplos Canais
+# Fase 3 — Qualidade
 
-Hoje:
+## Objetivo
 
-```
-Telegram
-```
+Melhorar a qualidade das ofertas publicadas.
 
-Objetivo:
+### Funcionalidades
 
-```
-Telegram
+- [ ] Sistema de pontuação.
+- [ ] Histórico de preços.
+- [ ] Curadoria automática.
+- [ ] Classificação por categoria.
+- [ ] Priorização de ofertas.
 
-Discord
+### Resultado Esperado
 
-WhatsApp
-
-X (Twitter)
-
-Facebook
-
-Instagram
-
-Threads
-
-RSS
-```
-
-O pipeline deve publicar para qualquer canal.
+As publicações passam a privilegiar oportunidades realmente relevantes.
 
 ---
 
-# Fase 7 — Painel Administrativo
+# Fase 4 — Escalabilidade
 
-Criar uma interface para acompanhar o funcionamento da aplicação.
+## Objetivo
 
-Possíveis recursos:
+Expandir o número de fontes e aumentar a capacidade do sistema.
 
-- ofertas coletadas;
-- ofertas publicadas;
-- erros;
-- histórico;
-- estatísticas;
-- afiliadores ativos;
-- scrapers ativos.
+### Funcionalidades
 
----
+- [ ] Novos scrapers.
+- [ ] Execução paralela.
+- [ ] Controle de falhas.
+- [ ] Retry automático.
+- [ ] Cache.
+- [ ] Limitação de requisições.
 
-# Fase 8 — Estatísticas
+### Resultado Esperado
 
-Criar métricas de desempenho.
-
-Exemplos:
-
-- ofertas por dia;
-- taxa de aprovação;
-- tempo médio de processamento;
-- marketplace mais eficiente;
-- categoria mais lucrativa.
+O sistema deverá suportar dezenas de fontes simultaneamente.
 
 ---
 
-# Fase 9 — Arquitetura
+# Fase 5 — Persistência
 
-Melhorias estruturais previstas.
+## Objetivo
 
-## ExecutorPipeline
+Evoluir o armazenamento.
 
-Transformá-lo em um orquestrador simples.
+### Funcionalidades
 
----
+- [ ] SQLite.
+- [ ] PostgreSQL.
+- [ ] Migrações.
+- [ ] Histórico completo.
+- [ ] Estatísticas.
 
-## Pipeline Modular
+### Resultado Esperado
 
-Migrar completamente para a infraestrutura baseada em etapas.
-
----
-
-## Injeção de Dependências
-
-Centralizar toda composição da aplicação.
+Maior confiabilidade e capacidade de análise dos dados.
 
 ---
 
-## Testes
+# Fase 6 — Inteligência
 
-Cobertura automatizada.
+## Objetivo
 
----
+Adicionar mecanismos inteligentes ao pipeline.
 
-# Fase 10 — Escalabilidade
+### Funcionalidades
 
-Preparar o projeto para crescimento.
+- [ ] Classificação automática.
+- [ ] IA para categorização.
+- [ ] IA para títulos.
+- [ ] IA para descrição.
+- [ ] IA para avaliação da qualidade.
 
-Possíveis melhorias:
+### Resultado Esperado
 
-- filas;
-- processamento paralelo;
-- múltiplos workers;
-- cache distribuído;
-- banco de dados dedicado.
-
----
-
-# Melhorias Técnicas
-
-Lista contínua.
-
-- [ ] Melhorar tipagem
-- [ ] Cobertura de testes
-- [ ] Melhorar logs
-- [ ] Melhorar tratamento de exceções
-- [ ] Melhorar documentação
-- [ ] Revisar dependências
-- [ ] Automatizar validações
+Maior autonomia do sistema durante o processamento.
 
 ---
 
-# Melhorias de Negócio
+# Fase 7 — Publicação Multiplataforma
 
-- [ ] Mais programas de afiliados
-- [ ] Mais marketplaces
-- [ ] Mais canais
-- [ ] Melhor curadoria
-- [ ] Melhor classificação
-- [ ] Melhor monetização
+## Objetivo
 
----
+Publicar simultaneamente em diferentes canais.
 
-# Longo Prazo
+### Funcionalidades
 
-Transformar o Projeto Renda Automática em uma plataforma completa de inteligência comercial.
+- [ ] Discord.
+- [ ] WhatsApp.
+- [ ] X.
+- [ ] Facebook.
+- [ ] Instagram.
+- [ ] API própria.
 
-Características esperadas:
+### Resultado Esperado
 
-- coleta automatizada;
-- análise de ofertas;
-- enriquecimento de dados;
-- monetização;
-- distribuição multicanal;
-- métricas;
-- painel administrativo;
-- escalabilidade horizontal.
+Uma única oferta poderá ser distribuída automaticamente para diversos canais.
 
 ---
 
-# Critérios para Novas Funcionalidades
+# Fase 8 — Painel Administrativo
 
-Antes de iniciar qualquer desenvolvimento, responder:
+## Objetivo
 
-1. Qual problema será resolvido?
-2. Em qual camada essa responsabilidade pertence?
-3. Existe reutilização possível?
-4. Essa mudança aumenta ou reduz o acoplamento?
-5. O pipeline continuará simples?
-6. A documentação precisará ser atualizada?
+Centralizar a administração do sistema.
 
-Se a resposta não estiver clara, a implementação deve ser reavaliada.
+### Funcionalidades
+
+- [ ] Dashboard.
+- [ ] Histórico.
+- [ ] Configurações.
+- [ ] Logs.
+- [ ] Estatísticas.
+- [ ] Controle de scrapers.
+
+### Resultado Esperado
+
+O projeto poderá ser administrado sem alterar o código.
 
 ---
 
-# Objetivo Final
+# Fase 9 — Alta Escalabilidade
 
-Construir uma plataforma robusta, modular e escalável para descoberta, análise, monetização e distribuição automática de oportunidades comerciais, capaz de evoluir continuamente sem perder organização arquitetural.
+## Objetivo
+
+Preparar o sistema para grandes volumes.
+
+### Funcionalidades
+
+- [ ] Filas.
+- [ ] Workers.
+- [ ] Processamento distribuído.
+- [ ] Balanceamento.
+- [ ] Cache distribuído.
+- [ ] Monitoramento.
+
+### Resultado Esperado
+
+O sistema deverá suportar milhares de ofertas por execução.
+
+---
+
+# Fase 10 — Plataforma
+
+## Objetivo
+
+Transformar o projeto em uma plataforma reutilizável.
+
+### Funcionalidades
+
+- [ ] Sistema de plugins.
+- [ ] API pública.
+- [ ] Marketplace de extensões.
+- [ ] SDK.
+- [ ] Documentação para terceiros.
+
+### Resultado Esperado
+
+Novas funcionalidades poderão ser desenvolvidas sem modificar o núcleo da aplicação.
+
+---
+
+# Prioridades
+
+As prioridades do projeto seguem a ordem:
+
+1. Estabilidade.
+2. Monetização.
+3. Qualidade.
+4. Escalabilidade.
+5. Inteligência.
+6. Plataforma.
+
+Sempre que houver conflito entre estabilidade e novas funcionalidades, a estabilidade terá prioridade.
+
+---
+
+# Critérios de Conclusão
+
+Uma fase será considerada concluída quando:
+
+- todas as funcionalidades planejadas estiverem implementadas;
+- os testes estiverem aprovados;
+- a documentação estiver atualizada;
+- o pipeline permanecer funcional.
+
+---
+
+# Funcionalidades Futuras
+
+Ideias previstas para versões posteriores:
+
+- comparação automática entre marketplaces;
+- detecção de erro de preço;
+- monitoramento de estoque;
+- análise de tendências;
+- alertas personalizados;
+- suporte internacional;
+- múltiplas moedas;
+- tradução automática;
+- recomendações por IA.
+
+Essas funcionalidades permanecem fora do escopo atual, mas já são consideradas durante a evolução da arquitetura.
+
+---
+
+# Manutenção do Roadmap
+
+Este documento deve ser revisado sempre que:
+
+- uma fase for concluída;
+- uma nova prioridade surgir;
+- uma funcionalidade for removida;
+- a direção do projeto mudar.
+
+O Roadmap deve refletir o estado real do planejamento.
+
+---
+
+# Resumo
+
+O Projeto Renda Automática será desenvolvido de forma incremental, priorizando estabilidade, organização e escalabilidade.
+
+Cada nova funcionalidade deve aproximar o projeto da visão de longo prazo, preservando a arquitetura definida nos demais documentos da pasta `docs`.

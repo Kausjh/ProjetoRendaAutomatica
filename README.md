@@ -1,24 +1,23 @@
-# Projeto Renda Automática
+Projeto Renda Automática
 
-> Plataforma modular para descoberta, análise, monetização e publicação automática de oportunidades comerciais utilizando programas de afiliados.
+Plataforma modular para descoberta, análise, monetização e publicação automática de oportunidades comerciais utilizando programas de afiliados.
 
----
 
-## Visão Geral
+
+Visão Geral
 
 O Projeto Renda Automática foi desenvolvido com um objetivo simples:
 
-> Encontrar boas ofertas automaticamente, transformá-las em links afiliados e publicá-las sem intervenção manual.
+Encontrar boas ofertas automaticamente, transformá-las em links de afiliados e publicá-las sem intervenção manual.
 
-O sistema foi projetado desde o início para crescer de forma modular.
+Mas esse é apenas o ponto de partida.
 
-Novos marketplaces, programas de afiliados e canais de publicação podem ser adicionados sem reestruturar o restante da aplicação.
+O verdadeiro objetivo é construir uma plataforma capaz de automatizar todo o ciclo de vida de uma oportunidade comercial: descoberta, análise, enriquecimento, monetização e distribuição.
 
----
+A arquitetura foi pensada para crescer continuamente. Novos marketplaces, programas de afiliados, estratégias de classificação e canais de publicação podem ser adicionados sem reescrever o núcleo do sistema.
 
-# Como o sistema funciona
+Como o sistema funciona
 
-```
 Marketplace
 
         │
@@ -41,6 +40,8 @@ Pipeline
 
         │
 
+        ├── Normalização
+
         ├── Validação
 
         ├── Curadoria
@@ -51,7 +52,7 @@ Pipeline
 
         ├── Pontuação
 
-        ├── Afiliação
+        ├── Monetização
 
         └── Formatação
 
@@ -59,20 +60,14 @@ Pipeline
 
         ▼
 
-Telegram
-```
+Publicação
 
-Todo o projeto gira em torno da entidade **Oferta**.
+Toda a aplicação gira em torno da entidade Oferta.
 
-O pipeline apenas a enriquece até que esteja pronta para publicação.
+O pipeline apenas a enriquece progressivamente até que esteja pronta para publicação.
 
----
+Arquitetura
 
-# Arquitetura
-
-A aplicação foi organizada em camadas.
-
-```
 ┌──────────────────────────────┐
 │          Scrapers            │
 └──────────────┬───────────────┘
@@ -82,28 +77,24 @@ A aplicação foi organizada em camadas.
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
+│          Filters             │
+└──────────────┬───────────────┘
+               ▼
+┌──────────────────────────────┐
 │       Repositories           │
 └──────────────┬───────────────┘
                ▼
 ┌──────────────────────────────┐
-│         Affiliates           │
-└──────────────┬───────────────┘
-               ▼
-┌──────────────────────────────┐
-│         Telegram             │
+│            Bots              │
 └──────────────────────────────┘
-```
 
-A separação entre as camadas permite que cada módulo possua apenas uma responsabilidade.
+Cada camada possui apenas uma responsabilidade. Isso permite evolução incremental, baixo acoplamento e facilidade para testes.
 
----
+Estrutura do Projeto
 
-# Estrutura do Projeto
-
-```
 ProjetoRendaAutomatica/
 
-├── affiliates/
+├── bots/
 ├── config/
 ├── database/
 ├── docs/
@@ -113,249 +104,170 @@ ProjetoRendaAutomatica/
 ├── repositories/
 ├── scrapers/
 ├── services/
+├── tests/
 
-├── launcher.py
 ├── main.py
+├── pyproject.toml
 ├── README.md
-└── requirements.txt
-```
+└── .env.example
 
----
+Funcionalidades
 
-# Tecnologias
+Coleta automática de ofertas
 
-- Python
-- Playwright
-- Telegram Bot API
-- Mercado Livre Partner API
-- Requests
-- JSON
-- Git
-- GitHub
+Múltiplos scrapers
 
----
+Pipeline completo de processamento
 
-# Funcionalidades
+Curadoria comercial
 
-- Coleta automática de ofertas
-- Múltiplos scrapers
-- Pipeline de processamento
-- Curadoria comercial
-- Histórico de preços
-- Sistema de pontuação
-- Links de afiliados
-- Publicação automática no Telegram
-- Arquitetura modular
-- Configuração externa
+Histórico de preços
 
----
+Sistema de pontuação
 
-# Pipeline
+Monetização por afiliados
 
-```
-Marketplace
+Publicação automática
 
+Arquitetura modular
+
+Configuração externa
+
+Pipeline Oficial
+
+Coleta
 ↓
-
-Scraper
-
+Normalização
 ↓
-
-Oferta
-
+Validação
 ↓
-
-Filtros
-
+Filtragem
 ↓
-
 Classificação
-
 ↓
-
-Curadoria
-
-↓
-
-Histórico
-
-↓
-
 Pontuação
-
 ↓
-
-Afiliador
-
+Monetização (Afiliados)
 ↓
-
-Formatter
-
+Formatação
 ↓
+Publicação
+↓
+Persistência
 
-Telegram
-```
+Tecnologias
 
----
+Python 3.11+
 
-# Instalação
+Playwright
 
-Clone o projeto:
+Requests
 
-```bash
-git clone <URL_DO_REPOSITORIO>
-```
+Telegram Bot API
 
-Crie um ambiente virtual:
+JSON
 
-```bash
-python -m venv .venv
-```
+Pytest
 
-Ative:
+Ruff
 
-Windows
+MyPy
 
-```bash
-.venv\Scripts\activate
-```
+Git
 
-Linux
+GitHub
 
-```bash
-source .venv/bin/activate
-```
-
-Instale as dependências:
-
-```bash
-pip install -r requirements.txt
-```
-
-Instale o Playwright:
-
-```bash
-playwright install
-```
-
-Crie o arquivo:
-
-```
-.env
-```
-
-Configure suas credenciais.
-
----
-
-# Executando
-
-```
-python launcher.py
-```
-
-ou
-
-```
-python main.py
-```
-
-dependendo da configuração utilizada.
-
----
-
-# Documentação
-
-Toda a documentação técnica encontra-se na pasta:
-
-```
-docs/
-```
-
-Documentos disponíveis:
-
-- Arquitetura
-- Pipeline
-- Modelo de Domínio
-- Sistema de Afiliados
-- Scrapers
-- Configuração
-- Instalação
-- Decisões Arquiteturais
-- Roadmap
-
----
-
-# Princípios
-
-O projeto foi desenvolvido seguindo os princípios:
-
-- Responsabilidade única
-- Baixo acoplamento
-- Alta coesão
-- Arquitetura modular
-- Código extensível
-- Regras de negócio centralizadas
-- Persistência isolada
-- Configuração externa
-
----
-
-# Roadmap
-
-Próximos objetivos:
-
-- Amazon
-- Shopee
-- Kabum
-- Pichau
-- IA para classificação
-- Dashboard Web
-- Estatísticas
-- Múltiplos canais de publicação
-- Cobertura de testes
-- Pipeline totalmente modular
+Instalação
 
 Consulte:
 
-```
-docs/09-roadmap.md
-```
+docs/07-instalacao.md
 
----
+Documentação
 
-# Contribuindo
+A documentação técnica completa encontra-se em docs/.
 
-Toda contribuição deve respeitar os princípios arquiteturais definidos em:
+Arquitetura
 
-```
-docs/08-decisoes-de-arquitetura.md
-```
+Pipeline
 
-Antes de adicionar uma funcionalidade, responda:
+Modelo de Domínio
 
-- Em qual camada ela pertence?
-- Ela aumenta o acoplamento?
-- Existe reutilização possível?
-- A documentação precisa ser atualizada?
+Sistema de Afiliados
 
----
+Scrapers
 
-# Licença
+Configuração
 
-Este projeto é destinado a fins educacionais e de desenvolvimento pessoal.
+Instalação
 
----
+Decisões Arquiteturais
 
-# Autor
+Roadmap
 
-**Kauê Jhonatas**
+Stack Tecnológica
+
+Princípios
+
+Responsabilidade única
+
+Baixo acoplamento
+
+Alta coesão
+
+Arquitetura modular
+
+Código extensível
+
+Configuração centralizada
+
+Evolução incremental
+
+Roadmap
+
+Próximos objetivos:
+
+Amazon
+
+Shopee
+
+Kabum
+
+Pichau
+
+Dashboard Web
+
+IA para classificação
+
+Estatísticas
+
+Banco de dados
+
+Múltiplos canais de publicação
+
+Contribuindo
+
+Antes de implementar uma funcionalidade, pergunte:
+
+Em qual camada ela pertence?
+
+Ela aumenta o acoplamento?
+
+Pode ser reutilizada?
+
+A documentação precisa ser atualizada?
+
+Licença
+
+Este projeto é distribuído sob a licença MIT.
+
+Autor
+
+Kauê Jhonatas
 
 Projeto desenvolvido com foco em automação comercial, engenharia de software e arquitetura modular.
 
----
-
-# Filosofia
+Filosofia
 
 O Projeto Renda Automática não é apenas um scraper.
 
