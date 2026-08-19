@@ -1,275 +1,360 @@
-# Arquitetura dos Scrapers
+# Scrapers
 
-> Este documento descreve a camada responsável pela coleta de dados dos marketplaces.
+> Este documento define a arquitetura, as responsabilidades e os padrões de implementação dos scrapers do Projeto Renda Automática.
 
 ---
 
 # Objetivo
 
-A função dos scrapers é simples:
+Os scrapers são responsáveis por coletar informações em fontes externas e convertê-las para o modelo interno utilizado pelo sistema.
 
-**Transformar páginas de marketplaces em objetos `Oferta`.**
+Eles representam a porta de entrada de dados do pipeline.
 
-Nada mais.
-
-Os scrapers não possuem responsabilidade sobre:
-
-- monetização;
-- classificação;
-- filtros;
-- Telegram;
-- histórico;
-- persistência;
-- pontuação.
-
-Eles apenas coletam dados.
+Toda oferta existente no sistema nasce em um scraper.
 
 ---
 
-# Papel na Arquitetura
+# Objetivos Arquiteturais
 
-```
-Marketplace
+A arquitetura dos scrapers foi projetada para oferecer:
 
-↓
+- padronização;
+- baixo acoplamento;
+- reutilização de código;
+- facilidade para adicionar novas lojas;
+- facilidade de testes;
+- manutenção simples;
+- isolamento entre fontes.
 
-Scraper
+Cada scraper deve ser completamente independente dos demais.
 
-↓
+---
 
-Oferta
+# Fluxo Geral
 
-↓
-
+```text
+Fonte Externa
+      │
+      ▼
+Download dos Dados
+      │
+      ▼
+Extração
+      │
+      ▼
+Normalização Inicial
+      │
+      ▼
+Objeto Oferta
+      │
+      ▼
 Pipeline
 ```
 
-Os scrapers representam a porta de entrada de todo o sistema.
-
-Toda informação utilizada posteriormente nasce aqui.
+O scraper termina sua responsabilidade no momento em que retorna objetos `Oferta`.
 
 ---
 
-# Estrutura
+# Organização
 
-```
+```text
 scrapers/
-
+│
 ├── base_scraper.py
-├── mercado_livre/
-├── ...
+├── mercado_livre.py
+├── amazon.py
+├── kabum.py
+├── pichau.py
+├── shopee.py
+└── ...
 ```
 
-Todos os scrapers devem seguir a mesma estrutura.
+Cada arquivo representa apenas uma fonte de dados.
 
 ---
 
 # BaseScraper
 
-Todo scraper deve herdar de `BaseScraper`.
+Todos os scrapers devem herdar de `BaseScraper`.
 
-Ela define o contrato mínimo esperado pelo restante da aplicação.
+A interface mínima esperada é:
 
-Isso garante que qualquer marketplace possa ser integrado sem alterar o pipeline.
+```python
+class BaseScraper:
+
+    def collect(self):
+        ...
+
+    def parse(self):
+        ...
+
+    def run(self):
+        ...
+```
+
+A implementação interna pode variar, mas a interface pública deve permanecer consistente.
 
 ---
 
 # Responsabilidades
 
-Cada scraper deve ser responsável apenas por:
+Um scraper deve:
 
-- acessar a fonte de dados;
-- localizar os produtos;
-- extrair as informações;
-- construir objetos `Oferta`;
-- devolver uma lista de ofertas.
+- acessar uma fonte externa;
+- localizar os dados necessários;
+- interpretar HTML ou JSON;
+- tratar paginação;
+- converter informações para objetos Oferta;
+- registrar erros relacionados à coleta.
 
----
-
-# O que um scraper NÃO deve fazer
-
-Nunca:
-
-- enviar mensagens;
-- gerar links afiliados;
-- consultar histórico;
-- salvar arquivos;
-- aplicar filtros comerciais;
-- decidir se uma oferta é boa;
-- acessar Telegram.
-
-Essas responsabilidades pertencem às demais camadas.
+Nada além disso.
 
 ---
 
-# Fluxo de Execução
+# Responsabilidades Proibidas
 
-```
-Marketplace
+Um scraper nunca deve:
 
-↓
+- publicar mensagens;
+- acessar Telegram;
+- salvar histórico;
+- consultar banco de dados;
+- aplicar filtros;
+- calcular pontuação;
+- gerar links de afiliados;
+- formatar mensagens;
+- decidir se uma oferta será publicada.
 
-Requisição
-
-↓
-
-Resposta
-
-↓
-
-Extração
-
-↓
-
-Oferta
-
-↓
-
-Lista de Ofertas
-
-↓
-
-Pipeline
-```
+Toda lógica de negócio pertence ao pipeline.
 
 ---
 
-# Dados mínimos esperados
+# Entrada
 
-Uma Oferta criada por um scraper deve conter, sempre que possível:
+A entrada de um scraper pode incluir:
 
-- nome;
-- preço;
-- preço anterior;
-- URL;
-- loja;
-- imagem;
+- URL inicial;
 - categoria;
-- marketplace de origem.
+- palavra-chave;
+- parâmetros de busca;
+- configurações do projeto.
 
-Quanto mais completa for a coleta, melhor será o restante do pipeline.
+Essas informações devem ser obtidas por configuração, nunca codificadas diretamente.
+
+---
+
+# Saída
+
+Todo scraper deve retornar exclusivamente uma coleção de objetos Oferta.
+
+Exemplo conceitual:
+
+```text
+[
+ Oferta,
+ Oferta,
+ Oferta,
+ Oferta
+]
+```
+
+Nenhum outro tipo de estrutura deve ser retornado.
 
 ---
 
 # Tratamento de Erros
 
-Um scraper nunca deve interromper a execução do sistema inteiro.
+Cada scraper deve tratar falhas de forma isolada.
 
-Caso ocorra erro:
+Exemplos:
 
-- registrar o problema;
-- ignorar a oferta inválida quando possível;
-- permitir que os demais scrapers continuem funcionando.
+- timeout;
+- erro HTTP;
+- CAPTCHA;
+- estrutura HTML alterada;
+- API indisponível.
 
-A falha de um marketplace não deve impedir a coleta dos demais.
+O erro de um scraper não deve interromper a execução dos demais.
+
+---
+
+# Registro de Logs
+
+Todo scraper deve registrar eventos relevantes.
+
+Exemplos:
+
+- início da execução;
+- quantidade de ofertas encontradas;
+- tempo de execução;
+- falhas;
+- exceções.
+
+Logs devem ser informativos e suficientes para depuração.
+
+---
+
+# Estratégias de Coleta
+
+Dependendo da fonte, diferentes estratégias podem ser utilizadas.
+
+Exemplos:
+
+## HTML
+
+Utilização de Playwright ou Requests.
+
+---
+
+## API
+
+Consumo direto de endpoints públicos ou privados.
+
+---
+
+## JSON Embutido
+
+Extração de dados presentes na própria página.
+
+---
+
+## Renderização Dinâmica
+
+Uso de Playwright quando o conteúdo depender de JavaScript.
+
+---
+
+# Seleção da Estratégia
+
+A escolha da estratégia deve priorizar:
+
+1. menor consumo de recursos;
+2. maior estabilidade;
+3. menor tempo de execução.
+
+Sempre que possível deve-se preferir APIs ou HTML estático antes de utilizar navegadores automatizados.
+
+---
+
+# Normalização Inicial
+
+Antes de criar uma Oferta, o scraper deve realizar normalizações básicas.
+
+Exemplos:
+
+- remover espaços extras;
+- corrigir URLs;
+- converter preços;
+- remover caracteres inválidos.
+
+Normalizações complexas pertencem ao pipeline.
 
 ---
 
 # Independência
 
-Cada scraper deve funcionar isoladamente.
+Cada scraper deve funcionar sem conhecer os demais.
 
-Isso significa que:
+Não deve existir comunicação entre scrapers.
 
-- não deve depender de outro scraper;
-- não deve conhecer outros marketplaces;
-- não deve compartilhar lógica específica.
+Exemplo correto:
 
-Todo comportamento compartilhado deve estar em `BaseScraper` ou em componentes reutilizáveis.
+```text
+Mercado Livre
 
----
+Amazon
 
-# Adicionando um Novo Scraper
+Kabum
 
-O processo recomendado é:
+Shopee
+```
 
-1. Criar uma nova classe herdando de `BaseScraper`.
-2. Implementar a coleta dos produtos.
-3. Converter os dados para objetos `Oferta`.
-4. Registrar o scraper no sistema.
-5. Validar o funcionamento de forma isolada.
-
-Nenhuma alteração deve ser necessária nas demais camadas.
+Todos executam de forma independente.
 
 ---
 
-# Princípios
+# Escalabilidade
 
-A camada de coleta segue os princípios:
+A arquitetura suporta qualquer quantidade de scrapers.
 
-- responsabilidade única;
-- baixo acoplamento;
-- alta coesão;
-- independência entre marketplaces;
-- reutilização através da classe base.
+```text
+Mercado Livre
+
+Amazon
+
+Kabum
+
+Terabyte
+
+Pichau
+
+Shopee
+
+AliExpress
+
+Magazine Luiza
+
+Casas Bahia
+
+...
+```
+
+Adicionar um novo scraper não deve exigir alterações estruturais.
 
 ---
 
 # Boas Práticas
 
-Sempre que possível:
+Cada scraper deve:
 
-- reutilizar sessões HTTP;
-- evitar requisições duplicadas;
-- respeitar limites das plataformas;
-- tratar mudanças de layout de forma resiliente;
-- registrar erros úteis para depuração;
-- manter a lógica de parsing separada da lógica de negócio.
-
----
-
-# Relação com o Pipeline
-
-O scraper é apenas o primeiro estágio do processo.
-
-Após criar as ofertas, ele entrega totalmente o controle para o pipeline.
-
-```
-Scraper
-
-↓
-
-Oferta
-
-↓
-
-Pipeline
-
-↓
-
-Filtros
-
-↓
-
-Curadoria
-
-↓
-
-Histórico
-
-↓
-
-Pontuação
-
-↓
-
-Afiliador
-
-↓
-
-Formatter
-
-↓
-
-Telegram
-```
-
-A partir desse momento o scraper não participa mais da execução.
+- herdar de BaseScraper;
+- possuir uma única responsabilidade;
+- produzir objetos Oferta;
+- tratar exceções localmente;
+- registrar logs;
+- evitar duplicação de código;
+- reutilizar componentes compartilhados.
 
 ---
 
-# Conclusão
+# O que NÃO Fazer
 
-Os scrapers existem para uma única finalidade: **coletar dados de forma consistente e produzir objetos `Oferta`.**
+Evite implementar nos scrapers:
 
-Ao manter essa responsabilidade isolada, a arquitetura permanece simples, extensível e preparada para integrar qualquer novo marketplace sem impacto nas demais partes do sistema.
+- regras de negócio;
+- cálculos comerciais;
+- persistência;
+- publicação;
+- geração de mensagens;
+- monetização;
+- filtros.
+
+Essas responsabilidades pertencem a outras camadas.
+
+---
+
+# Evolução Prevista
+
+A arquitetura permite futuras melhorias como:
+
+- execução paralela;
+- filas de coleta;
+- proxies;
+- rotação de User-Agent;
+- cache;
+- limitação de taxa;
+- retries automáticos;
+- monitoramento de disponibilidade;
+- coleta distribuída.
+
+Nenhuma dessas evoluções deverá alterar a interface pública dos scrapers.
+
+---
+
+# Resumo
+
+Os scrapers representam exclusivamente a camada de aquisição de dados do Projeto Renda Automática.
+
+Sua responsabilidade termina quando os dados da fonte externa são convertidos em objetos `Oferta`.
+
+Toda lógica de negócio, monetização, persistência e publicação ocorre nas etapas seguintes do pipeline.

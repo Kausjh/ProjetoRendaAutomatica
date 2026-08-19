@@ -13,7 +13,6 @@ from services.mercadolivre_affiliate_service import (
 
 @dataclass(frozen=True)
 class LinkAfiliadoMercadoLivre:
-
     item_id: str
     link_original: str
     link_afiliado: str
@@ -44,11 +43,11 @@ class LinksAfiliadosMercadoLivreRepository:
 
         resultado = self.identificador.identificar(link_original)
 
-        item_id = resultado.id_anuncio
+        item_id = resultado.id_anuncio or resultado.id_produto
 
         if item_id is None:
             raise ValueError(
-                "Não foi possível identificar o " "código do anúncio no link original."
+                "Não foi possível identificar o código " "do anúncio ou produto no link original."
             )
 
         resultado_link = self.identificador.identificar(link_afiliado)
@@ -111,10 +110,12 @@ class LinksAfiliadosMercadoLivreRepository:
 
         resultado = self.identificador.identificar(link_original)
 
-        if resultado.id_anuncio is None:
+        item_id = resultado.id_anuncio or resultado.id_produto
+
+        if item_id is None:
             return None
 
-        return self.buscar_por_item_id(resultado.id_anuncio)
+        return self.buscar_por_item_id(item_id)
 
     def obter_link_afiliado(
         self,
@@ -127,11 +128,9 @@ class LinksAfiliadosMercadoLivreRepository:
             return registro.link_afiliado
 
         try:
-
             link_afiliado = self.gerador.gerar(link_original)
 
         except Exception as erro:
-
             print(
                 "[LinksAfiliadosMercadoLivre] "
                 "Não foi possível gerar o link: "
@@ -144,14 +143,12 @@ class LinksAfiliadosMercadoLivreRepository:
             return None
 
         try:
-
             registro_criado = self.cadastrar(
                 link_original=link_original,
                 link_afiliado=link_afiliado,
             )
 
         except ValueError as erro:
-
             print(
                 "[LinksAfiliadosMercadoLivre] "
                 "O link foi gerado, mas não pôde "
@@ -185,7 +182,10 @@ class LinksAfiliadosMercadoLivreRepository:
 
         for item_id, registro in dados.items():
 
-            if not isinstance(registro, dict):
+            if not isinstance(
+                registro,
+                dict,
+            ):
                 continue
 
             registros.append(
@@ -267,12 +267,12 @@ class LinksAfiliadosMercadoLivreRepository:
         item_id_normalizado = item_id.strip().upper().replace("-", "").replace("_", "")
 
         if not item_id_normalizado.startswith("MLB"):
-            raise ValueError("O código do anúncio precisa " "começar com MLB.")
+            raise ValueError("O código do anúncio ou produto " "precisa começar com MLB.")
 
         parte_numerica = item_id_normalizado[3:]
 
         if not parte_numerica.isdigit():
-            raise ValueError("O código do anúncio possui " "formato inválido.")
+            raise ValueError("O código do anúncio ou produto " "possui formato inválido.")
 
         return item_id_normalizado
 
@@ -297,18 +297,19 @@ class LinksAfiliadosMercadoLivreRepository:
         self._garantir_arquivo()
 
         try:
-
             conteudo = self.caminho_arquivo.read_text(encoding="utf-8")
 
             dados = json.loads(conteudo)
 
         except json.JSONDecodeError as erro:
-
             raise ValueError(
                 "O arquivo de links afiliados do " "Mercado Livre contém JSON inválido."
             ) from erro
 
-        if not isinstance(dados, dict):
+        if not isinstance(
+            dados,
+            dict,
+        ):
             raise ValueError("O catálogo de links afiliados " "precisa ser um objeto JSON.")
 
         return dados

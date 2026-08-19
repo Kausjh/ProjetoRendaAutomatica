@@ -1,3 +1,6 @@
+# 63.8738, -149.7525
+
+import logging
 from urllib.parse import urldefrag
 
 import httpx
@@ -5,6 +8,8 @@ import httpx
 from services.browser.cookie_manager import (
     CookieManager,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MercadoLivreAffiliateService:
@@ -40,6 +45,12 @@ class MercadoLivreAffiliateService:
 
             forcar_atualizacao = tentativa > 0
 
+            if forcar_atualizacao:
+                logger.info(
+                    "Sessão do Mercado Livre pode ter expirado. "
+                    "Atualizando cookies e tentando novamente."
+                )
+
             cookies = self.cookie_manager.obter_cookies(forcar_atualizacao=(forcar_atualizacao))
 
             resposta = self._enviar_requisicao(
@@ -52,6 +63,13 @@ class MercadoLivreAffiliateService:
                 401,
                 403,
             }:
+
+                logger.warning(
+                    "API de afiliados do Mercado Livre recusou a sessão "
+                    "(HTTP %s). É possível que seja necessário fazer login "
+                    "novamente no Chrome conectado via CDP.",
+                    resposta.status_code,
+                )
 
                 self.cookie_manager.invalidar_cache()
 
@@ -107,7 +125,19 @@ class MercadoLivreAffiliateService:
 
             mensagem = self._extrair_mensagem_erro(resposta)
 
-            print("[MercadoLivreAfiliados] " f"Falha HTTP {resposta.status_code}: " f"{mensagem}")
+            if resposta.status_code == 429:
+                logger.warning(
+                    "A API de afiliados do Mercado Livre aplicou limite de "
+                    "requisições (HTTP 429). Aguarde antes de executar "
+                    "novamente. Detalhes: %s",
+                    mensagem,
+                )
+            else:
+                logger.warning(
+                    "Falha HTTP %s ao gerar link afiliado do Mercado Livre: %s",
+                    resposta.status_code,
+                    mensagem,
+                )
 
             return None
 
@@ -116,9 +146,8 @@ class MercadoLivreAffiliateService:
 
         except ValueError:
 
-            print(
-                "[MercadoLivreAfiliados] "
-                "A API retornou uma resposta "
+            logger.error(
+                "A API de afiliados do Mercado Livre retornou uma resposta "
                 "que não é um JSON válido."
             )
 
@@ -127,11 +156,22 @@ class MercadoLivreAffiliateService:
         link_afiliado = dados.get("short_url")
 
         if not isinstance(link_afiliado, str):
+
+            logger.warning(
+                "A API de afiliados do Mercado Livre respondeu sem o campo " "'short_url' esperado."
+            )
+
             return None
 
         link_afiliado = link_afiliado.strip()
 
         if not link_afiliado.startswith("https://meli.la/"):
+
+            logger.warning(
+                "A API de afiliados do Mercado Livre devolveu um link em " "formato inesperado: %s",
+                link_afiliado,
+            )
+
             return None
 
         return link_afiliado

@@ -1,170 +1,257 @@
 # Pipeline de Execução
 
-> Este documento descreve o fluxo operacional do Projeto Renda Automática, desde a coleta de uma oferta até sua publicação no Telegram.
+> Este documento descreve o fluxo completo de processamento de uma oferta dentro do Projeto Renda Automática, desde sua coleta até a publicação.
+
+---
+
+# Objetivo
+
+O pipeline define a sequência oficial de etapas executadas pelo sistema.
+
+Seu principal objetivo é garantir que toda oferta percorra exatamente o mesmo fluxo de processamento, tornando o comportamento da aplicação previsível, reutilizável e fácil de manter.
+
+Cada etapa possui uma única responsabilidade.
 
 ---
 
 # Visão Geral
 
-O pipeline é o coração da aplicação.
+Uma oferta nasce como um conjunto de dados brutos obtidos por um scraper.
 
-Seu objetivo é transformar uma oferta bruta obtida em um marketplace em uma publicação monetizada e pronta para distribuição.
+Ao longo do pipeline ela é enriquecida, validada, classificada, pontuada e preparada para publicação.
 
-Cada etapa possui apenas uma responsabilidade.
-
-Isso torna o sistema previsível, extensível e fácil de manter.
+Nenhuma etapa deve modificar responsabilidades pertencentes às demais.
 
 ---
 
-# Fluxo Geral
+# Fluxo Completo
 
 ```text
 Marketplace
-    │
-    ▼
+      │
+      ▼
 Scraper
-    │
-    ▼
+      │
+      ▼
 Oferta
-    │
-    ▼
+      │
+      ▼
+Normalização
+      │
+      ▼
 Coleta Consolidada
-    │
-    ▼
+      │
+      ▼
+Validação Inicial
+      │
+      ▼
 Filtros
-    │
-    ▼
+      │
+      ▼
 Classificação
-    │
-    ▼
+      │
+      ▼
 Curadoria
-    │
-    ▼
-Histórico de Preços
-    │
-    ▼
+      │
+      ▼
+Histórico
+      │
+      ▼
 Pontuação
-    │
-    ▼
+      │
+      ▼
 Afiliação
-    │
-    ▼
+      │
+      ▼
 Formatação
-    │
-    ▼
-Telegram
+      │
+      ▼
+Publicação
+      │
+      ▼
+Registro
 ```
 
 ---
 
 # Etapa 1 — Coleta
 
-Responsável:
+**Responsável**
 
 ```
 scrapers/
 ```
 
-Objetivo:
+## Objetivo
 
-Obter produtos dos marketplaces.
+Obter informações diretamente das fontes configuradas.
 
-Saída:
+Os scrapers apenas coletam dados.
 
-Uma coleção de objetos `Oferta`.
+Nenhuma regra comercial deve existir nesta etapa.
 
-Nesta etapa ainda não existe nenhuma decisão comercial.
+## Entrada
+
+Nenhuma.
+
+## Saída
+
+Lista de objetos `Oferta`.
 
 ---
 
-# Etapa 2 — Consolidação
+# Etapa 2 — Normalização
 
-Responsável:
+**Responsável**
+
+```
+models/
+services/
+```
+
+## Objetivo
+
+Garantir que todas as ofertas possuam a mesma estrutura, independentemente da origem.
+
+Exemplos:
+
+- converter preços;
+- remover espaços;
+- padronizar URLs;
+- corrigir caracteres;
+- tratar valores ausentes.
+
+Ao final desta etapa todas as ofertas possuem o mesmo formato interno.
+
+---
+
+# Etapa 3 — Consolidação
+
+**Responsável**
 
 ```
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Reunir todas as ofertas produzidas pelos scrapers.
+Reunir todas as ofertas produzidas pelos diferentes scrapers em uma única coleção.
 
-Nesta etapa o sistema passa a trabalhar com uma lista única de ofertas.
+Exemplo:
+
+```text
+Mercado Livre
+          \
+Amazon -----► Lista única de ofertas
+          /
+Kabum
+```
+
+A partir deste ponto o pipeline deixa de tratar scrapers individualmente.
 
 ---
 
-# Etapa 3 — Filtragem
+# Etapa 4 — Validação Inicial
 
-Responsáveis:
+**Responsável**
+
+```
+services/
+```
+
+## Objetivo
+
+Eliminar ofertas que não possuem informações mínimas para continuar.
+
+Exemplos:
+
+- título vazio;
+- preço inválido;
+- link inexistente;
+- produto sem identificação.
+
+Ofertas inválidas são descartadas imediatamente.
+
+---
+
+# Etapa 5 — Filtros
+
+**Responsáveis**
 
 ```
 filters/
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Eliminar ofertas que não atendem aos critérios do projeto.
+Aplicar regras objetivas do projeto.
 
 Exemplos:
 
-- categoria proibida;
-- preço inválido;
-- produto incompleto;
-- informação insuficiente.
+- preço máximo;
+- desconto mínimo;
+- categorias proibidas;
+- palavras bloqueadas;
+- lojas desabilitadas.
 
-Somente ofertas válidas continuam.
+Cada filtro executa apenas uma validação.
 
 ---
 
-# Etapa 4 — Classificação
+# Etapa 6 — Classificação
 
-Responsável:
+**Responsável**
 
 ```
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Identificar a categoria comercial da oferta.
+Identificar o tipo da oferta.
 
 Exemplos:
 
-- Hardware
-- SSD
-- Notebook
-- Monitor
-- Processador
+- Notebook;
+- SSD;
+- Processador;
+- Monitor;
+- Memória RAM;
+- Placa de Vídeo.
 
-A classificação auxilia nas próximas decisões do pipeline.
+Essa classificação será utilizada pelas próximas etapas.
 
 ---
 
-# Etapa 5 — Curadoria
+# Etapa 7 — Curadoria
 
-Responsável:
+**Responsável**
 
 ```
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Avaliar se a oferta realmente merece ser publicada.
+Avaliar a qualidade geral da oportunidade.
 
-Nesta etapa entram regras como:
+Nesta etapa entram critérios subjetivos definidos pelo projeto.
 
-- qualidade;
+Exemplos:
+
 - relevância;
-- interesse comercial;
-- aderência ao nicho.
+- interesse para o público;
+- compatibilidade com o nicho;
+- potencial de conversão.
+
+Nem toda oferta válida merece publicação.
 
 ---
 
-# Etapa 6 — Histórico
+# Etapa 8 — Histórico
 
-Responsável:
+**Responsáveis**
 
 ```
 repositories/
@@ -172,47 +259,55 @@ database/
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Consultar informações históricas.
+Consultar informações históricas da oferta.
 
 Exemplos:
 
-- preço anterior;
-- menor preço conhecido;
-- variações.
+- menor preço registrado;
+- último preço encontrado;
+- frequência da promoção;
+- data da última publicação.
 
-Esses dados enriquecem a oferta.
+Esses dados enriquecem a decisão final.
 
 ---
 
-# Etapa 7 — Pontuação
+# Etapa 9 — Pontuação
 
-Responsável:
+**Responsável**
 
 ```
 services/
 ```
 
-Objetivo:
+## Objetivo
 
-Calcular uma nota para a oferta.
+Calcular uma nota representando a qualidade da oferta.
 
-Essa nota representa o potencial da publicação.
+A pontuação poderá considerar fatores como:
 
-Quanto maior a pontuação, maior a qualidade da oportunidade.
+- desconto;
+- preço histórico;
+- popularidade;
+- categoria;
+- confiabilidade da loja;
+- estoque.
+
+Quanto maior a pontuação, maior a prioridade de publicação.
 
 ---
 
-# Etapa 8 — Afiliação
+# Etapa 10 — Afiliação
 
-Responsável:
+**Responsável**
 
 ```
 affiliates/
 ```
 
-Objetivo:
+## Objetivo
 
 Transformar um link comum em um link monetizado.
 
@@ -220,152 +315,179 @@ Fluxo:
 
 ```text
 Oferta
-
-↓
-
+    │
+    ▼
 Gerador de Links
-
-↓
-
+    │
+    ▼
 Registro de Afiliadores
-
-↓
-
+    │
+    ▼
 Afiliador Compatível
-
-↓
-
+    │
+    ▼
 Link Afiliado
 ```
 
-Caso não exista afiliador compatível, o sistema utiliza o link original.
+Caso nenhum afiliador seja compatível, o link original será mantido.
 
 ---
 
-# Etapa 9 — Formatação
+# Etapa 11 — Formatação
 
-Responsável:
+**Responsável**
 
 ```
 formatters/
 ```
 
-Objetivo:
+## Objetivo
 
-Converter a oferta em uma mensagem pronta para publicação.
+Gerar a mensagem que será publicada.
 
-Exemplo:
+A mensagem pode conter:
 
 - título;
 - preço;
 - desconto;
 - loja;
-- link;
-- emojis.
+- emojis;
+- link afiliado;
+- informações adicionais.
 
-Nenhuma regra de negócio deve existir aqui.
-
----
-
-# Etapa 10 — Publicação
-
-Responsável:
-
-```
-TelegramBot
-```
-
-Objetivo:
-
-Enviar a mensagem formatada ao canal configurado.
-
-Após a publicação, o sistema registra a operação para evitar duplicações futuras.
+Nenhuma regra de negócio deve existir nesta camada.
 
 ---
 
-# Fluxo da Entidade Oferta
+# Etapa 12 — Publicação
 
-Durante toda a execução o pipeline trabalha sobre o mesmo objeto.
+**Responsável**
+
+```
+bots/
+```
+
+## Objetivo
+
+Enviar a mensagem ao canal configurado.
+
+Atualmente:
+
+- Telegram.
+
+No futuro:
+
+- Discord;
+- WhatsApp;
+- X;
+- E-mail.
+
+Bots apenas publicam.
+
+Eles nunca decidem o conteúdo.
+
+---
+
+# Etapa 13 — Registro
+
+**Responsável**
+
+```
+repositories/
+```
+
+## Objetivo
+
+Registrar que a oferta foi publicada.
+
+Esse registro permite:
+
+- impedir duplicações;
+- consultar histórico;
+- gerar estatísticas;
+- auditar publicações.
+
+A persistência ocorre somente após a publicação bem-sucedida.
+
+---
+
+# Ciclo de Vida da Oferta
+
+Durante toda a execução o sistema trabalha sobre o mesmo objeto.
 
 ```text
-Oferta
-
-↓
-
-Dados extraídos
-
-↓
-
-Dados validados
-
-↓
-
-Categoria definida
-
-↓
-
-Histórico anexado
-
-↓
-
-Pontuação calculada
-
-↓
-
-Link afiliado
-
-↓
-
-Mensagem formatada
-
-↓
-
+Oferta Bruta
+      │
+      ▼
+Oferta Normalizada
+      │
+      ▼
+Oferta Validada
+      │
+      ▼
+Oferta Classificada
+      │
+      ▼
+Oferta Enriquecida
+      │
+      ▼
+Oferta Pontuada
+      │
+      ▼
+Oferta Monetizada
+      │
+      ▼
+Mensagem
+      │
+      ▼
 Publicação
 ```
 
 A oferta é enriquecida progressivamente.
 
-Não são criadas estruturas intermediárias para cada etapa.
+Não são criadas estruturas intermediárias desnecessárias.
 
 ---
 
-# Responsabilidades
+# Responsabilidades do Pipeline
 
 | Etapa | Responsabilidade |
 |--------|------------------|
 | Scrapers | Coletar informações |
+| Models | Representar dados |
 | Services | Aplicar regras de negócio |
-| Filters | Remover ofertas inválidas |
-| Repositories | Persistir dados |
+| Filters | Validar critérios |
+| Repositories | Persistir informações |
 | Affiliates | Monetizar links |
-| Formatters | Gerar mensagem |
-| Telegram | Publicar |
+| Formatters | Gerar mensagens |
+| Bots | Publicar conteúdo |
 
 ---
 
-# Princípios do Pipeline
+# Garantias do Pipeline
 
-Cada etapa deve:
+O pipeline deve garantir que:
 
-- possuir uma única responsabilidade;
-- receber dados consistentes;
-- produzir uma saída previsível;
-- evitar efeitos colaterais;
-- depender do mínimo possível das demais etapas.
+- toda oferta siga exatamente a mesma sequência;
+- nenhuma etapa execute responsabilidades de outra;
+- erros sejam isolados na etapa onde ocorreram;
+- componentes possam ser substituídos sem alterar o restante do fluxo;
+- novas etapas possam ser adicionadas sem reescrever as existentes.
 
 ---
 
-# Evolução Futura
+# Evolução Prevista
 
-A estrutura atual permite adicionar novas etapas sem alterar significativamente as existentes.
+O pipeline foi projetado para suportar futuras expansões, incluindo:
 
-Exemplos:
-
+- múltiplos marketplaces;
+- múltiplos afiliadores;
 - IA para classificação;
-- análise de estoque;
-- comparação entre marketplaces;
+- comparação automática de preços;
 - detecção de erro de preço;
-- previsão de viralização;
-- múltiplos canais de publicação (Discord, WhatsApp, X, etc.).
+- análise de estoque;
+- filas de processamento;
+- execução paralela;
+- múltiplos canais de publicação.
 
-O pipeline foi concebido para crescer de forma modular, preservando a separação entre coleta, processamento, monetização e distribuição.
+A evolução do sistema deve ocorrer por adição de módulos, preservando a estrutura descrita neste documento.

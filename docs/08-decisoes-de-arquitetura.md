@@ -1,359 +1,486 @@
 # Decisões de Arquitetura
 
-> Este documento registra as principais decisões arquiteturais do Projeto Renda Automática e o motivo pelo qual elas foram tomadas.
->
-> O objetivo não é explicar **como** o sistema funciona, mas **por que** ele foi construído dessa forma.
+> Este documento reúne as principais decisões arquiteturais adotadas no Projeto Renda Automática e os motivos que levaram à sua escolha.
 
 ---
 
 # Objetivo
 
-Uma arquitetura não é composta apenas por código.
+Durante a evolução do projeto, diversas decisões técnicas precisarão ser tomadas.
 
-Ela também é composta pelas decisões que moldaram esse código.
+Sem documentação, essas decisões acabam sendo esquecidas, fazendo com que o projeto retorne a discussões já resolvidas.
 
-Quando essas decisões não são documentadas, futuras alterações tendem a destruir boas abstrações simplesmente porque ninguém mais lembra por que elas existiam.
+Este documento existe para registrar essas escolhas.
 
-Este documento existe para evitar esse problema.
-
----
-
-# 1. O pipeline é o centro da aplicação
-
-## Decisão
-
-Toda oferta percorre um pipeline único.
-
-## Motivo
-
-Em vez de vários scripts independentes executando lógica duplicada, todas as transformações acontecem em sequência sobre a mesma entidade.
-
-Isso permite:
-
-- previsibilidade;
-- manutenção simples;
-- inclusão de novas etapas;
-- rastreamento do ciclo de vida da oferta.
+Sempre que uma decisão arquitetural importante for tomada, ela deverá ser adicionada aqui.
 
 ---
 
-# 2. A Oferta é a entidade central
+# Como Registrar uma Nova Decisão
 
-## Decisão
+Cada decisão deve seguir a estrutura:
 
-Toda a aplicação trabalha sobre uma única entidade de domínio.
+- Identificador;
+- Status;
+- Data;
+- Contexto;
+- Decisão;
+- Consequências.
 
+Exemplo:
+
+```text
+ADR-0001
+
+Status:
+Aceita
+
+Data:
+2026-07-29
+
+Contexto:
+...
+
+Decisão:
+...
+
+Consequências:
+...
 ```
+
+---
+
+# ADR-0001
+
+## Título
+
+Arquitetura Modular por Responsabilidade.
+
+## Status
+
+Aceita.
+
+## Data
+
+2026-07-29
+
+## Contexto
+
+O projeto crescerá continuamente com novos scrapers, novos afiliadores e novos canais de publicação.
+
+Uma arquitetura fortemente acoplada tornaria essa expansão cada vez mais difícil.
+
+## Decisão
+
+O sistema será dividido em módulos especializados.
+
+Cada módulo possuirá apenas uma responsabilidade principal.
+
+## Consequências
+
+### Positivas
+
+- maior organização;
+- menor acoplamento;
+- facilidade para testes;
+- facilidade de manutenção.
+
+### Negativas
+
+- maior quantidade de arquivos;
+- maior disciplina arquitetural.
+
+---
+
+# ADR-0002
+
+## Título
+
+Objeto Oferta como entidade central.
+
+## Status
+
+Aceita.
+
+## Data
+
+2026-07-29
+
+## Contexto
+
+Era necessário definir se o pipeline criaria diferentes objetos durante o processamento ou se trabalharia sempre sobre uma única entidade.
+
+## Decisão
+
+Todo o pipeline trabalhará sobre um único objeto:
+
+```text
 Oferta
 ```
 
-## Motivo
+Esse objeto será enriquecido progressivamente.
 
-Evita criar dezenas de estruturas intermediárias.
+## Consequências
 
-Cada etapa apenas enriquece a mesma entidade.
+### Positivas
 
-Vantagens:
+- menor complexidade;
+- menor duplicação;
+- menor quantidade de conversões.
 
-- menos conversões;
-- menos duplicação;
-- menor risco de inconsistência;
-- código mais simples.
+### Negativas
 
----
+A entidade poderá crescer ao longo do tempo.
 
-# 3. Scrapers não possuem regras de negócio
-
-## Decisão
-
-Scrapers apenas coletam dados.
-
-## Motivo
-
-Um scraper deve continuar funcionando mesmo que toda a lógica comercial seja alterada.
-
-Isso desacopla a coleta das decisões do sistema.
+Será necessário manter disciplina para evitar excesso de responsabilidades.
 
 ---
 
-# 4. Regras de negócio ficam em services
+# ADR-0003
+
+## Título
+
+Uso de BaseScraper.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+Todos os scrapers compartilham comportamentos semelhantes.
 
 ## Decisão
 
-Toda regra de negócio pertence à camada:
+Todo scraper deverá herdar de:
 
+```text
+BaseScraper
 ```
-services/
-```
 
-## Motivo
+## Consequências
 
-Centralizar a inteligência da aplicação.
+### Positivas
 
-Dessa forma:
+- reutilização de código;
+- padronização;
+- menor duplicação.
 
-- scrapers continuam simples;
-- repositories continuam responsáveis apenas por persistência;
-- formatters continuam responsáveis apenas pela apresentação.
+### Negativas
+
+Mudanças na classe base exigem atenção para evitar impactos em todos os scrapers.
 
 ---
 
-# 5. Persistência isolada
+# ADR-0004
+
+## Título
+
+Pipeline Linear.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+Era necessário definir se o processamento ocorreria por chamadas independentes ou por uma sequência fixa.
 
 ## Decisão
 
-Nenhuma regra de negócio deve existir em:
+Toda oferta deverá percorrer exatamente o mesmo pipeline arquitetural.
 
+```text
+Coleta
+
+↓
+
+Normalização
+
+↓
+
+Validação
+
+↓
+
+Filtragem
+
+↓
+
+Classificação
+
+↓
+
+Pontuação
+
+↓
+
+Monetização (Afiliados)
+
+↓
+
+Formatação
+
+↓
+
+Publicação
+
+↓
+
+Persistência
 ```
-repositories/
-```
 
-## Motivo
+Nenhuma etapa poderá ser ignorada sem que isso seja uma decisão arquitetural explícita.
 
-Repositories apenas armazenam e recuperam informações.
+Novas etapas poderão ser adicionadas futuramente, desde que preservem a ordem lógica do pipeline e não aumentem o acoplamento entre os módulos.
 
-Misturar regras de negócio com persistência dificulta testes e manutenção.
+## Consequências
+
+### Positivas
+
+- previsibilidade;
+- facilidade para testes;
+- facilidade de depuração.
+
+### Negativas
+
+Fluxos muito específicos poderão exigir etapas opcionais no futuro.
 
 ---
 
-# 6. Monetização isolada
+# ADR-0005
+
+## Título
+
+Configuração Centralizada.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+Configurações espalhadas pelo código dificultam manutenção.
 
 ## Decisão
 
-Todo código relacionado a programas de afiliados permanece dentro de:
+Toda configuração deverá permanecer na camada:
 
-```
-affiliates/
-```
-
-## Motivo
-
-O restante da aplicação não precisa conhecer detalhes dos marketplaces.
-
-Isso permite adicionar novas integrações sem alterar o pipeline.
-
----
-
-# 7. Arquitetura baseada em contratos
-
-## Decisão
-
-Os afiliadores compartilham uma interface comum.
-
-## Motivo
-
-O Gerador de Links trabalha apenas com comportamentos.
-
-Ele não precisa conhecer implementações específicas.
-
-Isso reduz o acoplamento.
-
----
-
-# 8. Configuração fora do código
-
-## Decisão
-
-Sempre que possível, configurações ficam em:
-
-```
+```text
 config/
 ```
 
-ou
+Credenciais permanecerão no:
 
-```
+```text
 .env
 ```
 
-## Motivo
+## Consequências
 
-Separar comportamento da implementação.
+### Positivas
 
-Alterações simples não exigem modificar código-fonte.
+- segurança;
+- facilidade de manutenção;
+- menor duplicação.
 
 ---
 
-# 9. Dados de execução separados da configuração
+# ADR-0006
+
+## Título
+
+Sistema de Afiliados Independente.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+Cada plataforma de afiliados possui regras próprias.
+
+Misturar essas regras ao restante do sistema aumentaria o acoplamento.
 
 ## Decisão
 
-Arquivos produzidos pelo sistema pertencem a:
+Cada afiliador será implementado de forma independente.
 
-```
-database/
-```
+Todos utilizarão a mesma interface.
 
-Configurações pertencem a:
+## Consequências
 
-```
-config/
-```
+### Positivas
 
-## Motivo
-
-Evitar misturar dados permanentes com parâmetros da aplicação.
+- fácil substituição;
+- fácil expansão;
+- isolamento entre plataformas.
 
 ---
 
-# 10. Uma responsabilidade por módulo
+# ADR-0007
+
+## Título
+
+Separação entre Regra de Negócio e Infraestrutura.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+Misturar scraping, banco e lógica comercial dificulta manutenção.
 
 ## Decisão
 
-Cada módulo deve possuir uma única responsabilidade.
+Toda regra de negócio ficará concentrada na camada:
 
-## Exemplos
+```text
+services/
+```
 
-Scraper:
+As demais camadas fornecerão apenas infraestrutura.
 
-- coleta.
+## Consequências
 
-Formatter:
+### Positivas
 
-- apresentação.
-
-Repository:
-
-- persistência.
-
-Afiliador:
-
-- monetização.
-
-Service:
-
-- regras de negócio.
+- maior organização;
+- código mais reutilizável;
+- testes simplificados.
 
 ---
 
-# 11. Extensibilidade acima de rapidez
+# ADR-0008
+
+## Título
+
+Persistência Abstraída.
+
+## Status
+
+Aceita.
+
+## Contexto
+
+O mecanismo de armazenamento poderá mudar futuramente.
 
 ## Decisão
 
-Novas integrações devem exigir o menor número possível de alterações.
+Toda persistência ocorrerá através de:
 
-## Motivo
-
-O projeto foi concebido para crescer continuamente.
-
-Adicionar um marketplace novo deve significar:
-
-- implementar um novo scraper;
-- implementar um novo afiliador;
-- registrar ambos.
-
-Sem alterar o restante da arquitetura.
-
----
-
-# 12. O pipeline transforma a Oferta
-
-A Oferta não é descartada.
-
-Ela evolui.
-
-```
-Oferta
-
-↓
-
-Oferta Validada
-
-↓
-
-Oferta Classificada
-
-↓
-
-Oferta Curada
-
-↓
-
-Oferta Monetizada
-
-↓
-
-Oferta Publicada
+```text
+repositories/
 ```
 
-Essa evolução progressiva é um dos pilares do projeto.
+O restante do sistema não conhecerá o mecanismo utilizado.
+
+## Consequências
+
+### Positivas
+
+- troca simples de banco;
+- menor acoplamento.
 
 ---
 
-# Dívidas Técnicas Identificadas
+# ADR-0009
 
-Durante a auditoria inicial foram identificadas oportunidades de evolução.
+## Título
 
-## ExecutorPipeline
+Comunicação Externa Isolada.
 
-Atualmente concentra diversas responsabilidades.
+## Status
 
-No futuro poderá atuar apenas como orquestrador de etapas.
+Aceita.
 
----
+## Contexto
 
-## Pipeline Genérico
+Telegram, Discord e futuras integrações possuem APIs diferentes.
 
-Já existe uma infraestrutura de pipeline modular.
+## Decisão
 
-Parte dela ainda não é utilizada pelo fluxo principal.
+Toda comunicação externa ficará concentrada na camada:
 
-Essa arquitetura poderá substituir gradualmente a implementação atual.
+```text
+bots/
+```
 
----
+## Consequências
 
-## Link de Publicação
+### Positivas
 
-A decisão entre:
-
-- link original;
-- link afiliado;
-
-poderá futuramente ficar encapsulada na própria entidade `Oferta`, reduzindo acoplamento entre camadas.
-
----
-
-# O que NÃO queremos
-
-Evitar arquiteturas baseadas em:
-
-- grandes funções;
-- lógica duplicada;
-- dependências circulares;
-- módulos gigantes;
-- decisões espalhadas;
-- regras de negócio escondidas em utilitários.
+- fácil substituição;
+- múltiplos canais;
+- baixo acoplamento.
 
 ---
 
-# Filosofia do Projeto
+# ADR-0010
 
-O Projeto Renda Automática não é apenas um scraper.
+## Título
 
-Ele é uma plataforma para descoberta, análise, monetização e distribuição automatizada de oportunidades comerciais.
+Evolução por Extensão.
 
-Toda decisão arquitetural deve preservar essa visão.
+## Status
 
-Sempre que surgir uma nova funcionalidade, a primeira pergunta deve ser:
+Aceita.
 
-> **"Em qual camada essa responsabilidade realmente pertence?"**
+## Contexto
 
-Responder corretamente essa pergunta é mais importante do que escrever o código em si.
+O projeto deverá crescer continuamente.
+
+## Decisão
+
+Sempre que possível, novas funcionalidades serão adicionadas por extensão e não por alteração de módulos existentes.
+
+## Consequências
+
+### Positivas
+
+- menor risco de regressões;
+- maior estabilidade;
+- crescimento previsível.
+
+---
+
+# Decisões Futuras
+
+As próximas decisões relevantes deverão ser registradas seguindo o mesmo padrão.
+
+Exemplos:
+
+- adoção de filas;
+- processamento paralelo;
+- cache distribuído;
+- IA para classificação;
+- banco de dados relacional;
+- sistema de plugins;
+- API pública;
+- painel administrativo.
+
+---
+
+# Histórico
+
+| ADR | Título | Status |
+|------|--------|--------|
+| ADR-0001 | Arquitetura Modular | Aceita |
+| ADR-0002 | Oferta como Entidade Central | Aceita |
+| ADR-0003 | BaseScraper | Aceita |
+| ADR-0004 | Pipeline Linear | Aceita |
+| ADR-0005 | Configuração Centralizada | Aceita |
+| ADR-0006 | Sistema de Afiliados | Aceita |
+| ADR-0007 | Regra de Negócio em Services | Aceita |
+| ADR-0008 | Persistência Abstraída | Aceita |
+| ADR-0009 | Comunicação Externa Isolada | Aceita |
+| ADR-0010 | Evolução por Extensão | Aceita |
 
 ---
 
 # Resumo
 
-Os pilares da arquitetura são:
+Toda decisão arquitetural importante deve ser registrada antes ou imediatamente após sua implementação.
 
-- separação de responsabilidades;
-- baixo acoplamento;
-- alta coesão;
-- pipeline centralizado;
-- entidade única de domínio;
-- monetização desacoplada;
-- persistência isolada;
-- configuração externa;
-- arquitetura extensível.
-
-Esses princípios orientam toda evolução futura do Projeto Renda Automática.
+Isso evita retrabalho, preserva o histórico técnico do projeto e facilita a entrada de novos desenvolvedores.
