@@ -74,6 +74,7 @@ test-results/
 
 # Arquivos JSON produzidos em tempo de execução
 /database/historico_precos.json
+/database/historico_precos_TESTE_NOTEBOOK.json
 /database/links_afiliados_mercado_livre.json
 /database/pendencias_afiliacao.json
 /database/publicados.json
@@ -83,6 +84,7 @@ test-results/
 /diagnosticos/*.html
 /diagnosticos/*.json
 /diagnosticos/*.png
+/scripts/diagnostico_ambiente.txt
 
 # Arquivos auxiliares gerados localmente
 /ambiente_atual.txt
@@ -93,10 +95,12 @@ test-results/
 /log.txt
 /projeto.txt
 /resultado_teste*.txt
+/saida_debug.txt
 
 # Arquivos soltos de teste manual
 /teste_kabum.py
 /teste_ml.py
+/teste_telegram.py
 
 # Dependências congeladas localmente
 /requirements-lock.txt
