@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import os
 import re
 
@@ -29,6 +31,24 @@ class Configuracoes:
 
         self.preco_maximo = self._buscar_decimal(nome="PRECO_MAXIMO", valor_padrao=40)
 
+        self.restricao_madrugada_ativa = self._buscar_booleano(
+            nome="RESTRICAO_MADRUGADA_ATIVA", valor_padrao=True
+        )
+
+        self.hora_inicio_madrugada = self._buscar_inteiro(
+            nome="HORA_INICIO_MADRUGADA", valor_padrao=23
+        )
+
+        self.hora_fim_madrugada = self._buscar_inteiro(nome="HORA_FIM_MADRUGADA", valor_padrao=8)
+
+        self.queda_minima_madrugada = self._buscar_decimal(
+            nome="QUEDA_MINIMA_MADRUGADA", valor_padrao=15.0
+        )
+
+        self.pontuacao_minima_madrugada = self._buscar_decimal(
+            nome="PONTUACAO_MINIMA_MADRUGADA", valor_padrao=80.0
+        )
+
         self._validar()
 
     def _buscar_variavel_obrigatoria(self, nome: str) -> str:
@@ -47,6 +67,14 @@ class Configuracoes:
 
         except ValueError as erro:
             raise ValueError(f"A variável {nome} precisa ser um número inteiro.") from erro
+
+    def _buscar_booleano(self, nome: str, valor_padrao: bool) -> bool:
+        valor = os.getenv(nome)
+
+        if valor is None:
+            return valor_padrao
+
+        return valor.strip().lower() in {"1", "true", "sim", "on"}
 
     def _buscar_decimal(self, nome: str, valor_padrao: float) -> float:
         valor = os.getenv(nome, str(valor_padrao))
@@ -78,3 +106,15 @@ class Configuracoes:
 
         if self.preco_maximo <= 0:
             raise ValueError("PRECO_MAXIMO precisa ser maior que zero.")
+
+        if not 0 <= self.hora_inicio_madrugada <= 23:
+            raise ValueError("HORA_INICIO_MADRUGADA precisa estar entre 0 e 23.")
+
+        if not 0 <= self.hora_fim_madrugada <= 23:
+            raise ValueError("HORA_FIM_MADRUGADA precisa estar entre 0 e 23.")
+
+        if not 0 <= self.queda_minima_madrugada <= 100:
+            raise ValueError("QUEDA_MINIMA_MADRUGADA precisa estar entre 0 e 100.")
+
+        if not 0 <= self.pontuacao_minima_madrugada <= 100:
+            raise ValueError("PONTUACAO_MINIMA_MADRUGADA precisa estar entre 0 e 100.")

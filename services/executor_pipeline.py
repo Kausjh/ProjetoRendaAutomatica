@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import asyncio
 import logging
 from datetime import datetime
@@ -9,6 +11,7 @@ from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from services.coletor_ofertas import ColetorOfertas
 from services.historico_precos_service import HistoricoPrecosService, ResultadoHistoricoPreco
+from services.janela_publicacao import JanelaPublicacao
 from services.pontuador_oferta import PontuadorOferta
 
 logger = logging.getLogger(__name__)
@@ -28,6 +31,7 @@ class ExecutorPipeline:
         limite_ofertas: int,
         maximo_publicacoes: int,
         intervalo_publicacoes: int | float,
+        janela_publicacao: JanelaPublicacao | None = None,
     ) -> None:
         self.coletor = coletor
         self.bot = bot
@@ -40,6 +44,8 @@ class ExecutorPipeline:
         self.limite_ofertas = limite_ofertas
         self.maximo_publicacoes = maximo_publicacoes
         self.intervalo_publicacoes = intervalo_publicacoes
+
+        self.janela_publicacao = janela_publicacao or JanelaPublicacao()
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -171,9 +177,39 @@ class ExecutorPipeline:
 
         ofertas_aprovadas.sort(key=lambda item: item[1], reverse=True)
 
-        ofertas_selecionadas = ofertas_aprovadas[: self.maximo_publicacoes]
+        ofertas_publicaveis = []
+        quantidade_adiada_por_horario = 0
 
-        quantidade_nao_selecionada = len(ofertas_aprovadas) - len(ofertas_selecionadas)
+        for item in ofertas_aprovadas:
+            oferta_avaliada, pontuacao_avaliada, historico_avaliado, _ = item
+
+            resultado_janela = self.janela_publicacao.avaliar(
+                oferta=oferta_avaliada,
+                pontuacao=pontuacao_avaliada,
+                resultado_historico=historico_avaliado,
+            )
+
+            if resultado_janela.pode_publicar:
+                ofertas_publicaveis.append(item)
+                continue
+
+            quantidade_adiada_por_horario += 1
+
+            logger.info(
+                "Oferta adiada por horário: %s | Motivo: %s",
+                oferta_avaliada.nome,
+                resultado_janela.motivo,
+            )
+
+        if quantidade_adiada_por_horario > 0:
+            logger.info(
+                "Ofertas adiadas para o horário de maior audiência: %s",
+                quantidade_adiada_por_horario,
+            )
+
+        ofertas_selecionadas = ofertas_publicaveis[: self.maximo_publicacoes]
+
+        quantidade_nao_selecionada = len(ofertas_publicaveis) - len(ofertas_selecionadas)
 
         logger.info("Ofertas aprovadas pelo filtro: %s", quantidade_aprovada_pelo_filtro)
 
