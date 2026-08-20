@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -17,7 +19,7 @@ class ResultadoClassificacaoProduto:
 class ClassificadorProduto:
     """
     Classifica ofertas relacionadas a hardware, periféricos,
-    computadores, consoles e produtos gamer.
+    computadores, consoles, eletrônicos de setup e produtos gamer.
 
     A classificação é baseada no nome da oferta.
 
@@ -75,8 +77,11 @@ class ClassificadorProduto:
             "nvme",
             "m.2",
             "hd interno",
+            "hd externo",
             "disco rigido",
             "hard disk",
+            "cartao de memoria",
+            "pen drive",
         ),
         "Fonte": (
             "fonte atx",
@@ -85,6 +90,8 @@ class ClassificadorProduto:
             "fonte de alimentacao",
             "power supply",
             "80 plus",
+            "nobreak",
+            "estabilizador",
         ),
         "Gabinete": (
             "gabinete",
@@ -109,6 +116,25 @@ class ClassificadorProduto:
             "monitor oled",
             "monitor ultrawide",
             "monitor curvo",
+            "monitor",
+        ),
+        "TV": (
+            "smart tv",
+            "televisor",
+            "tv led",
+            "tv qled",
+            "tv oled",
+            "tv 4k",
+        ),
+        "Celular": (
+            "smartphone",
+            "celular",
+            "galaxy",
+            "iphone",
+            "redmi",
+            "poco",
+            "moto g",
+            "moto edge",
         ),
         "Notebook gamer": (
             "notebook gamer",
@@ -125,29 +151,50 @@ class ClassificadorProduto:
             "desktop gamer",
         ),
         "Mouse": (
+            "mouse",
             "mouse gamer",
-            "mousepad gamer",
-            "mouse pad gamer",
+            "mouse sem fio",
+            "mouse otico",
+            "mouse optico",
+            "mouse para jogos",
+            "mousepad",
+            "mouse pad",
         ),
         "Teclado": (
+            "teclado",
             "teclado gamer",
             "teclado mecanico",
             "teclado magnetico",
+            "teclado sem fio",
             "switch mecanico",
+            "keycaps",
         ),
         "Headset e áudio": (
-            "headset gamer",
+            "headset",
             "fone gamer",
+            "fone de ouvido",
+            "fone bluetooth",
+            "caixa de som",
+            "soundbar",
+            "sound bar",
+            "interface de audio",
+        ),
+        "Microfone": (
+            "microfone",
             "microfone gamer",
             "microfone usb",
-            "interface de audio",
+            "microfone condensador",
+            "microfone de lapela",
         ),
         "Controle": (
             "controle xbox",
             "controle playstation",
             "controle para pc",
+            "controle sem fio",
             "gamepad",
             "joystick",
+            "dualsense",
+            "dualshock",
         ),
         "Console": (
             "playstation 5",
@@ -162,17 +209,21 @@ class ClassificadorProduto:
             "roteador gamer",
             "roteador wi-fi",
             "roteador wifi",
+            "roteador",
             "placa de rede",
             "adaptador wi-fi",
             "adaptador wifi",
             "cabo de rede",
+            "repetidor de sinal",
+            "mesh",
         ),
         "Streaming e captura": (
             "placa de captura",
             "capture card",
             "stream deck",
-            "webcam gamer",
-            "webcam full hd",
+            "webcam",
+            "ring light",
+            "iluminador led",
         ),
         "Simulação": (
             "volante gamer",
@@ -184,6 +235,21 @@ class ClassificadorProduto:
         "Mobiliário gamer": (
             "cadeira gamer",
             "mesa gamer",
+            "cadeira de escritorio",
+        ),
+        "Suportes e acessórios": (
+            "suporte para monitor",
+            "suporte de monitor",
+            "suporte articulado",
+            "suporte para microfone",
+            "braco articulado",
+            "suporte para notebook",
+            "suporte para headset",
+            "suporte de parede tv",
+            "hub usb",
+            "dock station",
+            "adaptador usb c",
+            "organizador de cabos",
         ),
     }
 
@@ -248,6 +314,15 @@ class ClassificadorProduto:
         "quadro decorativo",
         "fantasia",
         "mochila escolar",
+        "capa para celular",
+        "capinha",
+        "pelicula",
+        "espuma almofada",
+        "almofada para fone",
+        "earpad",
+        "case para controle",
+        "skin adesiva",
+        "suporte veicular",
     )
 
     def classificar(self, oferta: Oferta) -> ResultadoClassificacaoProduto:
@@ -274,7 +349,10 @@ class ClassificadorProduto:
                 categoria=None,
                 relevancia=0,
                 termos_encontrados=[],
-                motivo=("Nenhuma categoria de hardware ou produto " "gamer foi identificada."),
+                motivo=(
+                    "Nenhuma categoria de hardware, eletrônico "
+                    "ou produto gamer foi identificada."
+                ),
             )
 
         termos_gamer = self._localizar_termos(texto=nome_normalizado, termos=self.TERMOS_GAMER)

@@ -25,6 +25,14 @@ DIRETORIO_PROJETO: Final = Path(__file__).resolve().parents[2]
 ARQUIVO_MAIN: Final = DIRETORIO_PROJETO / "main.py"
 DIRETORIO_PERFIL_CDP: Final = DIRETORIO_PROJETO / "browser_profile_cdp"
 
+ARQUIVO_TRAVA: Final = DIRETORIO_PROJETO / "execucao_em_andamento.lock"
+
+# Depois desse tempo, uma trava é considerada abandonada (processo
+# morto sem limpar o arquivo) e pode ser assumida por outra execução.
+IDADE_MAXIMA_TRAVA_SEGUNDOS: Final = 45 * 60
+
+CODIGO_SAIDA_JA_EM_EXECUCAO: Final = 75
+
 
 @dataclass(slots=True)
 class EstadoChrome:
@@ -35,13 +43,95 @@ class EstadoChrome:
 def exibir_cabecalho() -> None:
     print("=" * 60)
     print("PROJETO RENDA AUTOMÁTICA")
-    print("Launcher v2.0")
+    print("Launcher v2.1")
     print("=" * 60)
 
 
 def exibir_rodape(duracao: float) -> None:
     print(f"Tempo total do launcher: {duracao:.2f} segundo(s).")
     print("=" * 60)
+
+
+def ler_trava() -> dict[str, str] | None:
+    try:
+        conteudo = ARQUIVO_TRAVA.read_text(encoding="utf-8")
+        dados = json.loads(conteudo)
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+
+    if not isinstance(dados, dict):
+        return None
+
+    return dados
+
+
+def trava_esta_abandonada() -> bool:
+    """Indica se a trava existente pode ser descartada com segurança."""
+
+    dados = ler_trava()
+
+    if dados is None:
+        # Arquivo ilegível ou corrompido: tratar como abandonado.
+        return True
+
+    iniciado_em = dados.get("iniciado_em")
+
+    if not isinstance(iniciado_em, (int, float)):
+        return True
+
+    idade = time.time() - float(iniciado_em)
+
+    return idade > IDADE_MAXIMA_TRAVA_SEGUNDOS
+
+
+def adquirir_trava() -> bool:
+    """Cria o arquivo de trava. Devolve False se já houver execução ativa."""
+
+    for tentativa in range(2):
+        try:
+            descritor = os.open(
+                ARQUIVO_TRAVA,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            )
+        except FileExistsError:
+            if tentativa == 0 and trava_esta_abandonada():
+                idade_minutos = IDADE_MAXIMA_TRAVA_SEGUNDOS / 60
+
+                print(
+                    "[AVISO] Havia uma trava com mais de "
+                    f"{idade_minutos:.0f} minutos. "
+                    "Assumindo que a execução anterior falhou."
+                )
+
+                liberar_trava()
+                continue
+
+            return False
+        except OSError as erro:
+            print(f"[AVISO] Não foi possível criar a trava de execução: {erro}")
+            # Sem trava, seguir mesmo assim é melhor que não rodar.
+            return True
+
+        conteudo = json.dumps(
+            {
+                "pid": os.getpid(),
+                "iniciado_em": time.time(),
+            }
+        )
+
+        with os.fdopen(descritor, "w", encoding="utf-8") as arquivo:
+            arquivo.write(conteudo)
+
+        return True
+
+    return False
+
+
+def liberar_trava() -> None:
+    try:
+        ARQUIVO_TRAVA.unlink(missing_ok=True)
+    except OSError as erro:
+        print(f"[AVISO] Não foi possível remover a trava de execução: {erro}")
 
 
 def porta_esta_aberta(
@@ -218,6 +308,20 @@ def encerrar_chrome_iniciado(estado: EstadoChrome) -> None:
 def main() -> int:
     exibir_cabecalho()
 
+    if not adquirir_trava():
+        dados = ler_trava() or {}
+        pid = dados.get("pid", "desconhecido")
+
+        print(
+            "[AVISO] Já existe uma execução em andamento "
+            f"(processo {pid}). Esta execução será encerrada "
+            "para não disputar o navegador nem a sessão do "
+            "Mercado Livre."
+        )
+        print("=" * 60)
+
+        return CODIGO_SAIDA_JA_EM_EXECUCAO
+
     inicio_execucao = time.monotonic()
     estado_chrome = EstadoChrome()
 
@@ -251,6 +355,8 @@ def main() -> int:
 
     finally:
         encerrar_chrome_iniciado(estado_chrome)
+
+        liberar_trava()
 
         duracao = time.monotonic() - inicio_execucao
         exibir_rodape(duracao)
