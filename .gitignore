@@ -104,3 +104,5 @@ test-results/
 
 # Dependências congeladas localmente
 /requirements-lock.txt
+
+execucao_em_andamento.lock

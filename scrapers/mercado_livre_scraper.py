@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import logging
 import re
 import time
@@ -37,6 +39,7 @@ class MercadoLivreScraper(BaseScraper):
     ]
 
     TERMOS_PADRAO = [
+        # Componentes
         "Ryzen 5",
         "Ryzen 7",
         "Intel Core i5",
@@ -46,15 +49,39 @@ class MercadoLivreScraper(BaseScraper):
         "SSD NVMe",
         "Memória RAM DDR4",
         "Memória RAM DDR5",
-        "Monitor gamer",
-        "Fonte Corsair",
-        "Fonte MSI",
         "Placa mãe B550",
         "Placa mãe B650",
+        "Fonte ATX 80 plus",
         "Gabinete gamer",
-        "Mouse Logitech",
-        "Teclado Redragon",
-        "Headset HyperX",
+        "Water cooler processador",
+        # Periféricos
+        "Mouse gamer",
+        "Teclado mecânico",
+        "Headset gamer",
+        "Monitor gamer",
+        "Mousepad gamer",
+        "Webcam full hd",
+        # Áudio
+        "Microfone condensador",
+        "Caixa de som bluetooth",
+        "Soundbar",
+        "Fone bluetooth",
+        # Games e consoles
+        "Controle Xbox",
+        "Controle PlayStation",
+        "Nintendo Switch",
+        "Volante gamer",
+        # Telas e mobile
+        "Smart TV 50",
+        "Smart TV 55",
+        "Celular Xiaomi",
+        "Celular Samsung Galaxy",
+        # Setup e acessórios
+        "Suporte para monitor",
+        "Suporte articulado microfone",
+        "Cadeira gamer",
+        "Hub USB",
+        "Roteador wifi 6",
     ]
 
     def __init__(
