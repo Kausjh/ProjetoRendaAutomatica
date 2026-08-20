@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 import asyncio
 import logging
 
@@ -14,6 +16,7 @@ from services.classificador_produto import ClassificadorProduto
 from services.coletor_ofertas import ColetorOfertas
 from services.executor_pipeline import ExecutorPipeline
 from services.historico_precos_service import HistoricoPrecosService
+from services.janela_publicacao import JanelaPublicacao
 from services.pontuador_oferta import PontuadorOferta
 
 configurar_logging()
@@ -62,6 +65,14 @@ async def main() -> None:
 
     pontuador = PontuadorOferta(preco_maximo=(configuracoes.preco_maximo))
 
+    janela_publicacao = JanelaPublicacao(
+        hora_inicio_madrugada=(configuracoes.hora_inicio_madrugada),
+        hora_fim_madrugada=(configuracoes.hora_fim_madrugada),
+        queda_minima_madrugada=(configuracoes.queda_minima_madrugada),
+        pontuacao_minima_madrugada=(configuracoes.pontuacao_minima_madrugada),
+        ativa=configuracoes.restricao_madrugada_ativa,
+    )
+
     logger.info("Desconto mínimo configurado: %s%%", configuracoes.desconto_minimo)
 
     logger.info("Preço máximo configurado: %s", configuracoes.preco_maximo)
@@ -73,6 +84,20 @@ async def main() -> None:
     logger.info(
         "Produtos atualmente no histórico: %s", historico_precos_repository.quantidade_produtos()
     )
+
+    if configuracoes.restricao_madrugada_ativa:
+        logger.info(
+            "Restrição de madrugada ativa das %sh às %sh: fora desse "
+            "horário publica normalmente; dentro dele, só ofertas com "
+            "queda de %.1f%% ou mais, menor preço histórico, ou "
+            "pontuação acima de %.1f.",
+            configuracoes.hora_inicio_madrugada,
+            configuracoes.hora_fim_madrugada,
+            configuracoes.queda_minima_madrugada,
+            configuracoes.pontuacao_minima_madrugada,
+        )
+    else:
+        logger.info("Restrição de publicação por horário desativada.")
 
     pipeline = ExecutorPipeline(
         coletor=coletor,
@@ -86,6 +111,7 @@ async def main() -> None:
         limite_ofertas=(configuracoes.limite_ofertas),
         maximo_publicacoes=(configuracoes.maximo_publicacoes),
         intervalo_publicacoes=(configuracoes.intervalo_publicacoes),
+        janela_publicacao=janela_publicacao,
     )
 
     await pipeline.executar()
