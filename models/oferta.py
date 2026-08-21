@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 from dataclasses import dataclass, field
 
 
@@ -41,6 +43,14 @@ class Oferta:
     nota_tecnica: float = 0.0
     nota_historica: float = 0.0
     nota_final: float = 0.0
+
+    # Oportunidades especiais / anomalias de preço
+    tipo_oportunidade: str = "normal"
+    anomalia_preco: bool = False
+    anomalia_publicavel: bool = False
+    confianca_anomalia: float = 0.0
+    queda_anomala_percentual: float = 0.0
+    motivos_anomalia: list[str] = field(default_factory=list)
 
     @property
     def desconto_percentual(self) -> float:

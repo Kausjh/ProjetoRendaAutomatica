@@ -4,6 +4,10 @@ from formatters.limpador_titulo import limpar_titulo
 from models.oferta import Oferta
 from services.historico_precos_service import ResultadoHistoricoPreco
 
+# Abaixo deste número de verificações o histórico é curto demais
+# para afirmar que o preço é o melhor de todos os tempos.
+REGISTROS_PARA_HISTORICO_CONFIAVEL = 10
+
 
 class OfertaFormatter:
 
@@ -15,7 +19,7 @@ class OfertaFormatter:
         partes: list[str] = [
             "━━━━━━━━━━━━━━━━━━",
             "",
-            OfertaFormatter._formatar_cabecalho(resultado_historico),
+            OfertaFormatter._formatar_cabecalho(oferta, resultado_historico),
             "",
             f"📦 {limpar_titulo(oferta.nome)}",
             "",
@@ -40,6 +44,11 @@ class OfertaFormatter:
         if detalhes:
             partes.extend(["", detalhes])
 
+        aviso_anomalia = OfertaFormatter._formatar_aviso_anomalia(oferta)
+
+        if aviso_anomalia:
+            partes.extend(["", aviso_anomalia])
+
         partes.extend(
             [
                 "",
@@ -53,11 +62,23 @@ class OfertaFormatter:
 
     @staticmethod
     def _formatar_cabecalho(
+        oferta: Oferta,
         resultado_historico: ResultadoHistoricoPreco | None,
     ) -> str:
+        if oferta.tipo_oportunidade == "possivel_preco_bugado":
+            return "🚨 POSSÍVEL PREÇO BUGADO"
+
+        if oferta.tipo_oportunidade == "anomalia_forte":
+            return "⚡ PREÇO FORA DO PADRÃO"
+
         if resultado_historico is not None and resultado_historico.menor_preco_historico:
             if not resultado_historico.primeiro_registro:
-                return "🏆 MENOR PREÇO JÁ REGISTRADO"
+                registros = resultado_historico.quantidade_registros
+
+                if registros >= REGISTROS_PARA_HISTORICO_CONFIAVEL:
+                    return "🏆 MENOR PREÇO QUE JÁ REGISTRAMOS"
+
+                return "📉 MENOR PREÇO DESDE QUE ACOMPANHAMOS"
 
         return "🔥 OFERTA IMPERDÍVEL"
 
@@ -159,20 +180,35 @@ class OfertaFormatter:
 
         if resultado_historico.menor_preco_historico:
             if menor_anterior is not None and menor_anterior > oferta.preco:
-                linhas.append(
-                    f"🥇 Nunca esteve tão barato "
-                    f"(recorde anterior: {oferta.moeda} {menor_anterior:.2f})"
+                # O "Antes" exibido no bloco de preço usa o maior entre
+                # preco_anterior e menor_preco_anterior. Quando os dois são
+                # iguais, o valor entre parênteses aqui repete o que já
+                # apareceu no "Antes" — omitimos para não duplicar.
+                repete_antes = (
+                    resultado_historico.preco_anterior is not None
+                    and resultado_historico.preco_anterior == menor_anterior
                 )
+
+                if repete_antes:
+                    linhas.append("🥇 Mais barato que qualquer preço que registramos")
+                else:
+                    linhas.append(
+                        f"🥇 Mais barato que qualquer preço que registramos "
+                        f"(anterior: {oferta.moeda} {menor_anterior:.2f})"
+                    )
             else:
-                linhas.append("🥇 Nunca esteve tão barato")
+                linhas.append("🥇 Mais barato que qualquer preço que registramos")
 
         elif menor_anterior is not None:
-            linhas.append(f"🔻 Menor preço já visto: {oferta.moeda} {menor_anterior:.2f}")
+            linhas.append(f"🔻 Menor que registramos: {oferta.moeda} {menor_anterior:.2f}")
 
         registros = resultado_historico.quantidade_registros
 
         if registros >= 3:
             linhas.append(f"👀 Acompanhamos este produto há {registros} verificações")
+
+        if registros < REGISTROS_PARA_HISTORICO_CONFIAVEL:
+            linhas.append("ℹ️ Monitoramos há pouco tempo: pode ter sido menor antes")
 
         return "\n".join(linhas)
 
@@ -186,26 +222,53 @@ class OfertaFormatter:
         if oferta.marca:
             linhas.append(f"🏅 Marca: {oferta.marca.title()}")
 
-        if oferta.nota_final > 0:
+        # Exibe apenas os pontos que dizem respeito ao comprador:
+        # nicho (20) + desconto (30) + preço (15) + histórico (15) = 80.
+        # Os 20 pontos de "potencial comercial" ficam fora porque
+        # medem interesse do canal, não do comprador, e geravam
+        # leitura errada do tipo "nota alta = produto bom".
+        nota_comprador = oferta.nota_tecnica + oferta.nota_historica
+
+        if nota_comprador > 0:
             linhas.append(
-                f"⭐ Nota: {oferta.nota_final:.0f}/100 • "
-                f"{OfertaFormatter._descricao_nota(oferta.nota_final)}"
+                f"⭐ Vale a pena? {nota_comprador:.0f}/80 • "
+                f"{OfertaFormatter._descricao_nota(nota_comprador)}"
             )
 
         return "\n".join(linhas)
 
     @staticmethod
+    def _formatar_aviso_anomalia(oferta: Oferta) -> str:
+        if not oferta.anomalia_preco or not oferta.anomalia_publicavel:
+            return ""
+
+        return "\n".join(
+            [
+                (
+                    "⚠️ Detectamos um preço muito fora do padrão do nosso "
+                    f"histórico ({oferta.queda_anomala_percentual:.1f}% abaixo)."
+                ),
+                (
+                    "🔎 Mesmo em marketplace legítimo, confira vendedor, "
+                    "variação do produto e condições do anúncio antes de pagar."
+                ),
+                "⏱️ Se for erro de preço, a oferta pode desaparecer rapidamente.",
+            ]
+        )
+
+    @staticmethod
     def _descricao_nota(nota: float) -> str:
-        if nota >= 95:
+        # Faixas recalibradas para a escala 0-80 (pontos do comprador).
+        if nota >= 75:
             return "Oferta excepcional"
 
-        if nota >= 90:
+        if nota >= 70:
             return "Excelente oportunidade"
 
-        if nota >= 80:
+        if nota >= 60:
             return "Muito boa"
 
-        if nota >= 70:
+        if nota >= 50:
             return "Boa oportunidade"
 
         return "Oferta comum"
