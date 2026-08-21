@@ -3,6 +3,7 @@
 import logging
 import re
 import time
+from datetime import datetime
 from urllib.parse import quote_plus
 
 from playwright.sync_api import (
@@ -38,8 +39,11 @@ class MercadoLivreScraper(BaseScraper):
         "div.poly-card",
     ]
 
-    TERMOS_PADRAO = [
-        # Componentes
+    # Termos pesquisados em toda execução. Mantemos o núcleo do canal
+    # sempre ativo e rotacionamos categorias complementares para ampliar
+    # o catálogo sem transformar cada ciclo em centenas de buscas.
+    TERMOS_ESSENCIAIS = [
+        # Hardware e upgrades
         "Ryzen 5",
         "Ryzen 7",
         "Intel Core i5",
@@ -53,43 +57,135 @@ class MercadoLivreScraper(BaseScraper):
         "Placa mãe B650",
         "Fonte ATX 80 plus",
         "Gabinete gamer",
-        "Water cooler processador",
-        # Periféricos
+        "Water cooler 240mm",
+        "Water cooler 360mm",
+        # Periféricos e setup
         "Mouse gamer",
         "Teclado mecânico",
         "Headset gamer",
         "Monitor gamer",
-        "Mousepad gamer",
-        "Webcam full hd",
-        # Áudio
         "Microfone condensador",
-        "Caixa de som bluetooth",
-        "Soundbar",
-        "Fone bluetooth",
-        # Games e consoles
+        "Suporte articulado microfone",
+        "Suporte para monitor",
+        "Cadeira gamer",
+        "Cadeira ergonômica",
+        # Games
         "Controle Xbox",
         "Controle PlayStation",
         "Nintendo Switch",
-        "Volante gamer",
         # Telas e mobile
         "Smart TV 50",
         "Smart TV 55",
-        "Celular Xiaomi",
         "Celular Samsung Galaxy",
-        # Setup e acessórios
-        "Suporte para monitor",
-        "Suporte articulado microfone",
-        "Cadeira gamer",
-        "Hub USB",
+        "Celular Xiaomi",
+        # Rede e conectividade
         "Roteador wifi 6",
+        "Hub USB C",
     ]
+
+    GRUPOS_ROTATIVOS = [
+        [
+            # Refrigeração, energia e manutenção de PC
+            "Air cooler processador",
+            "AIO liquid cooler",
+            "Fan ARGB gabinete",
+            "Kit fans gabinete",
+            "Pasta térmica",
+            "Nobreak",
+            "Filtro de linha DPS",
+            "Mini PC",
+            "NAS armazenamento",
+            "Dock station USB C",
+        ],
+        [
+            # Creator, streaming, áudio e iluminação
+            "Webcam full hd",
+            "Webcam 4k",
+            "Placa de captura",
+            "Stream deck",
+            "Interface de áudio USB",
+            "Microfone USB",
+            "Ring light",
+            "Luminária monitor light bar",
+            "Fita LED RGB",
+            "Caixa de som bluetooth",
+            "Soundbar",
+            "Fone bluetooth",
+        ],
+        [
+            # Consoles, simulação e realidade virtual
+            "Steam Deck",
+            "ROG Ally",
+            "PlayStation 5",
+            "Xbox Series S",
+            "Xbox Series X",
+            "Volante gamer",
+            "Cockpit simulador",
+            "Meta Quest",
+            "Óculos VR",
+            "SSD PS5",
+            "Controle 8BitDo",
+        ],
+        [
+            # Mobilidade, produtividade e dispositivos pessoais
+            "Notebook gamer",
+            "Notebook Ryzen 7",
+            "Notebook Core i7",
+            "Tablet Samsung Galaxy Tab",
+            "iPad",
+            "Kindle",
+            "Smartwatch",
+            "Smartband",
+            "Power bank",
+            "Carregador GaN",
+            "Carregador USB C",
+            "Projetor portátil",
+        ],
+        [
+            # Quarto, escritório e conforto do setup
+            "Ventilador",
+            "Ventilador de torre",
+            "Climatizador",
+            "Ar condicionado inverter",
+            "Ar condicionado portátil",
+            "Frigobar",
+            "Aspirador robô",
+            "Lâmpada inteligente",
+            "Tomada inteligente",
+            "Alexa Echo Dot",
+            "Câmera wifi",
+            "Mesa gamer",
+            "Apoio para pés ergonômico",
+        ],
+        [
+            # Maker, ferramentas e tecnologia de bancada
+            "Impressora 3D",
+            "Filamento PLA",
+            "Estação de solda",
+            "Ferro de solda",
+            "Kit chave de precisão",
+            "Multímetro digital",
+            "Câmera de ação",
+            "Drone com câmera",
+            "Impressora laser",
+            "Impressora térmica etiquetas",
+            "Raspberry Pi",
+            "Arduino kit",
+        ],
+    ]
+
+    # Mantido por compatibilidade com código externo que possa consultar
+    # TERMOS_PADRAO diretamente. A execução normal usa o método rotativo.
+    TERMOS_PADRAO = TERMOS_ESSENCIAIS
 
     def __init__(
         self,
         termos_busca: list[str] | None = None,
         endpoint_cdp: str | None = None,
     ) -> None:
-        termos_recebidos = termos_busca if termos_busca is not None else self.TERMOS_PADRAO
+        termos_recebidos = (
+            termos_busca if termos_busca is not None else self._obter_termos_padrao_rotativos()
+        )
 
         self.termos_busca = [termo.strip() for termo in termos_recebidos if termo and termo.strip()]
 
@@ -97,6 +193,32 @@ class MercadoLivreScraper(BaseScraper):
             raise ValueError("A lista de termos do Mercado Livre não pode estar vazia.")
 
         self.endpoint_cdp = endpoint_cdp.strip() if endpoint_cdp else self.ENDPOINT_CDP
+
+    @classmethod
+    def _obter_termos_padrao_rotativos(
+        cls,
+        momento: datetime | None = None,
+    ) -> list[str]:
+        """Retorna núcleo fixo + um grupo complementar por ciclo de 30 min.
+
+        Como o projeto roda a cada 30 minutos, todos os grupos complementares
+        são revisitados ao longo do dia sem aumentar demais o número de buscas
+        feitas contra o Mercado Livre em uma única execução.
+        """
+
+        agora = momento or datetime.now()
+
+        if not cls.GRUPOS_ROTATIVOS:
+            return list(cls.TERMOS_ESSENCIAIS)
+
+        janela_meia_hora = (agora.hour * 2) + (1 if agora.minute >= 30 else 0)
+        indice_grupo = janela_meia_hora % len(cls.GRUPOS_ROTATIVOS)
+
+        termos = list(cls.TERMOS_ESSENCIAIS)
+        termos.extend(cls.GRUPOS_ROTATIVOS[indice_grupo])
+
+        # Remove eventuais duplicatas preservando a ordem.
+        return list(dict.fromkeys(termos))
 
     def buscar_ofertas(
         self,

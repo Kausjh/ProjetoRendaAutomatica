@@ -14,6 +14,7 @@ from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
 from services.classificador_produto import ClassificadorProduto
 from services.coletor_ofertas import ColetorOfertas
+from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.executor_pipeline import ExecutorPipeline
 from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
@@ -65,11 +66,24 @@ async def main() -> None:
 
     pontuador = PontuadorOferta(preco_maximo=(configuracoes.preco_maximo))
 
+    detector_anomalia = DetectorAnomaliaPreco(
+        ativa=configuracoes.detector_anomalia_ativo,
+        queda_minima_anomalia=configuracoes.queda_minima_anomalia,
+        queda_minima_preco_bugado=configuracoes.queda_minima_preco_bugado,
+        queda_maxima_publicavel=configuracoes.queda_maxima_anomalia_publicavel,
+        registros_minimos=configuracoes.registros_minimos_anomalia,
+        confianca_minima_publicacao=configuracoes.confianca_minima_anomalia,
+    )
+
     janela_publicacao = JanelaPublicacao(
         hora_inicio_madrugada=(configuracoes.hora_inicio_madrugada),
         hora_fim_madrugada=(configuracoes.hora_fim_madrugada),
         queda_minima_madrugada=(configuracoes.queda_minima_madrugada),
         pontuacao_minima_madrugada=(configuracoes.pontuacao_minima_madrugada),
+        registros_minimos_madrugada=(configuracoes.registros_minimos_madrugada),
+        nota_comprador_minima_madrugada=(configuracoes.nota_comprador_minima_madrugada),
+        queda_minima_menor_preco_madrugada=(configuracoes.queda_minima_menor_preco_madrugada),
+        queda_maxima_automatica_madrugada=(configuracoes.queda_maxima_automatica_madrugada),
         ativa=configuracoes.restricao_madrugada_ativa,
     )
 
@@ -87,17 +101,33 @@ async def main() -> None:
 
     if configuracoes.restricao_madrugada_ativa:
         logger.info(
-            "Restrição de madrugada ativa das %sh às %sh: fora desse "
-            "horário publica normalmente; dentro dele, só ofertas com "
-            "queda de %.1f%% ou mais, menor preço histórico, ou "
-            "pontuação acima de %.1f.",
+            "Madrugada relâmpago ativa das %sh às %sh: exige pelo menos %s "
+            "registros, nota do comprador >= %.1f/80, pontuação >= %.1f e "
+            "queda forte. Quedas acima de %.1f%% são seguradas para "
+            "validação reforçada.",
             configuracoes.hora_inicio_madrugada,
             configuracoes.hora_fim_madrugada,
-            configuracoes.queda_minima_madrugada,
+            configuracoes.registros_minimos_madrugada,
+            configuracoes.nota_comprador_minima_madrugada,
             configuracoes.pontuacao_minima_madrugada,
+            configuracoes.queda_maxima_automatica_madrugada,
         )
     else:
         logger.info("Restrição de publicação por horário desativada.")
+
+    if configuracoes.detector_anomalia_ativo:
+        logger.info(
+            (
+                "Detector de anomalias ativo: queda >= %.1f%% entra em revisão; "
+                "possível preço bugado a partir de %.1f%%; acima de %.1f%% "
+                "fica retido automaticamente."
+            ),
+            configuracoes.queda_minima_anomalia,
+            configuracoes.queda_minima_preco_bugado,
+            configuracoes.queda_maxima_anomalia_publicavel,
+        )
+    else:
+        logger.info("Detector de anomalias de preço desativado.")
 
     pipeline = ExecutorPipeline(
         coletor=coletor,
@@ -112,6 +142,7 @@ async def main() -> None:
         maximo_publicacoes=(configuracoes.maximo_publicacoes),
         intervalo_publicacoes=(configuracoes.intervalo_publicacoes),
         janela_publicacao=janela_publicacao,
+        detector_anomalia=detector_anomalia,
     )
 
     await pipeline.executar()

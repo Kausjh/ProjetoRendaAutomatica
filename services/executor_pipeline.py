@@ -10,6 +10,7 @@ from filters.oferta_filter import OfertaFilter
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from services.coletor_ofertas import ColetorOfertas
+from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.historico_precos_service import HistoricoPrecosService, ResultadoHistoricoPreco
 from services.janela_publicacao import JanelaPublicacao
 from services.pontuador_oferta import PontuadorOferta
@@ -32,6 +33,7 @@ class ExecutorPipeline:
         maximo_publicacoes: int,
         intervalo_publicacoes: int | float,
         janela_publicacao: JanelaPublicacao | None = None,
+        detector_anomalia: DetectorAnomaliaPreco | None = None,
     ) -> None:
         self.coletor = coletor
         self.bot = bot
@@ -46,6 +48,7 @@ class ExecutorPipeline:
         self.intervalo_publicacoes = intervalo_publicacoes
 
         self.janela_publicacao = janela_publicacao or JanelaPublicacao()
+        self.detector_anomalia = detector_anomalia or DetectorAnomaliaPreco()
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -81,6 +84,9 @@ class ExecutorPipeline:
         quantidade_quedas_detectadas = 0
         quantidade_menores_precos = 0
         quantidade_republicada_por_queda = 0
+        quantidade_anomalias_detectadas = 0
+        quantidade_anomalias_publicaveis = 0
+        quantidade_anomalias_retidas = 0
 
         quantidade_links_processados = 0
         quantidade_links_transformados = 0
@@ -169,13 +175,52 @@ class ExecutorPipeline:
                 oferta=oferta, resultado_historico=resultado_historico
             )
 
+            resultado_anomalia = self.detector_anomalia.avaliar(
+                oferta=oferta,
+                resultado_historico=resultado_historico,
+            )
+
+            if resultado_anomalia.detectada:
+                quantidade_anomalias_detectadas += 1
+
+                logger.warning(
+                    (
+                        "Anomalia de preço detectada: %s | tipo=%s | "
+                        "queda=%.1f%% | confiança=%.0f/100 | publicável=%s"
+                    ),
+                    oferta.nome,
+                    resultado_anomalia.tipo,
+                    resultado_anomalia.queda_percentual,
+                    resultado_anomalia.confianca,
+                    resultado_anomalia.publicavel,
+                )
+
+                if not resultado_anomalia.publicavel:
+                    quantidade_anomalias_retidas += 1
+
+                    logger.warning(
+                        "Anomalia retida para não publicar automaticamente: %s | %s",
+                        oferta.nome,
+                        " | ".join(resultado_anomalia.motivos),
+                    )
+                    continue
+
+                quantidade_anomalias_publicaveis += 1
+
             ofertas_aprovadas.append(
                 (oferta, pontuacao, resultado_historico, deve_republicar_por_queda)
             )
 
             logger.info("Oferta elegível: %s | Pontuação final: %.2f", oferta.nome, pontuacao)
 
-        ofertas_aprovadas.sort(key=lambda item: item[1], reverse=True)
+        ofertas_aprovadas.sort(
+            key=lambda item: (
+                1 if item[0].tipo_oportunidade == "possivel_preco_bugado" else 0,
+                1 if item[0].tipo_oportunidade == "anomalia_forte" else 0,
+                item[1],
+            ),
+            reverse=True,
+        )
 
         ofertas_publicaveis = []
         quantidade_adiada_por_horario = 0
@@ -301,6 +346,12 @@ class ExecutorPipeline:
 
         logger.info("Novos menores preços históricos: %s", quantidade_menores_precos)
 
+        logger.info("Anomalias de preço detectadas: %s", quantidade_anomalias_detectadas)
+
+        logger.info("Anomalias liberadas para publicação: %s", quantidade_anomalias_publicaveis)
+
+        logger.info("Anomalias retidas por segurança: %s", quantidade_anomalias_retidas)
+
         logger.info("Links de publicação processados: %s", quantidade_links_processados)
 
         logger.info("Links transformados: %s", quantidade_links_transformados)
@@ -333,6 +384,9 @@ class ExecutorPipeline:
             "novos_precos_registrados": (quantidade_precos_registrados),
             "quedas_preco_detectadas": (quantidade_quedas_detectadas),
             "novos_menores_precos_historicos": (quantidade_menores_precos),
+            "anomalias_preco_detectadas": quantidade_anomalias_detectadas,
+            "anomalias_preco_publicaveis": quantidade_anomalias_publicaveis,
+            "anomalias_preco_retidas": quantidade_anomalias_retidas,
             "links_processados": quantidade_links_processados,
             "links_transformados": quantidade_links_transformados,
             "links_mantidos_sem_alteracao": (quantidade_links_mantidos),

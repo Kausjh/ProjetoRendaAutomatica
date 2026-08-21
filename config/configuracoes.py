@@ -42,11 +42,51 @@ class Configuracoes:
         self.hora_fim_madrugada = self._buscar_inteiro(nome="HORA_FIM_MADRUGADA", valor_padrao=8)
 
         self.queda_minima_madrugada = self._buscar_decimal(
-            nome="QUEDA_MINIMA_MADRUGADA", valor_padrao=15.0
+            nome="QUEDA_MINIMA_MADRUGADA", valor_padrao=25.0
         )
 
         self.pontuacao_minima_madrugada = self._buscar_decimal(
-            nome="PONTUACAO_MINIMA_MADRUGADA", valor_padrao=80.0
+            nome="PONTUACAO_MINIMA_MADRUGADA", valor_padrao=90.0
+        )
+
+        self.registros_minimos_madrugada = self._buscar_inteiro(
+            nome="REGISTROS_MINIMOS_MADRUGADA", valor_padrao=3
+        )
+
+        self.nota_comprador_minima_madrugada = self._buscar_decimal(
+            nome="NOTA_COMPRADOR_MINIMA_MADRUGADA", valor_padrao=60.0
+        )
+
+        self.queda_minima_menor_preco_madrugada = self._buscar_decimal(
+            nome="QUEDA_MINIMA_MENOR_PRECO_MADRUGADA", valor_padrao=15.0
+        )
+
+        self.queda_maxima_automatica_madrugada = self._buscar_decimal(
+            nome="QUEDA_MAXIMA_AUTOMATICA_MADRUGADA", valor_padrao=55.0
+        )
+
+        self.detector_anomalia_ativo = self._buscar_booleano(
+            nome="DETECTOR_ANOMALIA_ATIVO", valor_padrao=True
+        )
+
+        self.queda_minima_anomalia = self._buscar_decimal(
+            nome="QUEDA_MINIMA_ANOMALIA", valor_padrao=45.0
+        )
+
+        self.queda_minima_preco_bugado = self._buscar_decimal(
+            nome="QUEDA_MINIMA_PRECO_BUGADO", valor_padrao=55.0
+        )
+
+        self.queda_maxima_anomalia_publicavel = self._buscar_decimal(
+            nome="QUEDA_MAXIMA_ANOMALIA_PUBLICAVEL", valor_padrao=75.0
+        )
+
+        self.registros_minimos_anomalia = self._buscar_inteiro(
+            nome="REGISTROS_MINIMOS_ANOMALIA", valor_padrao=4
+        )
+
+        self.confianca_minima_anomalia = self._buscar_decimal(
+            nome="CONFIANCA_MINIMA_ANOMALIA", valor_padrao=75.0
         )
 
         self._validar()
@@ -118,3 +158,46 @@ class Configuracoes:
 
         if not 0 <= self.pontuacao_minima_madrugada <= 100:
             raise ValueError("PONTUACAO_MINIMA_MADRUGADA precisa estar entre 0 e 100.")
+
+        if self.registros_minimos_madrugada < 2:
+            raise ValueError("REGISTROS_MINIMOS_MADRUGADA precisa ser pelo menos 2.")
+
+        if not 0 <= self.nota_comprador_minima_madrugada <= 80:
+            raise ValueError("NOTA_COMPRADOR_MINIMA_MADRUGADA precisa estar entre 0 e 80.")
+
+        if not 0 <= self.queda_minima_menor_preco_madrugada <= 100:
+            raise ValueError("QUEDA_MINIMA_MENOR_PRECO_MADRUGADA precisa estar entre 0 e 100.")
+
+        if not 0 <= self.queda_maxima_automatica_madrugada <= 100:
+            raise ValueError("QUEDA_MAXIMA_AUTOMATICA_MADRUGADA precisa estar entre 0 e 100.")
+
+        if self.queda_maxima_automatica_madrugada <= self.queda_minima_madrugada:
+            raise ValueError(
+                "QUEDA_MAXIMA_AUTOMATICA_MADRUGADA precisa ser maior que " "QUEDA_MINIMA_MADRUGADA."
+            )
+
+        if not 0 <= self.queda_minima_anomalia <= 100:
+            raise ValueError("QUEDA_MINIMA_ANOMALIA precisa estar entre 0 e 100.")
+
+        if not 0 <= self.queda_minima_preco_bugado <= 100:
+            raise ValueError("QUEDA_MINIMA_PRECO_BUGADO precisa estar entre 0 e 100.")
+
+        if not 0 <= self.queda_maxima_anomalia_publicavel <= 100:
+            raise ValueError("QUEDA_MAXIMA_ANOMALIA_PUBLICAVEL precisa estar entre 0 e 100.")
+
+        if self.registros_minimos_anomalia < 2:
+            raise ValueError("REGISTROS_MINIMOS_ANOMALIA precisa ser pelo menos 2.")
+
+        if not 0 <= self.confianca_minima_anomalia <= 100:
+            raise ValueError("CONFIANCA_MINIMA_ANOMALIA precisa estar entre 0 e 100.")
+
+        if self.queda_minima_preco_bugado < self.queda_minima_anomalia:
+            raise ValueError(
+                "QUEDA_MINIMA_PRECO_BUGADO não pode ser menor que " "QUEDA_MINIMA_ANOMALIA."
+            )
+
+        if self.queda_maxima_anomalia_publicavel <= self.queda_minima_preco_bugado:
+            raise ValueError(
+                "QUEDA_MAXIMA_ANOMALIA_PUBLICAVEL precisa ser maior que "
+                "QUEDA_MINIMA_PRECO_BUGADO."
+            )

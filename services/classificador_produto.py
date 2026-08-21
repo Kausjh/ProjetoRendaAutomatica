@@ -82,8 +82,9 @@ class ClassificadorProduto:
             "hard disk",
             "cartao de memoria",
             "pen drive",
+            "nas",
         ),
-        "Fonte": (
+        "Fonte e energia": (
             "fonte atx",
             "fonte modular",
             "fonte semi modular",
@@ -91,7 +92,8 @@ class ClassificadorProduto:
             "power supply",
             "80 plus",
             "nobreak",
-            "estabilizador",
+            "filtro de linha",
+            "protetor dps",
         ),
         "Gabinete": (
             "gabinete",
@@ -100,13 +102,15 @@ class ClassificadorProduto:
             "mini tower",
             "case gamer",
         ),
-        "Refrigeração": (
+        "Refrigeração de PC": (
             "water cooler",
             "air cooler",
+            "aio liquid cooler",
             "cooler para processador",
             "cooler cpu",
             "ventoinha",
             "fan para gabinete",
+            "fan argb",
             "pasta termica",
         ),
         "Monitor": (
@@ -126,6 +130,12 @@ class ClassificadorProduto:
             "tv oled",
             "tv 4k",
         ),
+        "Projetor": (
+            "projetor",
+            "mini projetor",
+            "projetor portatil",
+            "projetor 4k",
+        ),
         "Celular": (
             "smartphone",
             "celular",
@@ -136,21 +146,32 @@ class ClassificadorProduto:
             "moto g",
             "moto edge",
         ),
-        "Notebook gamer": (
+        "Tablet e e-reader": (
+            "tablet",
+            "galaxy tab",
+            "ipad",
+            "kindle",
+            "e-reader",
+            "ereader",
+        ),
+        "Notebook": (
             "notebook gamer",
             "laptop gamer",
+            "notebook",
+            "ultrabook",
             "rog strix",
             "acer nitro",
             "lenovo legion",
             "dell g15",
             "alienware",
         ),
-        "Computador gamer": (
+        "Computador e Mini PC": (
             "pc gamer",
             "computador gamer",
             "desktop gamer",
+            "mini pc",
         ),
-        "Mouse": (
+        "Mouse e mousepad": (
             "mouse",
             "mouse gamer",
             "mouse sem fio",
@@ -169,11 +190,12 @@ class ClassificadorProduto:
             "switch mecanico",
             "keycaps",
         ),
-        "Headset e áudio": (
+        "Áudio": (
             "headset",
             "fone gamer",
             "fone de ouvido",
             "fone bluetooth",
+            "earbuds",
             "caixa de som",
             "soundbar",
             "sound bar",
@@ -195,6 +217,7 @@ class ClassificadorProduto:
             "joystick",
             "dualsense",
             "dualshock",
+            "8bitdo",
         ),
         "Console": (
             "playstation 5",
@@ -203,7 +226,15 @@ class ClassificadorProduto:
             "xbox one",
             "nintendo switch",
             "steam deck",
+            "rog ally",
+            "console portatil",
             "console",
+        ),
+        "Realidade virtual": (
+            "meta quest",
+            "oculos vr",
+            "headset vr",
+            "realidade virtual",
         ),
         "Rede": (
             "roteador gamer",
@@ -232,12 +263,15 @@ class ClassificadorProduto:
             "cockpit gamer",
             "simulador de corrida",
         ),
-        "Mobiliário gamer": (
+        "Mobiliário e ergonomia": (
             "cadeira gamer",
-            "mesa gamer",
+            "cadeira ergonomica",
             "cadeira de escritorio",
+            "cadeira presidente",
+            "mesa gamer",
+            "apoio para pes",
         ),
-        "Suportes e acessórios": (
+        "Suportes e conectividade": (
             "suporte para monitor",
             "suporte de monitor",
             "suporte articulado",
@@ -250,6 +284,74 @@ class ClassificadorProduto:
             "dock station",
             "adaptador usb c",
             "organizador de cabos",
+        ),
+        "Carregamento e mobilidade": (
+            "power bank",
+            "carregador gan",
+            "carregador usb c",
+            "carregador magsafe",
+            "carregador sem fio",
+        ),
+        "Wearables": (
+            "smartwatch",
+            "smartband",
+            "relogio inteligente",
+            "pulseira inteligente",
+        ),
+        "Casa inteligente": (
+            "lampada inteligente",
+            "tomada inteligente",
+            "echo dot",
+            "alexa",
+            "camera wifi",
+            "camera ip",
+            "fechadura inteligente",
+        ),
+        "Climatização e conforto": (
+            "ventilador",
+            "ventilador de torre",
+            "climatizador",
+            "ar condicionado",
+            "ar-condicionado",
+            "frigobar",
+            "umidificador",
+            "desumidificador",
+        ),
+        "Automação doméstica": (
+            "aspirador robo",
+            "robo aspirador",
+            "robo passa pano",
+        ),
+        "Iluminação de setup": (
+            "fita led",
+            "fita rgb",
+            "light bar",
+            "barra de luz para monitor",
+            "luminaria rgb",
+        ),
+        "Maker e bancada": (
+            "impressora 3d",
+            "filamento pla",
+            "filamento petg",
+            "raspberry pi",
+            "arduino",
+            "estacao de solda",
+            "ferro de solda",
+            "kit chave de precisao",
+            "chave de precisao",
+            "multimetro digital",
+        ),
+        "Câmeras e drones": (
+            "camera de acao",
+            "action cam",
+            "gopro",
+            "drone com camera",
+            "camera mirrorless",
+        ),
+        "Impressão": (
+            "impressora laser",
+            "impressora termica",
+            "impressora de etiquetas",
         ),
     }
 
@@ -323,6 +425,16 @@ class ClassificadorProduto:
         "case para controle",
         "skin adesiva",
         "suporte veicular",
+        "controle remoto reposicao",
+        "capa para controle",
+        "adesivo para controle",
+        "pelicula para smartwatch",
+        "pulseira para smartwatch",
+        "capa para tablet",
+        "capa para kindle",
+        "tinta para impressora",
+        "cartucho de tinta",
+        "toner compativel",
     )
 
     def classificar(self, oferta: Oferta) -> ResultadoClassificacaoProduto:
