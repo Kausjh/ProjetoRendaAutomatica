@@ -352,16 +352,14 @@ class FiltroCategoriasMercadoLivre:
         return tuple(titulos)
 
     def _voltar_ao_topo(self) -> None:
-        self.pagina.evaluate(
-            """
+        self.pagina.evaluate("""
             () => {
                 window.scrollTo({
                     top: 0,
                     behavior: "instant"
                 });
             }
-            """
-        )
+            """)
 
         time.sleep(1.5)
 

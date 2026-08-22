@@ -58,8 +58,7 @@ class FilaPublicacaoRepository:
 
     def _criar_estrutura(self) -> None:
         with self._conectar() as conexao:
-            conexao.executescript(
-                """
+            conexao.executescript("""
                 CREATE TABLE IF NOT EXISTS fila_publicacao (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     link TEXT NOT NULL UNIQUE,
@@ -93,8 +92,7 @@ class FilaPublicacaoRepository:
 
                 CREATE INDEX IF NOT EXISTS idx_fila_publicado_em
                 ON fila_publicacao(publicado_em);
-                """
-            )
+                """)
 
             colunas = {
                 linha["name"]
@@ -111,12 +109,10 @@ class FilaPublicacaoRepository:
                 if coluna not in colunas:
                     conexao.execute(f"ALTER TABLE fila_publicacao " f"ADD COLUMN {coluna} {tipo}")
 
-            conexao.execute(
-                """
+            conexao.execute("""
                 CREATE INDEX IF NOT EXISTS idx_fila_familia_status
                 ON fila_publicacao(chave_familia, status)
-                """
-            )
+                """)
 
     def adicionar_ou_atualizar(
         self,
@@ -475,8 +471,7 @@ class FilaPublicacaoRepository:
 
     def resumo_familias_pendentes(self) -> dict[str, int]:
         with self._conectar() as conexao:
-            linha = conexao.execute(
-                """
+            linha = conexao.execute("""
                 SELECT
                     COUNT(*) AS itens,
                     COUNT(DISTINCT CASE
@@ -491,8 +486,7 @@ class FilaPublicacaoRepository:
                     END) AS itens_com_familia
                 FROM fila_publicacao
                 WHERE status = 'pendente'
-                """
-            ).fetchone()
+                """).fetchone()
 
         return {
             "itens": int(linha["itens"] or 0),
@@ -502,13 +496,11 @@ class FilaPublicacaoRepository:
 
     def quantidade_pendente(self) -> int:
         with self._conectar() as conexao:
-            linha = conexao.execute(
-                """
+            linha = conexao.execute("""
                 SELECT COUNT(*) AS quantidade
                 FROM fila_publicacao
                 WHERE status = 'pendente'
-                """
-            ).fetchone()
+                """).fetchone()
 
         return int(linha["quantidade"])
 

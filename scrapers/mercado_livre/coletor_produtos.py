@@ -244,16 +244,14 @@ class ColetorProdutosMercadoLivre:
         return ""
 
     def _rolar_pagina(self) -> None:
-        self.pagina.evaluate(
-            """
+        self.pagina.evaluate("""
             () => {
                 window.scrollTo({
                     top: document.body.scrollHeight,
                     behavior: "smooth"
                 });
             }
-            """
-        )
+            """)
 
     @staticmethod
     def salvar_json(

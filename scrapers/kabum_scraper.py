@@ -365,8 +365,7 @@ class KabumScraper(BaseScraper):
         a página reorganize os cards durante a coleta.
         """
 
-        return cartao.evaluate(
-            """
+        return cartao.evaluate("""
             (card) => {
                 const pegarTextos = (seletor) => {
                     return Array
@@ -423,8 +422,7 @@ class KabumScraper(BaseScraper):
                         : null,
                 };
             }
-            """
-        )
+            """)
 
     def _criar_oferta(
         self,
