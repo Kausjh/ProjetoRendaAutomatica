@@ -35,7 +35,6 @@ class ExecutorPipeline:
         pontuacao_minima_fila: float = 72.0,
         tamanho_maximo_fila: int = 30,
         fila_idade_maxima_minutos: float = 90.0,
-        maximo_entradas_por_categoria_ciclo: int = 2,
         janela_publicacao: JanelaPublicacao | None = None,
         detector_anomalia: DetectorAnomaliaPreco | None = None,
         normalizador_produto: NormalizadorProduto | None = None,
@@ -56,7 +55,6 @@ class ExecutorPipeline:
         self.pontuacao_minima_fila = pontuacao_minima_fila
         self.tamanho_maximo_fila = tamanho_maximo_fila
         self.fila_idade_maxima_minutos = fila_idade_maxima_minutos
-        self.maximo_entradas_por_categoria_ciclo = maximo_entradas_por_categoria_ciclo
 
         self.janela_publicacao = janela_publicacao or JanelaPublicacao()
         self.detector_anomalia = detector_anomalia or DetectorAnomaliaPreco()
@@ -84,11 +82,6 @@ class ExecutorPipeline:
         logger.info(
             "Máximo de novas entradas na fila por ciclo: %s",
             self.maximo_entradas_fila_por_ciclo,
-        )
-
-        logger.info(
-            "Máximo de entradas da mesma categoria por ciclo: %s",
-            self.maximo_entradas_por_categoria_ciclo,
         )
 
         try:
@@ -322,27 +315,7 @@ class ExecutorPipeline:
             reverse=True,
         )
 
-        quantidade_candidatos_antes_diversidade = len(candidatos_fila)
-
-        candidatos_fila = self._selecionar_candidatos_diversos(
-            candidatos=candidatos_fila,
-            limite_total=self.maximo_entradas_fila_por_ciclo,
-            limite_por_categoria=self.maximo_entradas_por_categoria_ciclo,
-        )
-
-        quantidade_limitada_por_diversidade = quantidade_candidatos_antes_diversidade - len(
-            candidatos_fila
-        )
-
-        if quantidade_limitada_por_diversidade > 0:
-            logger.info(
-                (
-                    "Diversidade de entrada segurou %s candidato(s); "
-                    "limite de %s por categoria neste ciclo."
-                ),
-                quantidade_limitada_por_diversidade,
-                self.maximo_entradas_por_categoria_ciclo,
-            )
+        candidatos_fila = candidatos_fila[: self.maximo_entradas_fila_por_ciclo]
 
         expiradas = self.fila_publicacao_repository.expirar_antigos(self.fila_idade_maxima_minutos)
 
@@ -453,11 +426,6 @@ class ExecutorPipeline:
 
         logger.info("Fila pendente ao fim do ciclo: %s", quantidade_pendente_fila)
 
-        logger.info(
-            "Candidatos segurados pela diversidade de entrada: %s",
-            quantidade_limitada_por_diversidade,
-        )
-
         logger.info("Ofertas rejeitadas pelo filtro: %s", quantidade_filtrada)
 
         logger.info(
@@ -499,7 +467,6 @@ class ExecutorPipeline:
             "ofertas_atualizadas_na_fila": quantidade_atualizada_na_fila,
             "ofertas_abaixo_score_fila": quantidade_descartada_score_fila,
             "fila_pendente_ao_fim": quantidade_pendente_fila,
-            "candidatos_segurados_diversidade_entrada": (quantidade_limitada_por_diversidade),
             # Compatibilidade temporária com consumidores antigos do relatório.
             "ofertas_selecionadas": quantidade_enfileirada,
             "ofertas_publicadas": 0,
@@ -523,78 +490,6 @@ class ExecutorPipeline:
         logger.info("Execução finalizada.")
 
         logger.info("=" * 60)
-
-    @staticmethod
-    def _selecionar_candidatos_diversos(
-        candidatos: list,
-        limite_total: int,
-        limite_por_categoria: int,
-    ) -> list:
-        """Seleciona em rodadas para não deixar uma categoria dominar a fila.
-
-        Exemplo: em vez de pegar os 6 melhores monitores antes de qualquer
-        SSD/placa de vídeo, faz uma primeira rodada com 1 por categoria e só
-        depois permite a segunda vaga de cada categoria.
-
-        Oportunidades urgentes validadas entram primeiro e não são descartadas
-        por esse balanceamento.
-        """
-
-        if limite_total <= 0 or not candidatos:
-            return []
-
-        urgentes = [
-            item
-            for item in candidatos
-            if item[0].tipo_oportunidade in {"possivel_preco_bugado", "anomalia_forte"}
-        ]
-
-        comuns = [
-            item
-            for item in candidatos
-            if item[0].tipo_oportunidade not in {"possivel_preco_bugado", "anomalia_forte"}
-        ]
-
-        selecionados: list = []
-        ids_selecionados: set[int] = set()
-        contagem_categoria: dict[str, int] = {}
-
-        for item in urgentes:
-            if len(selecionados) >= limite_total:
-                return selecionados
-
-            selecionados.append(item)
-            ids_selecionados.add(id(item))
-
-            categoria = ExecutorPipeline._chave_categoria(item[0].categoria)
-            contagem_categoria[categoria] = contagem_categoria.get(categoria, 0) + 1
-
-        # Rodadas: primeiro 1 de cada categoria, depois a segunda vaga etc.
-        for rodada in range(1, limite_por_categoria + 1):
-            for item in comuns:
-                if len(selecionados) >= limite_total:
-                    return selecionados
-
-                if id(item) in ids_selecionados:
-                    continue
-
-                categoria = ExecutorPipeline._chave_categoria(item[0].categoria)
-
-                if contagem_categoria.get(categoria, 0) >= rodada:
-                    continue
-
-                selecionados.append(item)
-                ids_selecionados.add(id(item))
-                contagem_categoria[categoria] = contagem_categoria.get(categoria, 0) + 1
-
-        return selecionados
-
-    @staticmethod
-    def _chave_categoria(categoria: str | None) -> str:
-        if not categoria:
-            return "sem_categoria"
-
-        return categoria.strip().casefold()
 
     @staticmethod
     def _calcular_prioridade_fila(

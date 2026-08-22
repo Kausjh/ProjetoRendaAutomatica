@@ -3,21 +3,22 @@
 import asyncio
 import logging
 
-from affiliates.registro_afiliadores import criar_gerador_link_afiliado
-from bots.telegram_bot import TelegramBot
 from config.configuracoes import Configuracoes
 from config.logging_config import configurar_logging
 from filters.oferta_filter import OfertaFilter
+from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.historico_precos_repository import HistoricoPrecosRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
 from services.classificador_produto import ClassificadorProduto
 from services.coletor_ofertas import ColetorOfertas
+from services.curadoria_publicacao import CuradoriaPublicacao
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.executor_pipeline import ExecutorPipeline
 from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
+from services.normalizador_produto import NormalizadorProduto
 from services.pontuador_oferta import PontuadorOferta
 
 configurar_logging()
@@ -40,15 +41,9 @@ async def main() -> None:
 
     coletor = ColetorOfertas(scrapers=scrapers, classificador=classificador)
 
-    gerador_link_afiliado = criar_gerador_link_afiliado(configuracoes)
-
-    bot = TelegramBot(
-        token=configuracoes.telegram_bot_token,
-        channel_id=configuracoes.channel_id,
-        gerador_link_afiliado=gerador_link_afiliado,
-    )
-
     repository = PublicadosRepository()
+
+    fila_publicacao_repository = FilaPublicacaoRepository()
 
     relatorios_repository = RelatoriosRepository()
 
@@ -65,6 +60,13 @@ async def main() -> None:
     )
 
     pontuador = PontuadorOferta(preco_maximo=(configuracoes.preco_maximo))
+
+    normalizador_produto = NormalizadorProduto()
+
+    curadoria_publicacao = CuradoriaPublicacao(
+        nota_minima=configuracoes.nota_minima_curadoria,
+        ativa=configuracoes.curadoria_publicacao_ativa,
+    )
 
     detector_anomalia = DetectorAnomaliaPreco(
         ativa=configuracoes.detector_anomalia_ativo,
@@ -129,20 +131,51 @@ async def main() -> None:
     else:
         logger.info("Detector de anomalias de preço desativado.")
 
+    if configuracoes.curadoria_publicacao_ativa:
+        logger.info(
+            "Curadoria de publicação v2 ativa: nota mínima %.1f/100.",
+            configuracoes.nota_minima_curadoria,
+        )
+    else:
+        logger.info("Curadoria de publicação v2 desativada.")
+
+    if configuracoes.deduplicacao_canonica_ativa:
+        logger.info(
+            "Deduplicação canônica ativa a partir de %.1f/100 de confiança.",
+            configuracoes.confianca_minima_deduplicacao,
+        )
+
+    logger.info(
+        (
+            "Fila inteligente ativa: score mínimo %.1f, até %s entradas novas "
+            "por ciclo, máximo de %s pendentes."
+        ),
+        configuracoes.pontuacao_minima_fila,
+        configuracoes.maximo_entradas_fila_por_ciclo,
+        configuracoes.tamanho_maximo_fila,
+    )
+
     pipeline = ExecutorPipeline(
         coletor=coletor,
-        bot=bot,
         repository=repository,
+        fila_publicacao_repository=fila_publicacao_repository,
         relatorios_repository=(relatorios_repository),
         historico_precos_service=(historico_precos_service),
         filtro=filtro,
         pontuador=pontuador,
         quantidade_scrapers=len(scrapers),
         limite_ofertas=(configuracoes.limite_ofertas),
-        maximo_publicacoes=(configuracoes.maximo_publicacoes),
-        intervalo_publicacoes=(configuracoes.intervalo_publicacoes),
+        maximo_entradas_fila_por_ciclo=(configuracoes.maximo_entradas_fila_por_ciclo),
+        pontuacao_minima_fila=configuracoes.pontuacao_minima_fila,
+        tamanho_maximo_fila=configuracoes.tamanho_maximo_fila,
+        fila_idade_maxima_minutos=configuracoes.fila_idade_maxima_minutos,
+        maximo_entradas_por_categoria_ciclo=(configuracoes.maximo_entradas_por_categoria_ciclo),
         janela_publicacao=janela_publicacao,
         detector_anomalia=detector_anomalia,
+        normalizador_produto=normalizador_produto,
+        curadoria_publicacao=curadoria_publicacao,
+        deduplicacao_canonica_ativa=configuracoes.deduplicacao_canonica_ativa,
+        confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),
     )
 
     await pipeline.executar()

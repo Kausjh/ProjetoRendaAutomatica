@@ -33,3 +33,9 @@ def test_configuracoes_runtime_rejeitam_intervalo_invalido():
         assert "RUNTIME_INTERVALO_MINUTOS" in str(erro)
     else:
         raise AssertionError("Era esperado ValueError.")
+
+
+def test_runtime_declara_publicador_independente():
+    from services.runtime import orquestrador
+
+    assert orquestrador.ARQUIVO_PUBLICADOR_FILA.name == "publicador_fila.py"

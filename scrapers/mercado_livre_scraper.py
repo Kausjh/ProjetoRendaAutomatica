@@ -39,144 +39,471 @@ class MercadoLivreScraper(BaseScraper):
         "div.poly-card",
     ]
 
-    # Termos pesquisados em toda execução. Mantemos o núcleo do canal
-    # sempre ativo e rotacionamos categorias complementares para ampliar
-    # o catálogo sem transformar cada ciclo em centenas de buscas.
-    TERMOS_ESSENCIAIS = [
-        # Hardware e upgrades
-        "Ryzen 5",
-        "Ryzen 7",
-        "Intel Core i5",
-        "Intel Core i7",
-        "RTX placa de vídeo",
-        "RX placa de vídeo",
-        "SSD NVMe",
-        "Memória RAM DDR4",
-        "Memória RAM DDR5",
-        "Placa mãe B550",
-        "Placa mãe B650",
-        "Fonte ATX 80 plus",
-        "Gabinete gamer",
-        "Water cooler 240mm",
-        "Water cooler 360mm",
-        # Periféricos e setup
-        "Mouse gamer",
-        "Teclado mecânico",
-        "Headset gamer",
-        "Monitor gamer",
-        "Microfone condensador",
-        "Suporte articulado microfone",
-        "Suporte para monitor",
-        "Cadeira gamer",
-        "Cadeira ergonômica",
-        # Games
-        "Controle Xbox",
-        "Controle PlayStation",
-        "Nintendo Switch",
-        # Telas e mobile
-        "Smart TV 50",
-        "Smart TV 55",
-        "Celular Samsung Galaxy",
-        "Celular Xiaomi",
-        # Rede e conectividade
-        "Roteador wifi 6",
-        "Hub USB C",
-    ]
-
-    GRUPOS_ROTATIVOS = [
-        [
-            # Refrigeração, energia e manutenção de PC
+    # Cobertura de busca v3
+    #
+    # Em vez de prender uma categoria a uma única marca (ex.: "Teclado
+    # Redragon"), cada categoria possui uma cesta ampla de consultas:
+    # termos genéricos, formatos/especificações e algumas marcas relevantes.
+    #
+    # Toda categoria é visitada em cada ciclo. Os termos dentro dela giram
+    # a cada janela de 30 minutos. Categorias centrais recebem dois termos
+    # por ciclo; as demais recebem um. Assim ampliamos o catálogo inteiro
+    # sem executar centenas de buscas de uma vez.
+    TERMOS_POR_CATEGORIA: dict[str, tuple[str, ...]] = {
+        "Processadores AMD": (
+            "Processador Ryzen",
+            "Ryzen 5",
+            "Ryzen 7",
+            "Ryzen 9",
+            "Ryzen AM4",
+            "Ryzen AM5",
+            "Ryzen X3D",
+            "Ryzen com vídeo integrado",
+        ),
+        "Processadores Intel": (
+            "Processador Intel Core",
+            "Intel Core i3",
+            "Intel Core i5",
+            "Intel Core i7",
+            "Intel Core i9",
+            "Intel LGA 1700",
+            "Intel Core Ultra desktop",
+        ),
+        "Placas de vídeo NVIDIA": (
+            "Placa de vídeo NVIDIA",
+            "RTX placa de vídeo",
+            "GeForce RTX",
+            "RTX 4060",
+            "RTX 5060",
+            "RTX 5070",
+            "RTX 5070 Ti",
+            "RTX 5080",
+        ),
+        "Placas de vídeo AMD": (
+            "Placa de vídeo Radeon",
+            "RX placa de vídeo",
+            "Radeon RX",
+            "RX 6600",
+            "RX 7600",
+            "RX 7800 XT",
+            "RX 9060 XT",
+            "RX 9070 XT",
+        ),
+        "Placas-mãe AMD": (
+            "Placa mãe AMD",
+            "Placa mãe AM4",
+            "Placa mãe AM5",
+            "Placa mãe B550",
+            "Placa mãe B650",
+            "Placa mãe X670",
+            "Placa mãe X870",
+        ),
+        "Placas-mãe Intel": (
+            "Placa mãe Intel",
+            "Placa mãe LGA1700",
+            "Placa mãe H610",
+            "Placa mãe B760",
+            "Placa mãe Z790",
+            "Placa mãe Intel Core Ultra",
+        ),
+        "Memória RAM": (
+            "Memória RAM",
+            "Memória RAM DDR4",
+            "Memória RAM DDR5",
+            "Memória 16GB DDR4",
+            "Memória 32GB DDR4",
+            "Memória 32GB DDR5",
+            "Memória SODIMM notebook",
+            "Memória Corsair Kingston XPG",
+        ),
+        "Armazenamento": (
+            "SSD",
+            "SSD NVMe",
+            "SSD SATA",
+            "SSD NVMe 1TB",
+            "SSD NVMe 2TB",
+            "SSD PCIe 4.0",
+            "SSD PCIe 5.0",
+            "HD externo",
+            "NAS armazenamento",
+            "Pen drive USB 3.2",
+        ),
+        "Fontes e energia": (
+            "Fonte ATX",
+            "Fonte 80 Plus",
+            "Fonte modular",
+            "Fonte 650W",
+            "Fonte 750W",
+            "Fonte 850W",
+            "Fonte Corsair",
+            "Fonte MSI",
+            "Fonte XPG",
+            "Nobreak",
+            "Filtro de linha DPS",
+        ),
+        "Gabinetes": (
+            "Gabinete PC",
+            "Gabinete gamer",
+            "Gabinete aquário",
+            "Gabinete mesh",
+            "Gabinete mini tower",
+            "Gabinete mid tower",
+            "Gabinete branco gamer",
+        ),
+        "Refrigeração": (
+            "Cooler processador",
             "Air cooler processador",
+            "Water cooler",
+            "Water cooler 240mm",
+            "Water cooler 360mm",
             "AIO liquid cooler",
             "Fan ARGB gabinete",
             "Kit fans gabinete",
             "Pasta térmica",
-            "Nobreak",
-            "Filtro de linha DPS",
-            "Mini PC",
-            "NAS armazenamento",
-            "Dock station USB C",
-        ],
-        [
-            # Creator, streaming, áudio e iluminação
+        ),
+        "Monitores": (
+            "Monitor",
+            "Monitor gamer",
+            "Monitor IPS",
+            "Monitor 144Hz",
+            "Monitor 165Hz",
+            "Monitor 180Hz",
+            "Monitor 240Hz",
+            "Monitor ultrawide",
+            "Monitor OLED",
+            "Monitor LG Samsung AOC Asus",
+        ),
+        "Teclados": (
+            "Teclado",
+            "Teclado mecânico",
+            "Teclado gamer",
+            "Teclado TKL",
+            "Teclado 60%",
+            "Teclado 75%",
+            "Teclado sem fio",
+            "Teclado low profile",
+            "Teclado magnético hall effect",
+            "Teclado Redragon",
+            "Teclado Logitech",
+            "Teclado HyperX",
+            "Teclado Keychron",
+            "Teclado Razer",
+        ),
+        "Mouses": (
+            "Mouse",
+            "Mouse gamer",
+            "Mouse sem fio",
+            "Mouse leve gamer",
+            "Mouse competitivo FPS",
+            "Mouse Logitech",
+            "Mouse Razer",
+            "Mouse HyperX",
+            "Mouse Redragon",
+            "Mouse Attack Shark",
+        ),
+        "Mousepads": (
+            "Mousepad",
+            "Mousepad gamer",
+            "Mousepad speed",
+            "Mousepad control",
+            "Mousepad deskmat",
+            "Mousepad grande",
+        ),
+        "Headsets e fones": (
+            "Headset",
+            "Headset gamer",
+            "Headset sem fio",
+            "Fone gamer",
+            "Fone bluetooth",
+            "Earbuds bluetooth",
+            "Headset HyperX",
+            "Headset Logitech",
+            "Headset Razer",
+            "Headset JBL",
+        ),
+        "Microfones e áudio creator": (
+            "Microfone",
+            "Microfone USB",
+            "Microfone condensador",
+            "Microfone dinâmico USB",
+            "Interface de áudio USB",
+            "Braço articulado microfone",
+            "Microfone Fifine",
+            "Microfone HyperX",
+        ),
+        "Webcams e captura": (
+            "Webcam",
             "Webcam full hd",
             "Webcam 4k",
             "Placa de captura",
+            "Capture card",
             "Stream deck",
-            "Interface de áudio USB",
-            "Microfone USB",
-            "Ring light",
-            "Luminária monitor light bar",
-            "Fita LED RGB",
-            "Caixa de som bluetooth",
-            "Soundbar",
-            "Fone bluetooth",
-        ],
-        [
-            # Consoles, simulação e realidade virtual
-            "Steam Deck",
-            "ROG Ally",
+            "Webcam Logitech",
+        ),
+        "Controles": (
+            "Controle gamer",
+            "Controle PC",
+            "Controle Xbox",
+            "Controle PlayStation",
+            "DualSense",
+            "Controle 8BitDo",
+            "Controle Gamesir",
+            "Controle sem fio hall effect",
+        ),
+        "Consoles": (
+            "Console",
             "PlayStation 5",
             "Xbox Series S",
             "Xbox Series X",
+            "Nintendo Switch",
+            "Steam Deck",
+            "ROG Ally",
+            "Console portátil",
+        ),
+        "Simulação": (
             "Volante gamer",
+            "Volante force feedback",
+            "Pedal simulador",
+            "Câmbio simulador",
             "Cockpit simulador",
-            "Meta Quest",
+            "Logitech G29",
+            "Thrustmaster volante",
+        ),
+        "Realidade virtual": (
             "Óculos VR",
-            "SSD PS5",
-            "Controle 8BitDo",
-        ],
-        [
-            # Mobilidade, produtividade e dispositivos pessoais
+            "Headset VR",
+            "Meta Quest",
+            "Meta Quest 3",
+            "Realidade virtual PC",
+        ),
+        "Notebooks": (
+            "Notebook",
             "Notebook gamer",
+            "Notebook Ryzen 5",
             "Notebook Ryzen 7",
+            "Notebook Core i5",
             "Notebook Core i7",
+            "Notebook RTX 4050",
+            "Notebook RTX 4060",
+            "Notebook Lenovo",
+            "Notebook Acer",
+            "Notebook Asus",
+            "Notebook Dell",
+        ),
+        "Computadores e mini PCs": (
+            "PC gamer",
+            "Computador gamer",
+            "PC Ryzen",
+            "PC RTX",
+            "Computador completo",
+            "Mini PC",
+            "Mini PC Ryzen",
+            "Mini PC Intel N100",
+        ),
+        "Celulares": (
+            "Smartphone",
+            "Celular Samsung Galaxy",
+            "Celular Xiaomi",
+            "Celular Motorola",
+            "iPhone",
+            "Galaxy S",
+            "Galaxy A",
+            "Redmi Note",
+            "Poco",
+            "Moto Edge",
+        ),
+        "Tablets e e-readers": (
+            "Tablet",
             "Tablet Samsung Galaxy Tab",
             "iPad",
+            "Tablet Lenovo",
+            "Tablet Xiaomi",
             "Kindle",
+            "E-reader",
+        ),
+        "Wearables": (
             "Smartwatch",
             "Smartband",
+            "Galaxy Watch",
+            "Apple Watch",
+            "Amazfit",
+            "Mi Band",
+        ),
+        "TVs": (
+            "Smart TV",
+            "Smart TV 43",
+            "Smart TV 50",
+            "Smart TV 55",
+            "Smart TV 65",
+            "TV QLED",
+            "TV OLED",
+            "TV 4K",
+        ),
+        "Projetores": (
+            "Projetor",
+            "Projetor portátil",
+            "Mini projetor",
+            "Projetor full hd",
+            "Projetor 4k",
+        ),
+        "Rede": (
+            "Roteador",
+            "Roteador wifi 6",
+            "Roteador wifi 6E",
+            "Roteador mesh",
+            "Kit mesh wifi",
+            "Repetidor wifi",
+            "Adaptador wifi USB",
+            "Placa de rede wifi",
+            "Switch gigabit",
+        ),
+        "Conectividade": (
+            "Hub USB",
+            "Hub USB C",
+            "Dock station USB C",
+            "Adaptador USB C",
+            "Adaptador HDMI USB C",
+            "Cabo USB C 100W",
+            "Leitor cartão USB C",
+        ),
+        "Carregamento": (
             "Power bank",
+            "Power bank 20000mah",
             "Carregador GaN",
             "Carregador USB C",
-            "Projetor portátil",
-        ],
-        [
-            # Quarto, escritório e conforto do setup
+            "Carregador USB C 65W",
+            "Carregador sem fio",
+            "Carregador MagSafe",
+        ),
+        "Mobiliário e ergonomia": (
+            "Cadeira ergonômica",
+            "Cadeira escritório",
+            "Cadeira gamer",
+            "Mesa gamer",
+            "Mesa escritório",
+            "Braço suporte monitor",
+            "Suporte para monitor",
+            "Suporte para notebook",
+            "Apoio para pés ergonômico",
+        ),
+        "Iluminação de setup": (
+            "Fita LED RGB",
+            "Light bar monitor",
+            "Luminária monitor",
+            "Ring light",
+            "Luminária RGB setup",
+            "Painel LED RGB",
+        ),
+        "Casa inteligente": (
+            "Lâmpada inteligente",
+            "Tomada inteligente",
+            "Echo Dot",
+            "Alexa",
+            "Câmera wifi",
+            "Câmera IP",
+            "Fechadura inteligente",
+            "Sensor inteligente wifi",
+        ),
+        "Conforto e climatização": (
             "Ventilador",
             "Ventilador de torre",
             "Climatizador",
             "Ar condicionado inverter",
             "Ar condicionado portátil",
+            "Umidificador",
+            "Desumidificador",
             "Frigobar",
+        ),
+        "Automação doméstica": (
             "Aspirador robô",
-            "Lâmpada inteligente",
-            "Tomada inteligente",
-            "Alexa Echo Dot",
-            "Câmera wifi",
-            "Mesa gamer",
-            "Apoio para pés ergonômico",
-        ],
-        [
-            # Maker, ferramentas e tecnologia de bancada
+            "Robô aspirador",
+            "Robô passa pano",
+            "Aspirador robô Xiaomi",
+            "Aspirador robô Wap",
+        ),
+        "Maker e bancada": (
             "Impressora 3D",
             "Filamento PLA",
+            "Filamento PETG",
+            "Raspberry Pi",
+            "Arduino kit",
+            "ESP32 kit",
             "Estação de solda",
             "Ferro de solda",
             "Kit chave de precisão",
             "Multímetro digital",
+            "Fonte de bancada",
+        ),
+        "Câmeras e drones": (
             "Câmera de ação",
+            "Action cam",
+            "GoPro",
             "Drone com câmera",
+            "Drone DJI",
+            "Câmera mirrorless",
+            "Câmera Sony mirrorless",
+        ),
+        "Impressão": (
+            "Impressora",
             "Impressora laser",
-            "Impressora térmica etiquetas",
-            "Raspberry Pi",
-            "Arduino kit",
-        ],
-    ]
+            "Impressora tanque de tinta",
+            "Impressora térmica",
+            "Impressora de etiquetas",
+            "Multifuncional wifi",
+        ),
+    }
 
-    # Mantido por compatibilidade com código externo que possa consultar
-    # TERMOS_PADRAO diretamente. A execução normal usa o método rotativo.
-    TERMOS_PADRAO = TERMOS_ESSENCIAIS
+    CATEGORIAS_PRIORITARIAS: frozenset[str] = frozenset(
+        {
+            "Processadores AMD",
+            "Processadores Intel",
+            "Placas de vídeo NVIDIA",
+            "Placas de vídeo AMD",
+            "Placas-mãe AMD",
+            "Placas-mãe Intel",
+            "Memória RAM",
+            "Armazenamento",
+            "Fontes e energia",
+            "Monitores",
+            "Teclados",
+            "Mouses",
+            "Headsets e fones",
+            "Notebooks",
+        }
+    )
+
+    TERMOS_PADRAO = [termos[0] for termos in TERMOS_POR_CATEGORIA.values() if termos]
+
+    @classmethod
+    def _obter_termos_padrao_rotativos(
+        cls,
+        momento: datetime | None = None,
+    ) -> list[str]:
+        """Seleciona cobertura ampla e balanceada para uma janela de 30 min.
+
+        Cada categoria participa do ciclo. O índice avança a cada meia hora,
+        então termos genéricos, especificações e marcas se alternam ao longo
+        do dia. Categorias centrais recebem dois termos distintos por ciclo.
+        """
+
+        agora = momento or datetime.now()
+        janela_meia_hora = (agora.toordinal() * 48) + (agora.hour * 2)
+        janela_meia_hora += 1 if agora.minute >= 30 else 0
+
+        selecionados: list[str] = []
+
+        for deslocamento, (categoria, termos) in enumerate(cls.TERMOS_POR_CATEGORIA.items()):
+            if not termos:
+                continue
+
+            indice = (janela_meia_hora + deslocamento) % len(termos)
+            selecionados.append(termos[indice])
+
+            if categoria in cls.CATEGORIAS_PRIORITARIAS and len(termos) > 1:
+                indice_extra = (indice + max(1, len(termos) // 2)) % len(termos)
+                selecionados.append(termos[indice_extra])
+
+        return list(dict.fromkeys(selecionados))
 
     def __init__(
         self,
@@ -193,32 +520,6 @@ class MercadoLivreScraper(BaseScraper):
             raise ValueError("A lista de termos do Mercado Livre não pode estar vazia.")
 
         self.endpoint_cdp = endpoint_cdp.strip() if endpoint_cdp else self.ENDPOINT_CDP
-
-    @classmethod
-    def _obter_termos_padrao_rotativos(
-        cls,
-        momento: datetime | None = None,
-    ) -> list[str]:
-        """Retorna núcleo fixo + um grupo complementar por ciclo de 30 min.
-
-        Como o projeto roda a cada 30 minutos, todos os grupos complementares
-        são revisitados ao longo do dia sem aumentar demais o número de buscas
-        feitas contra o Mercado Livre em uma única execução.
-        """
-
-        agora = momento or datetime.now()
-
-        if not cls.GRUPOS_ROTATIVOS:
-            return list(cls.TERMOS_ESSENCIAIS)
-
-        janela_meia_hora = (agora.hour * 2) + (1 if agora.minute >= 30 else 0)
-        indice_grupo = janela_meia_hora % len(cls.GRUPOS_ROTATIVOS)
-
-        termos = list(cls.TERMOS_ESSENCIAIS)
-        termos.extend(cls.GRUPOS_ROTATIVOS[indice_grupo])
-
-        # Remove eventuais duplicatas preservando a ordem.
-        return list(dict.fromkeys(termos))
 
     def buscar_ofertas(
         self,

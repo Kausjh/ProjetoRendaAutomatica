@@ -1,0 +1,674 @@
+# 63.8738, -149.7525
+
+from __future__ import annotations
+
+import json
+import logging
+import sqlite3
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+from models.oferta import Oferta
+from services.historico_precos_service import ResultadoHistoricoPreco
+from services.identificador_familia_produto import IdentificadorFamiliaProduto
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ItemFilaPublicacao:
+    id: int
+    oferta: Oferta
+    resultado_historico: ResultadoHistoricoPreco | None
+    pontuacao: float
+    deve_republicar_por_queda: bool
+    prioridade: float
+    criado_em: datetime
+    atualizado_em: datetime
+    status: str
+
+
+class FilaPublicacaoRepository:
+    """Fila persistente e concorrente baseada em SQLite.
+
+    Pipeline e publicador rodam em processos diferentes. SQLite evita
+    corrupção do arquivo quando ambos acessam a fila ao mesmo tempo.
+    """
+
+    def __init__(
+        self,
+        caminho_arquivo: str = "database/fila_publicacao.sqlite3",
+    ) -> None:
+        self.caminho_arquivo = Path(caminho_arquivo)
+        self.caminho_arquivo.parent.mkdir(parents=True, exist_ok=True)
+        self.identificador_familia = IdentificadorFamiliaProduto()
+        self._criar_estrutura()
+
+    def _conectar(self) -> sqlite3.Connection:
+        conexao = sqlite3.connect(
+            self.caminho_arquivo,
+            timeout=15,
+        )
+        conexao.row_factory = sqlite3.Row
+        conexao.execute("PRAGMA journal_mode=WAL")
+        conexao.execute("PRAGMA synchronous=NORMAL")
+        return conexao
+
+    def _criar_estrutura(self) -> None:
+        with self._conectar() as conexao:
+            conexao.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS fila_publicacao (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    link TEXT NOT NULL UNIQUE,
+                    chave_canonica TEXT,
+                    chave_familia TEXT,
+                    familia TEXT,
+                    confianca_familia REAL NOT NULL DEFAULT 0,
+                    categoria TEXT,
+                    marca TEXT,
+                    tipo_oportunidade TEXT NOT NULL,
+                    oferta_json TEXT NOT NULL,
+                    historico_json TEXT,
+                    pontuacao REAL NOT NULL,
+                    prioridade REAL NOT NULL,
+                    deve_republicar_por_queda INTEGER NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'pendente',
+                    criado_em TEXT NOT NULL,
+                    atualizado_em TEXT NOT NULL,
+                    publicado_em TEXT,
+                    motivo_saida TEXT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_fila_status_prioridade
+                ON fila_publicacao(status, prioridade DESC, criado_em ASC);
+
+                CREATE INDEX IF NOT EXISTS idx_fila_chave_status
+                ON fila_publicacao(chave_canonica, status);
+
+                CREATE INDEX IF NOT EXISTS idx_fila_familia_status
+                ON fila_publicacao(chave_familia, status);
+
+                CREATE INDEX IF NOT EXISTS idx_fila_publicado_em
+                ON fila_publicacao(publicado_em);
+                """
+            )
+
+            colunas = {
+                linha["name"]
+                for linha in conexao.execute("PRAGMA table_info(fila_publicacao)").fetchall()
+            }
+
+            migracoes = {
+                "chave_familia": "TEXT",
+                "familia": "TEXT",
+                "confianca_familia": "REAL NOT NULL DEFAULT 0",
+            }
+
+            for coluna, tipo in migracoes.items():
+                if coluna not in colunas:
+                    conexao.execute(f"ALTER TABLE fila_publicacao " f"ADD COLUMN {coluna} {tipo}")
+
+            conexao.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_fila_familia_status
+                ON fila_publicacao(chave_familia, status)
+                """
+            )
+
+    def adicionar_ou_atualizar(
+        self,
+        oferta: Oferta,
+        resultado_historico: ResultadoHistoricoPreco | None,
+        pontuacao: float,
+        deve_republicar_por_queda: bool,
+        prioridade: float,
+    ) -> str:
+        agora = datetime.now().astimezone()
+        agora_iso = agora.isoformat(timespec="seconds")
+
+        resultado_familia = self.identificador_familia.identificar(oferta)
+
+        logger.debug(
+            ("Família identificada: %s | chave=%s | confiança=%.1f | " "produto=%s"),
+            resultado_familia.nome_familia,
+            resultado_familia.chave_familia,
+            resultado_familia.confianca,
+            oferta.nome,
+        )
+
+        oferta_json = json.dumps(asdict(oferta), ensure_ascii=False)
+        historico_json = (
+            json.dumps(asdict(resultado_historico), ensure_ascii=False)
+            if resultado_historico is not None
+            else None
+        )
+
+        with self._conectar() as conexao:
+            existente = conexao.execute(
+                """
+                SELECT id, status, prioridade
+                FROM fila_publicacao
+                WHERE link = ?
+                """,
+                (oferta.link,),
+            ).fetchone()
+
+            if existente is not None:
+                if existente["status"] == "publicado":
+                    return "ja_publicado_pela_fila"
+
+                conexao.execute(
+                    """
+                    UPDATE fila_publicacao
+                    SET
+                        chave_canonica = ?,
+                        chave_familia = ?,
+                        familia = ?,
+                        confianca_familia = ?,
+                        categoria = ?,
+                        marca = ?,
+                        tipo_oportunidade = ?,
+                        oferta_json = ?,
+                        historico_json = ?,
+                        pontuacao = ?,
+                        prioridade = ?,
+                        deve_republicar_por_queda = ?,
+                        status = 'pendente',
+                        atualizado_em = ?,
+                        motivo_saida = NULL
+                    WHERE id = ?
+                    """,
+                    (
+                        oferta.chave_produto_canonica,
+                        oferta.chave_familia_produto,
+                        oferta.familia_produto,
+                        oferta.confianca_familia,
+                        oferta.categoria,
+                        oferta.marca,
+                        oferta.tipo_oportunidade,
+                        oferta_json,
+                        historico_json,
+                        pontuacao,
+                        prioridade,
+                        int(deve_republicar_por_queda),
+                        agora_iso,
+                        existente["id"],
+                    ),
+                )
+                return "atualizado"
+
+            substituido = self._substituir_canonico_se_melhor(
+                conexao=conexao,
+                oferta=oferta,
+                resultado_historico=resultado_historico,
+                pontuacao=pontuacao,
+                prioridade=prioridade,
+                deve_republicar_por_queda=deve_republicar_por_queda,
+                agora_iso=agora_iso,
+                oferta_json=oferta_json,
+                historico_json=historico_json,
+            )
+
+            if substituido:
+                return "substituido_canonico"
+
+            substituido_familia = self._substituir_familia_se_melhor(
+                conexao=conexao,
+                oferta=oferta,
+                resultado_historico=resultado_historico,
+                pontuacao=pontuacao,
+                prioridade=prioridade,
+                deve_republicar_por_queda=deve_republicar_por_queda,
+                agora_iso=agora_iso,
+                oferta_json=oferta_json,
+                historico_json=historico_json,
+            )
+
+            if substituido_familia:
+                return "substituido_familia"
+
+            conexao.execute(
+                """
+                INSERT INTO fila_publicacao (
+                    link,
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    confianca_familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    oferta_json,
+                    historico_json,
+                    pontuacao,
+                    prioridade,
+                    deve_republicar_por_queda,
+                    status,
+                    criado_em,
+                    atualizado_em
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                """,
+                (
+                    oferta.link,
+                    oferta.chave_produto_canonica,
+                    oferta.chave_familia_produto,
+                    oferta.familia_produto,
+                    oferta.confianca_familia,
+                    oferta.categoria,
+                    oferta.marca,
+                    oferta.tipo_oportunidade,
+                    oferta_json,
+                    historico_json,
+                    pontuacao,
+                    prioridade,
+                    int(deve_republicar_por_queda),
+                    agora_iso,
+                    agora_iso,
+                ),
+            )
+
+        return "adicionado"
+
+    def _substituir_canonico_se_melhor(
+        self,
+        conexao: sqlite3.Connection,
+        oferta: Oferta,
+        resultado_historico: ResultadoHistoricoPreco | None,
+        pontuacao: float,
+        prioridade: float,
+        deve_republicar_por_queda: bool,
+        agora_iso: str,
+        oferta_json: str,
+        historico_json: str | None,
+    ) -> bool:
+        chave = oferta.chave_produto_canonica
+
+        if not chave or oferta.confianca_normalizacao < 90:
+            return False
+
+        existente = conexao.execute(
+            """
+            SELECT id, prioridade
+            FROM fila_publicacao
+            WHERE chave_canonica = ?
+              AND status = 'pendente'
+            ORDER BY prioridade DESC
+            LIMIT 1
+            """,
+            (chave,),
+        ).fetchone()
+
+        if existente is None:
+            return False
+
+        if float(existente["prioridade"]) >= prioridade:
+            return True
+
+        conexao.execute(
+            """
+            UPDATE fila_publicacao
+            SET
+                link = ?,
+                categoria = ?,
+                marca = ?,
+                tipo_oportunidade = ?,
+                oferta_json = ?,
+                historico_json = ?,
+                pontuacao = ?,
+                prioridade = ?,
+                deve_republicar_por_queda = ?,
+                atualizado_em = ?,
+                motivo_saida = NULL
+            WHERE id = ?
+            """,
+            (
+                oferta.link,
+                oferta.categoria,
+                oferta.marca,
+                oferta.tipo_oportunidade,
+                oferta_json,
+                historico_json,
+                pontuacao,
+                prioridade,
+                int(deve_republicar_por_queda),
+                agora_iso,
+                existente["id"],
+            ),
+        )
+        return True
+
+    def _substituir_familia_se_melhor(
+        self,
+        conexao: sqlite3.Connection,
+        oferta: Oferta,
+        resultado_historico: ResultadoHistoricoPreco | None,
+        pontuacao: float,
+        prioridade: float,
+        deve_republicar_por_queda: bool,
+        agora_iso: str,
+        oferta_json: str,
+        historico_json: str | None,
+    ) -> bool:
+        chave = oferta.chave_familia_produto
+
+        if not chave or oferta.confianca_familia < 80:
+            return False
+
+        existente = conexao.execute(
+            """
+            SELECT id, prioridade, oferta_json
+            FROM fila_publicacao
+            WHERE chave_familia = ?
+              AND status = 'pendente'
+            ORDER BY prioridade DESC
+            LIMIT 1
+            """,
+            (chave,),
+        ).fetchone()
+
+        if existente is None:
+            return False
+
+        oferta_existente = Oferta(**json.loads(existente["oferta_json"]))
+
+        logger.info(
+            (
+                "Família semântica detectada: %s | variante atual: '%s' "
+                "(R$ %.2f) | nova variante: '%s' (R$ %.2f)"
+            ),
+            oferta.familia_produto or chave,
+            oferta_existente.nome,
+            float(oferta_existente.preco),
+            oferta.nome,
+            float(oferta.preco),
+        )
+
+        # Dentro da mesma família, preço é o critério principal.
+        # Score só desempata ofertas com preço praticamente igual.
+        preco_novo = float(oferta.preco)
+        preco_existente = float(oferta_existente.preco)
+
+        novo_melhor = preco_novo < preco_existente or (
+            abs(preco_novo - preco_existente) < 0.01 and prioridade > float(existente["prioridade"])
+        )
+
+        if not novo_melhor:
+            logger.info(
+                (
+                    "Anti-duplicata de família: variante descartada '%s' "
+                    "(R$ %.2f). Representante mantido: '%s' (R$ %.2f)."
+                ),
+                oferta.nome,
+                preco_novo,
+                oferta_existente.nome,
+                preco_existente,
+            )
+            return True
+
+        logger.info(
+            ("Anti-duplicata de família: representante trocado. " "'%s' R$ %.2f -> '%s' R$ %.2f."),
+            oferta_existente.nome,
+            preco_existente,
+            oferta.nome,
+            preco_novo,
+        )
+
+        conexao.execute(
+            """
+            UPDATE fila_publicacao
+            SET
+                link = ?,
+                chave_canonica = ?,
+                chave_familia = ?,
+                familia = ?,
+                confianca_familia = ?,
+                categoria = ?,
+                marca = ?,
+                tipo_oportunidade = ?,
+                oferta_json = ?,
+                historico_json = ?,
+                pontuacao = ?,
+                prioridade = ?,
+                deve_republicar_por_queda = ?,
+                atualizado_em = ?,
+                motivo_saida = NULL
+            WHERE id = ?
+            """,
+            (
+                oferta.link,
+                oferta.chave_produto_canonica,
+                oferta.chave_familia_produto,
+                oferta.familia_produto,
+                oferta.confianca_familia,
+                oferta.categoria,
+                oferta.marca,
+                oferta.tipo_oportunidade,
+                oferta_json,
+                historico_json,
+                pontuacao,
+                prioridade,
+                int(deve_republicar_por_queda),
+                agora_iso,
+                existente["id"],
+            ),
+        )
+        return True
+
+    def listar_pendentes(self, limite: int = 100) -> list[ItemFilaPublicacao]:
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT *
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                ORDER BY prioridade DESC, criado_em ASC
+                LIMIT ?
+                """,
+                (limite,),
+            ).fetchall()
+
+        return [self._converter_linha(linha) for linha in linhas]
+
+    def resumo_familias_pendentes(self) -> dict[str, int]:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT
+                    COUNT(*) AS itens,
+                    COUNT(DISTINCT CASE
+                        WHEN chave_familia IS NOT NULL
+                         AND TRIM(chave_familia) <> ''
+                        THEN chave_familia
+                    END) AS familias,
+                    SUM(CASE
+                        WHEN chave_familia IS NOT NULL
+                         AND TRIM(chave_familia) <> ''
+                        THEN 1 ELSE 0
+                    END) AS itens_com_familia
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                """
+            ).fetchone()
+
+        return {
+            "itens": int(linha["itens"] or 0),
+            "familias": int(linha["familias"] or 0),
+            "itens_com_familia": int(linha["itens_com_familia"] or 0),
+        }
+
+    def quantidade_pendente(self) -> int:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT COUNT(*) AS quantidade
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                """
+            ).fetchone()
+
+        return int(linha["quantidade"])
+
+    def marcar_publicado(self, item_id: int) -> None:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    status = 'publicado',
+                    publicado_em = ?,
+                    atualizado_em = ?,
+                    motivo_saida = NULL
+                WHERE id = ?
+                """,
+                (agora, agora, item_id),
+            )
+
+    def marcar_descartado(self, item_id: int, motivo: str) -> None:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    status = 'descartado',
+                    atualizado_em = ?,
+                    motivo_saida = ?
+                WHERE id = ?
+                """,
+                (agora, motivo, item_id),
+            )
+
+    def expirar_antigos(self, idade_maxima_minutos: float) -> int:
+        limite = datetime.now().astimezone() - timedelta(minutes=idade_maxima_minutos)
+        limite_iso = limite.isoformat(timespec="seconds")
+        agora_iso = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    status = 'expirado',
+                    atualizado_em = ?,
+                    motivo_saida = 'Oferta ficou antiga demais na fila.'
+                WHERE status = 'pendente'
+                  AND criado_em < ?
+                """,
+                (agora_iso, limite_iso),
+            )
+
+        return int(cursor.rowcount)
+
+    def reduzir_fila(self, tamanho_maximo: int) -> int:
+        quantidade = self.quantidade_pendente()
+
+        if quantidade <= tamanho_maximo:
+            return 0
+
+        remover = quantidade - tamanho_maximo
+        agora_iso = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            ids = conexao.execute(
+                """
+                SELECT id
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                ORDER BY prioridade ASC, criado_em ASC
+                LIMIT ?
+                """,
+                (remover,),
+            ).fetchall()
+
+            ids_numericos = [int(linha["id"]) for linha in ids]
+
+            for item_id in ids_numericos:
+                conexao.execute(
+                    """
+                    UPDATE fila_publicacao
+                    SET
+                        status = 'descartado',
+                        atualizado_em = ?,
+                        motivo_saida = 'Fila atingiu o limite; item de menor prioridade saiu.'
+                    WHERE id = ?
+                    """,
+                    (agora_iso, item_id),
+                )
+
+        return len(ids_numericos)
+
+    def historico_publicacoes_recentes(
+        self,
+        minutos: float,
+        limite: int = 50,
+    ) -> list[dict[str, Any]]:
+        desde = datetime.now().astimezone() - timedelta(minutes=minutos)
+        desde_iso = desde.isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    publicado_em,
+                    pontuacao,
+                    oferta_json
+                FROM fila_publicacao
+                WHERE status = 'publicado'
+                  AND publicado_em IS NOT NULL
+                  AND publicado_em >= ?
+                ORDER BY publicado_em DESC
+                LIMIT ?
+                """,
+                (desde_iso, limite),
+            ).fetchall()
+
+        historico: list[dict[str, Any]] = []
+
+        for linha in linhas:
+            registro = dict(linha)
+
+            try:
+                oferta = Oferta(**json.loads(registro["oferta_json"]))
+                registro["preco"] = float(oferta.preco)
+            except Exception:
+                registro["preco"] = None
+
+            registro.pop("oferta_json", None)
+            historico.append(registro)
+
+        return historico
+
+    @staticmethod
+    def _converter_linha(linha: sqlite3.Row) -> ItemFilaPublicacao:
+        oferta = Oferta(**json.loads(linha["oferta_json"]))
+
+        historico_dados = json.loads(linha["historico_json"]) if linha["historico_json"] else None
+
+        resultado_historico = (
+            ResultadoHistoricoPreco(**historico_dados) if historico_dados is not None else None
+        )
+
+        return ItemFilaPublicacao(
+            id=int(linha["id"]),
+            oferta=oferta,
+            resultado_historico=resultado_historico,
+            pontuacao=float(linha["pontuacao"]),
+            deve_republicar_por_queda=bool(linha["deve_republicar_por_queda"]),
+            prioridade=float(linha["prioridade"]),
+            criado_em=datetime.fromisoformat(linha["criado_em"]),
+            atualizado_em=datetime.fromisoformat(linha["atualizado_em"]),
+            status=str(linha["status"]),
+        )

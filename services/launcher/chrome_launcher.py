@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import shutil
@@ -52,7 +53,7 @@ def exibir_rodape(duracao: float) -> None:
     print("=" * 60)
 
 
-def ler_trava() -> dict[str, str] | None:
+def ler_trava() -> dict[str, object] | None:
     try:
         conteudo = ARQUIVO_TRAVA.read_text(encoding="utf-8")
         dados = json.loads(conteudo)
@@ -65,27 +66,172 @@ def ler_trava() -> dict[str, str] | None:
     return dados
 
 
-def trava_esta_abandonada() -> bool:
-    """Indica se a trava existente pode ser descartada com segurança."""
+def processo_existe(pid: int) -> bool:
+    """Verifica se um PID ainda existe sem encerrar ou alterar o processo."""
+
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return False
+
+    if os.name == "nt":
+        acesso = 0x1000  # PROCESS_QUERY_LIMITED_INFORMATION
+
+        try:
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+            abrir_processo = kernel32.OpenProcess
+            abrir_processo.argtypes = [
+                ctypes.c_ulong,
+                ctypes.c_int,
+                ctypes.c_ulong,
+            ]
+            abrir_processo.restype = ctypes.c_void_p
+
+            fechar_handle = kernel32.CloseHandle
+            fechar_handle.argtypes = [ctypes.c_void_p]
+            fechar_handle.restype = ctypes.c_int
+
+            handle = abrir_processo(acesso, 0, pid)
+
+            if handle:
+                fechar_handle(handle)
+                return True
+
+            return ctypes.get_last_error() == 5
+
+        except (AttributeError, OSError):
+            pass
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+    return True
+
+
+def obter_linha_comando_processo(pid: int) -> str | None:
+    """Obtém a linha de comando do PID no Windows."""
+
+    if os.name != "nt":
+        return None
+
+    comando = (
+        "$p = Get-CimInstance Win32_Process "
+        f'-Filter "ProcessId = {pid}" -ErrorAction SilentlyContinue; '
+        "if ($null -ne $p) { $p.CommandLine }"
+    )
+
+    try:
+        resultado = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                comando,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    if resultado.returncode != 0:
+        return None
+
+    linha = resultado.stdout.strip()
+
+    return linha or None
+
+
+def linha_comando_parece_ser_do_projeto(linha_comando: str) -> bool:
+    """Evita aceitar trava cujo PID já foi reutilizado por outro programa."""
+
+    texto = linha_comando.casefold().replace("\\", "/")
+
+    nomes_validos = (
+        "chrome_launcher.py",
+        "launcher.py",
+        "main.py",
+    )
+
+    return any(nome in texto for nome in nomes_validos)
+
+
+def processo_da_trava_esta_ativo(dados: dict[str, object]) -> bool:
+    pid = dados.get("pid")
+
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return False
+
+    if not processo_existe(pid):
+        return False
+
+    linha_comando = obter_linha_comando_processo(pid)
+
+    if linha_comando is None:
+        # Conservador: PID existe, mas não conseguimos inspecioná-lo.
+        return True
+
+    return linha_comando_parece_ser_do_projeto(linha_comando)
+
+
+def motivo_trava_abandonada() -> str | None:
+    """Retorna o motivo se a trava for órfã; None se estiver realmente ativa."""
 
     dados = ler_trava()
 
     if dados is None:
-        # Arquivo ilegível ou corrompido: tratar como abandonado.
-        return True
+        return "arquivo de trava ilegível ou corrompido"
+
+    pid = dados.get("pid")
+
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return "PID ausente ou inválido no arquivo de trava"
+
+    if not processo_existe(pid):
+        return f"o processo {pid} não existe mais"
+
+    linha_comando = obter_linha_comando_processo(pid)
+
+    if linha_comando is not None and not linha_comando_parece_ser_do_projeto(linha_comando):
+        return f"o PID {pid} foi reutilizado por outro processo " "que não pertence ao launcher"
 
     iniciado_em = dados.get("iniciado_em")
 
-    if not isinstance(iniciado_em, (int, float)):
-        return True
+    if not isinstance(iniciado_em, (int, float)) or isinstance(iniciado_em, bool):
+        return None
 
-    idade = time.time() - float(iniciado_em)
+    idade = max(0.0, time.time() - float(iniciado_em))
 
-    return idade > IDADE_MAXIMA_TRAVA_SEGUNDOS
+    if idade > IDADE_MAXIMA_TRAVA_SEGUNDOS:
+        idade_minutos = idade / 60
+
+        print(
+            "[AVISO] A trava ativa tem aproximadamente "
+            f"{idade_minutos:.0f} minutos, mas o processo {pid} "
+            "ainda existe. A execução continuará protegida."
+        )
+
+    return None
+
+
+def trava_esta_abandonada() -> bool:
+    """Indica se a trava existente pode ser descartada com segurança."""
+
+    return motivo_trava_abandonada() is not None
 
 
 def adquirir_trava() -> bool:
-    """Cria o arquivo de trava. Devolve False se já houver execução ativa."""
+    """Cria a trava. False significa que já há uma execução real ativa."""
 
     for tentativa in range(2):
         try:
@@ -94,13 +240,16 @@ def adquirir_trava() -> bool:
                 os.O_CREAT | os.O_EXCL | os.O_WRONLY,
             )
         except FileExistsError:
-            if tentativa == 0 and trava_esta_abandonada():
-                idade_minutos = IDADE_MAXIMA_TRAVA_SEGUNDOS / 60
+            motivo = motivo_trava_abandonada()
+
+            if tentativa == 0 and motivo is not None:
+                dados = ler_trava() or {}
+                pid = dados.get("pid", "desconhecido")
 
                 print(
-                    "[AVISO] Havia uma trava com mais de "
-                    f"{idade_minutos:.0f} minutos. "
-                    "Assumindo que a execução anterior falhou."
+                    "[AVISO] Trava órfã detectada "
+                    f"(PID {pid}): {motivo}. "
+                    "Removendo automaticamente e retomando a execução."
                 )
 
                 liberar_trava()
@@ -108,8 +257,7 @@ def adquirir_trava() -> bool:
 
             return False
         except OSError as erro:
-            print(f"[AVISO] Não foi possível criar a trava de execução: {erro}")
-            # Sem trava, seguir mesmo assim é melhor que não rodar.
+            print("[AVISO] Não foi possível criar a trava de execução: " f"{erro}")
             return True
 
         conteudo = json.dumps(
