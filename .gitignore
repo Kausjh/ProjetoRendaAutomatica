@@ -109,3 +109,6 @@ execucao_em_andamento.lock
 
 *.sqlite3-shm
 *.sqlite3-wal
+
+# Artefatos locais de etapas de desenvolvimento
+/LEIA-ME-ETAPA-*.txt

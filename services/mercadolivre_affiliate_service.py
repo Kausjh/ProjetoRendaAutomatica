@@ -1,31 +1,29 @@
 # 63.8738, -149.7525
 
+from __future__ import annotations
+
 import logging
+import os
 from urllib.parse import urldefrag
 
 import httpx
 
-from services.browser.cookie_manager import (
-    CookieManager,
-)
+from services.browser.cookie_manager import CookieManager
 
 logger = logging.getLogger(__name__)
 
 
 class MercadoLivreAffiliateService:
-
     API_URL = "https://www.mercadolivre.com.br/" "affiliate-program/api/v2/" "stripe/user/links"
 
-    TAG_AFILIADO_PADRAO = "REMOVIDO_DO_HISTORICO"
+    VARIAVEL_TAG_AFILIADO = "MERCADO_LIVRE_AFFILIATE_TAG"
 
     def __init__(
         self,
         cookie_manager: CookieManager | None = None,
         timeout_segundos: float = 30.0,
     ) -> None:
-
         self.cookie_manager = cookie_manager or CookieManager()
-
         self.timeout_segundos = timeout_segundos
 
     def gerar(
@@ -33,16 +31,24 @@ class MercadoLivreAffiliateService:
         url: str,
         tag: str | None = None,
     ) -> str | None:
-
         url_normalizada = self._normalizar_url(url)
 
         if not url_normalizada:
             return None
 
-        tag_utilizada = tag or self.TAG_AFILIADO_PADRAO
+        tag_utilizada = self._obter_tag(tag)
+
+        if not tag_utilizada:
+            logger.warning(
+                (
+                    "Tag de afiliado do Mercado Livre não configurada. "
+                    "Defina %s no arquivo .env ou forneça a tag explicitamente."
+                ),
+                self.VARIAVEL_TAG_AFILIADO,
+            )
+            return None
 
         for tentativa in range(2):
-
             forcar_atualizacao = tentativa > 0
 
             if forcar_atualizacao:
@@ -51,7 +57,7 @@ class MercadoLivreAffiliateService:
                     "Atualizando cookies e tentando novamente."
                 )
 
-            cookies = self.cookie_manager.obter_cookies(forcar_atualizacao=(forcar_atualizacao))
+            cookies = self.cookie_manager.obter_cookies(forcar_atualizacao=forcar_atualizacao)
 
             resposta = self._enviar_requisicao(
                 url=url_normalizada,
@@ -59,15 +65,13 @@ class MercadoLivreAffiliateService:
                 cookies=cookies,
             )
 
-            if resposta.status_code in {
-                401,
-                403,
-            }:
-
+            if resposta.status_code in {401, 403}:
                 logger.warning(
-                    "API de afiliados do Mercado Livre recusou a sessão "
-                    "(HTTP %s). É possível que seja necessário fazer login "
-                    "novamente no Chrome conectado via CDP.",
+                    (
+                        "API de afiliados do Mercado Livre recusou a sessão "
+                        "(HTTP %s). É possível que seja necessário fazer login "
+                        "novamente no Chrome conectado via CDP."
+                    ),
                     resposta.status_code,
                 )
 
@@ -80,18 +84,23 @@ class MercadoLivreAffiliateService:
 
         return None
 
+    def _obter_tag(self, tag: str | None) -> str:
+        if isinstance(tag, str) and tag.strip():
+            return tag.strip()
+
+        return os.getenv(self.VARIAVEL_TAG_AFILIADO, "").strip()
+
     def _enviar_requisicao(
         self,
         url: str,
         tag: str,
         cookies: dict[str, str],
     ) -> httpx.Response:
-
         headers = {
-            "Accept": ("application/json, " "text/plain, */*"),
+            "Accept": "application/json, text/plain, */*",
             "Content-Type": "application/json",
-            "Origin": ("https://www.mercadolivre.com.br"),
-            "Referer": ("https://www.mercadolivre.com.br/" "affiliate-program"),
+            "Origin": "https://www.mercadolivre.com.br",
+            "Referer": "https://www.mercadolivre.com.br/affiliate-program",
             "User-Agent": (
                 "Mozilla/5.0 "
                 "(Windows NT 10.0; Win64; x64) "
@@ -120,16 +129,16 @@ class MercadoLivreAffiliateService:
         self,
         resposta: httpx.Response,
     ) -> str | None:
-
         if resposta.status_code != 200:
-
             mensagem = self._extrair_mensagem_erro(resposta)
 
             if resposta.status_code == 429:
                 logger.warning(
-                    "A API de afiliados do Mercado Livre aplicou limite de "
-                    "requisições (HTTP 429). Aguarde antes de executar "
-                    "novamente. Detalhes: %s",
+                    (
+                        "A API de afiliados do Mercado Livre aplicou limite de "
+                        "requisições (HTTP 429). Aguarde antes de executar "
+                        "novamente. Detalhes: %s"
+                    ),
                     mensagem,
                 )
             else:
@@ -143,35 +152,31 @@ class MercadoLivreAffiliateService:
 
         try:
             dados = resposta.json()
-
         except ValueError:
-
             logger.error(
                 "A API de afiliados do Mercado Livre retornou uma resposta "
                 "que não é um JSON válido."
             )
-
             return None
 
         link_afiliado = dados.get("short_url")
 
         if not isinstance(link_afiliado, str):
-
             logger.warning(
                 "A API de afiliados do Mercado Livre respondeu sem o campo " "'short_url' esperado."
             )
-
             return None
 
         link_afiliado = link_afiliado.strip()
 
         if not link_afiliado.startswith("https://meli.la/"):
-
             logger.warning(
-                "A API de afiliados do Mercado Livre devolveu um link em " "formato inesperado: %s",
+                (
+                    "A API de afiliados do Mercado Livre devolveu um link em "
+                    "formato inesperado: %s"
+                ),
                 link_afiliado,
             )
-
             return None
 
         return link_afiliado
@@ -180,10 +185,8 @@ class MercadoLivreAffiliateService:
         self,
         resposta: httpx.Response,
     ) -> str:
-
         try:
             dados = resposta.json()
-
         except ValueError:
             return resposta.text.strip()
 
@@ -201,7 +204,6 @@ class MercadoLivreAffiliateService:
         self,
         url: str,
     ) -> str:
-
         url_limpa = url.strip()
 
         if not url_limpa:

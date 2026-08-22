@@ -17,16 +17,16 @@
 | Arquitetura | 64 bits |
 | Ambiente virtual | `.venv` |
 | Python mínimo declarado | 3.11 |
-| Python atualmente validado | 3.13.14 |
+| Python atualmente validado | 3.13.15 |
 | Pip | 26.1.2 |
 | Conflitos de dependências | Nenhum |
-| Testes automatizados | 6 aprovados |
+| Testes automatizados | 95 aprovados |
 | Playwright | Funcionando |
 | Chromium | Funcionando |
 | Ruff | Aprovado |
 | Black | Executado |
 | isort | Executado |
-| MyPy | Falha estrutural por módulo duplicado |
+| MyPy | Estrutura sem duplicação conhecida de módulos |
 | Bandit | Executado |
 | pip-audit | Executado |
 | pre-commit | Executado |
@@ -66,7 +66,7 @@ Essa declaração não garante automaticamente que todas as versões futuras do 
 Atualmente:
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 ---
@@ -96,7 +96,7 @@ Python 3.11
 ### Versão atualmente validada
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 ### Executável validado
@@ -148,7 +148,7 @@ O fato confirmado é:
 O ambiente atual, entretanto, foi validado com:
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 Nesse ambiente:
@@ -158,7 +158,7 @@ Nesse ambiente:
 - o Chromium foi iniciado;
 - os testes foram aprovados.
 
-Portanto, Python 3.13.14 é a versão atualmente validada, mas futuras versões do Python não devem ser adotadas sem novo diagnóstico.
+Portanto, Python 3.13.15 é a versão atualmente validada, mas futuras versões do Python não devem ser adotadas sem novo diagnóstico.
 
 ---
 
@@ -166,7 +166,7 @@ Portanto, Python 3.13.14 é a versão atualmente validada, mas futuras versões 
 
 | Categoria | Tecnologia | Versão mínima ou declarada | Versão validada |
 |---|---|---:|---:|
-| Linguagem | Python | 3.11 | 3.13.14 |
+| Linguagem | Python | 3.11 | 3.13.15 |
 | Gerenciador | pip | Não travada | 26.1.2 |
 | Automação web | Playwright | Não travada no `requirements.txt` | 1.61.0 |
 | Navegador | Chromium | Gerenciado pelo Playwright | Funcionando |
@@ -461,7 +461,7 @@ Versão validada:
 Resultado da última validação:
 
 ```text
-6 passed
+95 passed
 ```
 
 Arquivo de configuração:
@@ -560,34 +560,18 @@ Versão validada:
 Status atual:
 
 ```text
-Falha estrutural
+Estrutura sem duplicação conhecida de módulos
 ```
 
-Erro identificado:
+A antiga duplicação estrutural do módulo `automation_web` foi removida.
 
-```text
-Duplicate module named "automation_web"
-```
-
-O módulo foi encontrado simultaneamente em:
+O projeto mantém uma única implementação em:
 
 ```text
 automation_web\
 ```
 
-e:
-
-```text
-Etapa1_Playwright_ML\automation_web\
-```
-
-Esse erro:
-
-- não é causado pelo Python 3.13.14;
-- não indica quebra das dependências;
-- é causado por duplicação estrutural de módulos no repositório.
-
-A correção será tratada em etapa específica.
+Isso elimina a ambiguidade de descoberta do módulo que anteriormente impedia a análise estática.
 
 ---
 
@@ -802,7 +786,7 @@ Antes de adotá-la, será obrigatório validar:
 A versão atualmente validada é:
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 ---

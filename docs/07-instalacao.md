@@ -188,7 +188,7 @@ python --version
 Resultado esperado:
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 ---
@@ -243,11 +243,9 @@ O Ruff não deve reportar erros.
 mypy .
 ```
 
-Atualmente existe uma limitação conhecida relacionada à duplicação do módulo `automation_web`.
+A antiga duplicação estrutural do módulo `automation_web` foi removida.
 
-Essa situação encontra-se documentada e deverá ser corrigida futuramente.
-
-Até essa correção, esse erro é esperado.
+Erros de módulo duplicado relacionados a `automation_web` não são mais esperados. Caso o MyPy reporte um erro, ele deve ser investigado normalmente.
 
 ---
 
@@ -335,13 +333,9 @@ No broken requirements found.
 
 ## Erro de MyPy
 
-Se o erro estiver relacionado ao módulo:
+A antiga duplicação estrutural do módulo `automation_web` foi removida.
 
-```text
-automation_web
-```
-
-trata-se de uma limitação conhecida da estrutura atual do projeto.
+Se o MyPy reportar erros, trate-os como problemas reais de análise estática ou configuração e investigue a mensagem apresentada.
 
 ---
 

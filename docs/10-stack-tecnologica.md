@@ -56,7 +56,7 @@ Python 3.11
 ### Ambiente atualmente validado
 
 ```text
-Python 3.13.14
+Python 3.13.15
 ```
 
 A versão mínima é definida no `pyproject.toml`.
@@ -231,13 +231,9 @@ mypy .
 
 ### Situação atual
 
-Existe uma limitação conhecida relacionada à duplicação do módulo:
+A antiga duplicação estrutural do módulo `automation_web` foi removida.
 
-```text
-automation_web
-```
-
-Essa limitação deverá ser corrigida futuramente.
+A estrutura atual não possui essa duplicação conhecida. Eventuais erros reportados pelo MyPy devem ser investigados normalmente.
 
 ---
 
@@ -436,13 +432,13 @@ As informações devem permanecer compatíveis com:
 
 | Ferramenta | Situação |
 |------------|----------|
-| Python 3.13.14 | ✅ |
+| Python 3.13.15 | ✅ |
 | Ambiente Virtual | ✅ |
 | Playwright Chromium | ✅ |
 | pip check | ✅ |
 | Ruff | ✅ |
 | Pytest | ✅ |
-| MyPy | ⚠️ Limitação conhecida (`automation_web`) |
+| MyPy | ✅ Estrutura sem duplicação conhecida de módulos |
 
 ---
 
