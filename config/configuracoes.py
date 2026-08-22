@@ -89,6 +89,113 @@ class Configuracoes:
             nome="CONFIANCA_MINIMA_ANOMALIA", valor_padrao=75.0
         )
 
+        self.curadoria_publicacao_ativa = self._buscar_booleano(
+            nome="CURADORIA_PUBLICACAO_ATIVA", valor_padrao=True
+        )
+
+        self.nota_minima_curadoria = self._buscar_decimal(
+            nome="NOTA_MINIMA_CURADORIA", valor_padrao=55.0
+        )
+
+        self.deduplicacao_canonica_ativa = self._buscar_booleano(
+            nome="DEDUPLICACAO_CANONICA_ATIVA", valor_padrao=True
+        )
+
+        self.confianca_minima_deduplicacao = self._buscar_decimal(
+            nome="CONFIANCA_MINIMA_DEDUPLICACAO", valor_padrao=90.0
+        )
+
+        # Fila inteligente / publicação contínua
+        self.pontuacao_minima_fila = self._buscar_decimal(
+            nome="PONTUACAO_MINIMA_FILA", valor_padrao=72.0
+        )
+
+        self.maximo_entradas_fila_por_ciclo = self._buscar_inteiro(
+            nome="MAXIMO_ENTRADAS_FILA_POR_CICLO", valor_padrao=12
+        )
+
+        self.tamanho_maximo_fila = self._buscar_inteiro(nome="TAMANHO_MAXIMO_FILA", valor_padrao=30)
+
+        self.fila_idade_maxima_minutos = self._buscar_decimal(
+            nome="FILA_IDADE_MAXIMA_MINUTOS", valor_padrao=90.0
+        )
+
+        self.maximo_entradas_por_categoria_ciclo = self._buscar_inteiro(
+            nome="MAXIMO_ENTRADAS_POR_CATEGORIA_CICLO", valor_padrao=2
+        )
+
+        self.cooldown_categoria_minutos = self._buscar_decimal(
+            nome="COOLDOWN_CATEGORIA_MINUTOS", valor_padrao=12.0
+        )
+
+        self.cooldown_marca_minutos = self._buscar_decimal(
+            nome="COOLDOWN_MARCA_MINUTOS", valor_padrao=8.0
+        )
+
+        self.cooldown_canonico_minutos = self._buscar_decimal(
+            nome="COOLDOWN_CANONICO_MINUTOS", valor_padrao=180.0
+        )
+
+        self.cooldown_familia_minutos = self._buscar_decimal(
+            nome="COOLDOWN_FAMILIA_MINUTOS", valor_padrao=720.0
+        )
+
+        self.queda_minima_repost_familia_percentual = self._buscar_decimal(
+            nome="QUEDA_MINIMA_REPOST_FAMILIA_PERCENTUAL", valor_padrao=5.0
+        )
+
+        self.bloqueio_categoria_minutos = self._buscar_decimal(
+            nome="BLOQUEIO_CATEGORIA_MINUTOS", valor_padrao=8.0
+        )
+
+        self.janela_saturacao_categoria_minutos = self._buscar_decimal(
+            nome="JANELA_SATURACAO_CATEGORIA_MINUTOS", valor_padrao=30.0
+        )
+
+        self.limite_categoria_janela = self._buscar_inteiro(
+            nome="LIMITE_CATEGORIA_JANELA", valor_padrao=2
+        )
+
+        self.publicacao_intervalo_minimo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_INTERVALO_MINIMO_SEGUNDOS", valor_padrao=55.0
+        )
+
+        self.publicacao_intervalo_maximo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_INTERVALO_MAXIMO_SEGUNDOS", valor_padrao=300.0
+        )
+
+        self.publicacao_intervalo_modo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_INTERVALO_MODO_SEGUNDOS", valor_padrao=130.0
+        )
+
+        self.publicacao_chance_intervalo_curto = self._buscar_decimal(
+            nome="PUBLICACAO_CHANCE_INTERVALO_CURTO", valor_padrao=0.12
+        )
+
+        self.publicacao_intervalo_curto_minimo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_INTERVALO_CURTO_MINIMO_SEGUNDOS", valor_padrao=20.0
+        )
+
+        self.publicacao_intervalo_curto_maximo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_INTERVALO_CURTO_MAXIMO_SEGUNDOS", valor_padrao=50.0
+        )
+
+        self.publicacao_urgente_minimo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_URGENTE_MINIMO_SEGUNDOS", valor_padrao=8.0
+        )
+
+        self.publicacao_urgente_maximo_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_URGENTE_MAXIMO_SEGUNDOS", valor_padrao=25.0
+        )
+
+        self.publicacao_atraso_inicial_segundos = self._buscar_decimal(
+            nome="PUBLICACAO_ATRASO_INICIAL_SEGUNDOS", valor_padrao=15.0
+        )
+
+        self.publicador_intervalo_verificacao_segundos = self._buscar_decimal(
+            nome="PUBLICADOR_INTERVALO_VERIFICACAO_SEGUNDOS", valor_padrao=2.0
+        )
+
         self._validar()
 
     def _buscar_variavel_obrigatoria(self, nome: str) -> str:
@@ -201,3 +308,91 @@ class Configuracoes:
                 "QUEDA_MAXIMA_ANOMALIA_PUBLICAVEL precisa ser maior que "
                 "QUEDA_MINIMA_PRECO_BUGADO."
             )
+
+        if not 0 <= self.nota_minima_curadoria <= 100:
+            raise ValueError("NOTA_MINIMA_CURADORIA precisa estar entre 0 e 100.")
+
+        if not 0 <= self.confianca_minima_deduplicacao <= 100:
+            raise ValueError("CONFIANCA_MINIMA_DEDUPLICACAO precisa estar entre 0 e 100.")
+
+        if not 0 <= self.pontuacao_minima_fila <= 100:
+            raise ValueError("PONTUACAO_MINIMA_FILA precisa estar entre 0 e 100.")
+
+        if self.maximo_entradas_fila_por_ciclo <= 0:
+            raise ValueError("MAXIMO_ENTRADAS_FILA_POR_CICLO precisa ser maior que zero.")
+
+        if self.tamanho_maximo_fila <= 0:
+            raise ValueError("TAMANHO_MAXIMO_FILA precisa ser maior que zero.")
+
+        if self.maximo_entradas_por_categoria_ciclo <= 0:
+            raise ValueError("MAXIMO_ENTRADAS_POR_CATEGORIA_CICLO precisa ser maior que zero.")
+
+        if self.limite_categoria_janela <= 0:
+            raise ValueError("LIMITE_CATEGORIA_JANELA precisa ser maior que zero.")
+
+        if self.fila_idade_maxima_minutos <= 0:
+            raise ValueError("FILA_IDADE_MAXIMA_MINUTOS precisa ser maior que zero.")
+
+        for nome, valor in (
+            ("COOLDOWN_CATEGORIA_MINUTOS", self.cooldown_categoria_minutos),
+            ("COOLDOWN_MARCA_MINUTOS", self.cooldown_marca_minutos),
+            ("COOLDOWN_CANONICO_MINUTOS", self.cooldown_canonico_minutos),
+            ("COOLDOWN_FAMILIA_MINUTOS", self.cooldown_familia_minutos),
+            (
+                "QUEDA_MINIMA_REPOST_FAMILIA_PERCENTUAL",
+                self.queda_minima_repost_familia_percentual,
+            ),
+            ("BLOQUEIO_CATEGORIA_MINUTOS", self.bloqueio_categoria_minutos),
+            (
+                "JANELA_SATURACAO_CATEGORIA_MINUTOS",
+                self.janela_saturacao_categoria_minutos,
+            ),
+            (
+                "PUBLICACAO_INTERVALO_MINIMO_SEGUNDOS",
+                self.publicacao_intervalo_minimo_segundos,
+            ),
+            (
+                "PUBLICACAO_INTERVALO_MAXIMO_SEGUNDOS",
+                self.publicacao_intervalo_maximo_segundos,
+            ),
+            (
+                "PUBLICACAO_INTERVALO_CURTO_MINIMO_SEGUNDOS",
+                self.publicacao_intervalo_curto_minimo_segundos,
+            ),
+            (
+                "PUBLICACAO_INTERVALO_CURTO_MAXIMO_SEGUNDOS",
+                self.publicacao_intervalo_curto_maximo_segundos,
+            ),
+            (
+                "PUBLICACAO_URGENTE_MINIMO_SEGUNDOS",
+                self.publicacao_urgente_minimo_segundos,
+            ),
+            (
+                "PUBLICACAO_URGENTE_MAXIMO_SEGUNDOS",
+                self.publicacao_urgente_maximo_segundos,
+            ),
+            (
+                "PUBLICADOR_INTERVALO_VERIFICACAO_SEGUNDOS",
+                self.publicador_intervalo_verificacao_segundos,
+            ),
+        ):
+            if valor <= 0:
+                raise ValueError(f"{nome} precisa ser maior que zero.")
+
+        if self.publicacao_intervalo_maximo_segundos < self.publicacao_intervalo_minimo_segundos:
+            raise ValueError(
+                "PUBLICACAO_INTERVALO_MAXIMO_SEGUNDOS não pode ser menor que "
+                "PUBLICACAO_INTERVALO_MINIMO_SEGUNDOS."
+            )
+
+        if not (
+            self.publicacao_intervalo_minimo_segundos
+            <= self.publicacao_intervalo_modo_segundos
+            <= self.publicacao_intervalo_maximo_segundos
+        ):
+            raise ValueError(
+                "PUBLICACAO_INTERVALO_MODO_SEGUNDOS precisa ficar entre " "o mínimo e o máximo."
+            )
+
+        if not 0 <= self.publicacao_chance_intervalo_curto <= 1:
+            raise ValueError("PUBLICACAO_CHANCE_INTERVALO_CURTO precisa ficar entre 0 e 1.")

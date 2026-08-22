@@ -1,0 +1,23 @@
+ETAPA 7.3.1 — DIVERSIDADE EDITORIAL FORTE
+
+Objetivo:
+- impedir uma categoria de dominar a fila;
+- evitar repetição imediata da mesma categoria quando há alternativa;
+- penalizar marca repetida com mais força;
+- derrubar prioridade de categoria saturada;
+- preservar exceção para oportunidades urgentes validadas.
+
+Arquivos:
+- .env.example
+- main.py
+- publicador_fila.py
+- config/configuracoes.py
+- services/executor_pipeline.py
+- services/seletor_editorial.py
+- tests/test_diversidade_entrada_fila.py
+- tests/test_seletor_editorial.py
+
+Depois de substituir:
+1. python -m pytest
+2. se passar 100%, reiniciar a tarefa RendaAutomatica
+3. observar pelo menos 5 publicações reais

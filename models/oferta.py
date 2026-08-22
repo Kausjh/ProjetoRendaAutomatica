@@ -39,10 +39,27 @@ class Oferta:
     nota_comercial: float = 0.0
     motivos_comerciais: list[str] = field(default_factory=list)
 
+    # Normalização / identidade canônica
+    produto_canonico: str | None = None
+    chave_produto_canonica: str | None = None
+    modelo_produto: str | None = None
+    confianca_normalizacao: float = 0.0
+
+    # Família semântica / anti-repost
+    familia_produto: str | None = None
+    chave_familia_produto: str | None = None
+    confianca_familia: float = 0.0
+
+    # Curadoria de publicação
+    curadoria_publicavel: bool = True
+    nota_curadoria: float = 0.0
+    motivos_curadoria: list[str] = field(default_factory=list)
+
     # Pontuação
     nota_tecnica: float = 0.0
     nota_historica: float = 0.0
     nota_final: float = 0.0
+    componentes_pontuacao: dict[str, float] = field(default_factory=dict)
 
     # Oportunidades especiais / anomalias de preço
     tipo_oportunidade: str = "normal"
