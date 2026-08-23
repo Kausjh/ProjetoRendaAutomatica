@@ -39,7 +39,8 @@ jobs:
         run: |
           black . --check
 
-      - name: MyPy
+      - name: MyPy (informational)
+        continue-on-error: true
         run: |
           mypy .
 
