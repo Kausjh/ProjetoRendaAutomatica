@@ -16,6 +16,7 @@ import logging
 import os
 
 from config.logging_config import configurar_logging
+from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
 from services.runtime.orquestrador import (
     DIRETORIO_PROJETO,
@@ -53,6 +54,10 @@ def main() -> int:
         return 75
 
     orquestrador = OrquestradorRuntime(configuracoes)
+    servidor_status = ServidorStatusAdministrativo(
+        controlador=orquestrador.controle_administrativo,
+    )
+    servidor_status.iniciar()
 
     try:
         orquestrador.executar()
@@ -68,6 +73,7 @@ def main() -> int:
         return 1
 
     finally:
+        servidor_status.encerrar()
         orquestrador.encerrar()
 
         try:

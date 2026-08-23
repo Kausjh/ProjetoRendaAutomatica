@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Final
 
 from config.configuracoes import Configuracoes
+from services.controle.controlador import ControladorAdministrativo
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,8 @@ class OrquestradorRuntime:
             "telegram": None,
             "mercado_livre": None,
         }
+
+        self.controle_administrativo = ControladorAdministrativo(self)
 
     def validar_ambiente(self) -> None:
         faltando = [

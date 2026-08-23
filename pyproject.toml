@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ProjetoRendaAutomatica"
 version = "1.3.0"
-description = "Plataforma modular para descoberta, análise, monetização e publicação automática de oportunidades comerciais."
+description = "Plataforma modular para descoberta, anÃ¡lise, monetizaÃ§Ã£o e publicaÃ§Ã£o automÃ¡tica de oportunidades comerciais."
 requires-python = ">=3.13"
 
 # ============================================================
