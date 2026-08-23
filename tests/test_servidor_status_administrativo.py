@@ -11,6 +11,8 @@ from services.controle.servidor_status import (
     ServidorStatusAdministrativo,
 )
 
+TOKEN_TESTE = "token-administrativo-de-teste"
+
 
 class ProcessoFake:
     def __init__(self, pid: int) -> None:
@@ -49,6 +51,7 @@ def test_servidor_status_responde_json(tmp_path):
         controlador=controlador,
         host="127.0.0.1",
         porta=0,
+        token=TOKEN_TESTE,
     )
 
     servidor.iniciar()
@@ -56,8 +59,13 @@ def test_servidor_status_responde_json(tmp_path):
     try:
         porta_real = servidor._servidor.server_address[1]
 
-        with urllib.request.urlopen(
+        requisicao = urllib.request.Request(
             f"http://127.0.0.1:{porta_real}/status",
+            headers={"Authorization": f"Bearer {TOKEN_TESTE}"},
+        )
+
+        with urllib.request.urlopen(
+            requisicao,
             timeout=2,
         ) as resposta:
             dados = json.loads(resposta.read().decode("utf-8"))

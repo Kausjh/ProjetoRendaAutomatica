@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+
+from dotenv import load_dotenv
 
 from services.controle.controlador import ControladorAdministrativo
 
@@ -15,8 +19,14 @@ class ServidorStatusAdministrativo:
         controlador: ControladorAdministrativo,
         host: str = "127.0.0.1",
         porta: int = 8765,
+        token: str | None = None,
     ) -> None:
         self.controlador = controlador
+
+        load_dotenv()
+
+        token_ambiente = os.getenv("RADAR_ADMIN_TOKEN", "").strip()
+        self.token = token.strip() if token is not None else token_ambiente
         self.host = host
         self.porta = porta
         self._servidor: ThreadingHTTPServer | None = None
@@ -27,9 +37,35 @@ class ServidorStatusAdministrativo:
             return
 
         controlador = self.controlador
+        token_administrativo = self.token
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
+                if token_administrativo:
+                    autorizacao = self.headers.get(
+                        "Authorization",
+                        "",
+                    )
+
+                    prefixo = "Bearer "
+                    token_recebido = (
+                        autorizacao[len(prefixo) :].strip()
+                        if autorizacao.startswith(prefixo)
+                        else ""
+                    )
+
+                    autorizado = bool(token_recebido) and hmac.compare_digest(
+                        token_recebido,
+                        token_administrativo,
+                    )
+
+                    if not autorizado:
+                        self._responder_json(
+                            401,
+                            {"erro": "Nao autorizado."},
+                        )
+                        return
+
                 url = urlparse(self.path)
                 rota = url.path
                 parametros = parse_qs(url.query)
