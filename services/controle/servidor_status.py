@@ -17,7 +17,7 @@ class ServidorStatusAdministrativo:
     def __init__(
         self,
         controlador: ControladorAdministrativo,
-        host: str = "127.0.0.1",
+        host: str | None = None,
         porta: int = 8765,
         token: str | None = None,
     ) -> None:
@@ -26,8 +26,10 @@ class ServidorStatusAdministrativo:
         load_dotenv()
 
         token_ambiente = os.getenv("RADAR_ADMIN_TOKEN", "").strip()
+        host_ambiente = os.getenv("RADAR_ADMIN_HOST", "").strip()
+
         self.token = token.strip() if token is not None else token_ambiente
-        self.host = host
+        self.host = host.strip() if host is not None else host_ambiente or "127.0.0.1"
         self.porta = porta
         self._servidor: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
