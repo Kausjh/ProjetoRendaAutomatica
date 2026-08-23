@@ -40,6 +40,16 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/saude":
+                        dados = controlador.obter_saude()
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/metricas":
+                        dados = controlador.obter_metricas()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/fila":
                         limite = self._obter_inteiro(
                             parametros,
