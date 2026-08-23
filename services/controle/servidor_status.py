@@ -4,6 +4,7 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from services.controle.controlador import ControladorAdministrativo
 
@@ -29,15 +30,91 @@ class ServidorStatusAdministrativo:
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
-                if self.path != "/status":
+                url = urlparse(self.path)
+                rota = url.path
+                parametros = parse_qs(url.query)
+
+                try:
+                    if rota == "/status":
+                        dados = controlador.obter_estado().como_dict()
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/fila":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            50,
+                        )
+
+                        dados = controlador.listar_fila(
+                            limite=limite,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/publicacoes":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            50,
+                        )
+                        minutos = self._obter_decimal(
+                            parametros,
+                            "minutos",
+                            1440.0,
+                        )
+
+                        dados = controlador.listar_publicacoes(
+                            minutos=minutos,
+                            limite=limite,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
+                except ValueError as erro:
                     self._responder_json(
-                        404,
-                        {"erro": "Rota nao encontrada."},
+                        400,
+                        {"erro": str(erro)},
                     )
                     return
 
-                estado = controlador.obter_estado().como_dict()
-                self._responder_json(200, estado)
+                self._responder_json(
+                    404,
+                    {"erro": "Rota nao encontrada."},
+                )
+
+            @staticmethod
+            def _obter_inteiro(
+                parametros: dict[str, list[str]],
+                nome: str,
+                padrao: int,
+            ) -> int:
+                valores = parametros.get(nome)
+
+                if not valores:
+                    return padrao
+
+                try:
+                    return int(valores[0])
+                except ValueError as erro:
+                    raise ValueError(f"Parametro '{nome}' precisa ser inteiro.") from erro
+
+            @staticmethod
+            def _obter_decimal(
+                parametros: dict[str, list[str]],
+                nome: str,
+                padrao: float,
+            ) -> float:
+                valores = parametros.get(nome)
+
+                if not valores:
+                    return padrao
+
+                try:
+                    return float(valores[0])
+                except ValueError as erro:
+                    raise ValueError(f"Parametro '{nome}' precisa ser numerico.") from erro
 
             def _responder_json(
                 self,

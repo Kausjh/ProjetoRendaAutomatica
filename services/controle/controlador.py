@@ -49,6 +49,74 @@ class ControladorAdministrativo:
             pid=processo.pid if ativo else None,
         )
 
+    def listar_fila(self, limite: int = 50) -> dict[str, object]:
+        limite = max(1, min(limite, 100))
+        itens = self.fila.listar_pendentes(limite=limite)
+
+        resultado: list[dict[str, object]] = []
+
+        for item in itens:
+            oferta = item.oferta
+
+            resultado.append(
+                {
+                    "id": item.id,
+                    "nome": oferta.nome,
+                    "loja": oferta.loja,
+                    "preco": float(oferta.preco),
+                    "preco_antigo": (
+                        float(oferta.preco_antigo) if oferta.preco_antigo is not None else None
+                    ),
+                    "link": oferta.link,
+                    "imagem": oferta.imagem,
+                    "marketplace": getattr(
+                        oferta,
+                        "marketplace",
+                        None,
+                    ),
+                    "categoria": getattr(
+                        oferta,
+                        "categoria",
+                        None,
+                    ),
+                    "marca": getattr(
+                        oferta,
+                        "marca",
+                        None,
+                    ),
+                    "pontuacao": float(item.pontuacao),
+                    "prioridade": float(item.prioridade),
+                    "deve_republicar_por_queda": (item.deve_republicar_por_queda),
+                    "criado_em": item.criado_em.isoformat(),
+                    "atualizado_em": item.atualizado_em.isoformat(),
+                    "status": item.status,
+                }
+            )
+
+        return {
+            "quantidade": len(resultado),
+            "itens": resultado,
+        }
+
+    def listar_publicacoes(
+        self,
+        minutos: float = 1440.0,
+        limite: int = 50,
+    ) -> dict[str, object]:
+        minutos = max(1.0, minutos)
+        limite = max(1, min(limite, 100))
+
+        itens = self.fila.historico_publicacoes_recentes(
+            minutos=minutos,
+            limite=limite,
+        )
+
+        return {
+            "quantidade": len(itens),
+            "periodo_minutos": minutos,
+            "itens": itens,
+        }
+
     def obter_estado(self) -> EstadoAdministrativo:
         resumo_fila = self.fila.resumo_familias_pendentes()
 
