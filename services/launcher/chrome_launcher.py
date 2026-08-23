@@ -50,7 +50,7 @@ class EstadoChrome:
 def exibir_cabecalho() -> None:
     print("=" * 60)
     print("PROJETO RENDA AUTOMÁTICA")
-    print("Launcher v2.2")
+    print("Launcher")
     print("=" * 60)
 
 

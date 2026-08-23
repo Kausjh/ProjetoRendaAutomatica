@@ -8,7 +8,7 @@ from services.historico_precos_service import ResultadoHistoricoPreco
 
 
 class PontuadorOferta:
-    """Score v2: oportunidade real para o comprador, não potencial comercial.
+    """Pontua??o de oportunidade: oportunidade real para o comprador, não potencial comercial.
 
     100 pontos:
     - relevância no nicho: 10

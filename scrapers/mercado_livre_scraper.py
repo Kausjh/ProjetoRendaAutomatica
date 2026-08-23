@@ -39,7 +39,7 @@ class MercadoLivreScraper(BaseScraper):
         "div.poly-card",
     ]
 
-    # Cobertura de busca v3
+    # Cobertura de busca
     #
     # Em vez de prender uma categoria a uma única marca (ex.: "Teclado
     # Redragon"), cada categoria possui uma cesta ampla de consultas:

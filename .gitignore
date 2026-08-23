@@ -84,7 +84,7 @@ test-results/
 /diagnosticos/*.html
 /diagnosticos/*.json
 /diagnosticos/*.png
-/scripts/diagnostico_ambiente.txt
+/scripts/verificacao_ambiente.txt
 
 # Arquivos auxiliares gerados localmente
 /ambiente_atual.txt

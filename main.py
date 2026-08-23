@@ -133,11 +133,11 @@ async def main() -> None:
 
     if configuracoes.curadoria_publicacao_ativa:
         logger.info(
-            "Curadoria de publicação v2 ativa: nota mínima %.1f/100.",
+            "Curadoria de publicação ativa: nota mínima %.1f/100.",
             configuracoes.nota_minima_curadoria,
         )
     else:
-        logger.info("Curadoria de publicação v2 desativada.")
+        logger.info("Curadoria de publicação desativada.")
 
     if configuracoes.deduplicacao_canonica_ativa:
         logger.info(

@@ -1,6 +1,6 @@
 # 63.8738, -149.7525
 
-"""Bot de consulta ao histórico de preços — v2.
+"""Bot de consulta ao histórico de preços.
 
 Programa independente do pipeline de publicação. Fica escutando
 mensagens no Telegram e responde usando somente o histórico que o
@@ -1106,7 +1106,7 @@ def main() -> None:
     consulta = ConsultaHistorico()
 
     logger.info(
-        "Bot de consulta v2 iniciando com %s produto(s) no histórico.",
+        "Bot de consulta iniciando com %s produto(s) no histórico.",
         consulta.quantidade_produtos(),
     )
 
@@ -1136,7 +1136,7 @@ def main() -> None:
 
     aplicacao.add_error_handler(tratar_erro)
 
-    logger.info("Bot de consulta v2 pronto. Aguardando mensagens no privado.")
+    logger.info("Bot de consulta pronto. Aguardando mensagens no privado.")
 
     aplicacao.run_polling()
 

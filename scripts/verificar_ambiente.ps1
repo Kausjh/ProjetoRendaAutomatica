@@ -1,10 +1,10 @@
 # ============================================================
 # Projeto Renda Automática
 # Diagnóstico Completo do Ambiente
-# Gera: diagnostico_ambiente.txt
+# Gera: verificacao_ambiente.txt
 # ============================================================
 
-$OutputFile = Join-Path $PSScriptRoot "diagnostico_ambiente.txt"
+$OutputFile = Join-Path $PSScriptRoot "verificacao_ambiente.txt"
 
 if (Test-Path $OutputFile) {
     Remove-Item $OutputFile -Force

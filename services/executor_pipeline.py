@@ -188,7 +188,7 @@ class ExecutorPipeline:
                 detalhes = list(resultado_curadoria.bloqueios) or list(resultado_curadoria.motivos)
 
                 logger.info(
-                    "Oferta rejeitada pela curadoria v2: %s | nota=%.1f | %s",
+                    "Oferta rejeitada pela curadoria: %s | nota=%.1f | %s",
                     oferta.nome,
                     resultado_curadoria.nota,
                     " | ".join(detalhes),
@@ -461,7 +461,7 @@ class ExecutorPipeline:
         logger.info("Ofertas rejeitadas pelo filtro: %s", quantidade_filtrada)
 
         logger.info(
-            "Ofertas rejeitadas pela curadoria v2: %s",
+            "Ofertas rejeitadas pela curadoria: %s",
             quantidade_rejeitada_curadoria,
         )
 
