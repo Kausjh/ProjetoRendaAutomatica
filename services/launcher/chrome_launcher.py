@@ -16,11 +16,17 @@ from typing import Final
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import sync_playwright
+
 HOST_CDP: Final = "127.0.0.1"
 PORTA_CDP: Final = 9222
 TEMPO_LIMITE_CHROME: Final = 20.0
 INTERVALO_VERIFICACAO: Final = 0.5
 TEMPO_LIMITE_ENCERRAMENTO: Final = 5.0
+ENV_MANTER_CHROME_ATIVO: Final = "RADAR_MANTER_CHROME_ATIVO"
+TEMPO_LIMITE_TESTE_CDP_MS: Final = 5_000
+INTERVALO_ESPERA_PORTA_CDP: Final = 0.25
 
 DIRETORIO_PROJETO: Final = Path(__file__).resolve().parents[2]
 ARQUIVO_MAIN: Final = DIRETORIO_PROJETO / "main.py"
@@ -44,7 +50,7 @@ class EstadoChrome:
 def exibir_cabecalho() -> None:
     print("=" * 60)
     print("PROJETO RENDA AUTOMÁTICA")
-    print("Launcher v2.1")
+    print("Launcher v2.2")
     print("=" * 60)
 
 
@@ -310,6 +316,165 @@ def cdp_esta_disponivel() -> bool:
         return False
 
 
+def cdp_esta_funcional() -> bool:
+    """Confirma que o Playwright consegue usar a sessão CDP de verdade."""
+
+    if not cdp_esta_disponivel():
+        return False
+
+    endpoint = f"http://{HOST_CDP}:{PORTA_CDP}"
+
+    try:
+        with sync_playwright() as playwright:
+            navegador = playwright.chromium.connect_over_cdp(
+                endpoint,
+                timeout=TEMPO_LIMITE_TESTE_CDP_MS,
+            )
+            _ = navegador.contexts
+        return True
+    except (PlaywrightError, OSError):
+        return False
+
+
+def localizar_pids_chrome_automacao() -> list[int]:
+    """Localiza somente o Chrome iniciado com porta/perfil deste projeto."""
+
+    if os.name != "nt":
+        return []
+
+    comando = (
+        "$processos = Get-CimInstance Win32_Process "
+        "-Filter \"Name = 'chrome.exe'\" -ErrorAction SilentlyContinue; "
+        "$processos | Where-Object { "
+        "$cmd = $_.CommandLine; "
+        "$null -ne $cmd -and "
+        f"$cmd -match '--remote-debugging-port={PORTA_CDP}' -and "
+        "$cmd -match 'browser_profile_cdp' "
+        "} | Select-Object -ExpandProperty ProcessId"
+    )
+
+    try:
+        resultado = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                comando,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=8,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+
+    if resultado.returncode != 0:
+        return []
+
+    pids: list[int] = []
+
+    for linha in resultado.stdout.splitlines():
+        try:
+            pid = int(linha.strip())
+        except ValueError:
+            continue
+
+        if pid > 0 and pid not in pids:
+            pids.append(pid)
+
+    return pids
+
+
+def aguardar_porta_cdp_liberar() -> bool:
+    inicio = time.monotonic()
+
+    while time.monotonic() - inicio < TEMPO_LIMITE_ENCERRAMENTO:
+        if not porta_esta_aberta():
+            return True
+
+        time.sleep(INTERVALO_ESPERA_PORTA_CDP)
+
+    return not porta_esta_aberta()
+
+
+def encerrar_chrome_automacao_travado() -> None:
+    """Encerra somente a árvore do Chrome dedicada ao projeto."""
+
+    pids = localizar_pids_chrome_automacao()
+
+    if not pids:
+        raise RuntimeError(
+            "O CDP está travado, mas não foi possível identificar "
+            "com segurança o Chrome de automação."
+        )
+
+    print(
+        "[AVISO] Chrome/CDP de automação travado. "
+        f"Reiniciando {len(pids)} processo(s) raiz identificado(s)."
+    )
+
+    for pid in pids:
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+
+    if not aguardar_porta_cdp_liberar():
+        raise RuntimeError(
+            "O Chrome de automação foi encerrado, mas a porta " f"{PORTA_CDP} continuou ocupada."
+        )
+
+    print("[OK] Chrome/CDP travado encerrado. A sessão será recriada.")
+
+
+def manter_chrome_ativo_entre_ciclos() -> bool:
+    valor = os.environ.get(ENV_MANTER_CHROME_ATIVO, "").strip().lower()
+    return valor in {"1", "true", "yes", "sim", "on"}
+
+
+def encerrar_chrome_automacao() -> None:
+    """Encerra, com segurança, apenas o Chrome dedicado ao projeto."""
+
+    pids = localizar_pids_chrome_automacao()
+
+    if not pids:
+        return
+
+    print(
+        "[...] Encerrando Chrome de automação persistente "
+        f"({len(pids)} processo(s) raiz identificado(s))."
+    )
+
+    for pid in pids:
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+
+    if not aguardar_porta_cdp_liberar():
+        raise RuntimeError(
+            "O Chrome de automação foi encerrado, mas a porta " f"{PORTA_CDP} continuou ocupada."
+        )
+
+    print("[OK] Chrome de automação persistente encerrado.")
+
+
 def localizar_chrome() -> Path | None:
     candidatos: list[Path] = []
 
@@ -378,26 +543,41 @@ def aguardar_cdp(processo_chrome: subprocess.Popen[bytes]) -> None:
                 "O Chrome foi encerrado antes de disponibilizar " "a porta de depuração remota."
             )
 
-        if cdp_esta_disponivel():
+        if cdp_esta_funcional():
             return
 
         time.sleep(INTERVALO_VERIFICACAO)
 
     raise TimeoutError(
-        "O Chrome não disponibilizou o CDP na porta "
+        "O Chrome não disponibilizou uma sessão CDP funcional na porta "
         f"{PORTA_CDP} dentro de {TEMPO_LIMITE_CHROME:.0f} segundos."
     )
 
 
 def preparar_chrome() -> EstadoChrome:
     if cdp_esta_disponivel():
-        print("[OK] Chrome com CDP já está disponível " f"na porta {PORTA_CDP}.")
-        return EstadoChrome()
+        if cdp_esta_funcional():
+            print("[OK] Chrome com CDP funcional já está disponível " f"na porta {PORTA_CDP}.")
+            return EstadoChrome()
 
-    if porta_esta_aberta():
-        raise RuntimeError(
-            f"A porta {PORTA_CDP} está ocupada, mas não responde " "como um endpoint CDP do Chrome."
+        print(
+            "[AVISO] A porta 9222 responde como CDP, mas o Playwright "
+            "não consegue estabelecer uma sessão funcional."
         )
+        encerrar_chrome_automacao_travado()
+
+    elif porta_esta_aberta():
+        if not localizar_pids_chrome_automacao():
+            raise RuntimeError(
+                f"A porta {PORTA_CDP} está ocupada por um processo "
+                "que não foi identificado como o Chrome de automação."
+            )
+
+        print(
+            "[AVISO] A porta 9222 está ocupada pelo Chrome de automação, "
+            "mas o endpoint CDP não responde corretamente."
+        )
+        encerrar_chrome_automacao_travado()
 
     executavel_chrome = localizar_chrome()
 
@@ -417,7 +597,7 @@ def preparar_chrome() -> EstadoChrome:
 
     aguardar_cdp(processo)
 
-    print("[OK] Chrome iniciado e CDP disponível.")
+    print("[OK] Chrome iniciado e CDP funcional.")
     return estado
 
 
@@ -432,6 +612,11 @@ def executar_projeto() -> int:
 
 
 def encerrar_chrome_iniciado(estado: EstadoChrome) -> None:
+    if manter_chrome_ativo_entre_ciclos():
+        if estado.iniciado_pelo_launcher:
+            print("[OK] Chrome mantido ativo para o runtime, publicador e próximos ciclos.")
+        return
+
     processo = estado.processo
 
     if not estado.iniciado_pelo_launcher or processo is None:

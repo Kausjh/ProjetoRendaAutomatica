@@ -1,5 +1,6 @@
 import logging
 from dataclasses import replace
+from urllib.parse import urlparse
 
 from telegram import Bot
 
@@ -22,6 +23,15 @@ class TelegramBot:
         self.channel_id = channel_id
         self.gerador_link_afiliado = gerador_link_afiliado
 
+    @staticmethod
+    def _eh_link_mercado_livre(link: str) -> bool:
+        dominio = (urlparse(link).hostname or "").lower()
+
+        if dominio.startswith("www."):
+            dominio = dominio[4:]
+
+        return dominio == "mercadolivre.com.br" or dominio.endswith(".mercadolivre.com.br")
+
     async def enviar_mensagem(self, mensagem: str) -> None:
         await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
 
@@ -29,6 +39,12 @@ class TelegramBot:
         self, oferta: Oferta, resultado_historico: ResultadoHistoricoPreco | None = None
     ) -> ResultadoLinkAfiliado:
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
+
+        if self._eh_link_mercado_livre(oferta.link) and not resultado_link.foi_transformado:
+            raise RuntimeError(
+                "Publicação do Mercado Livre bloqueada porque o link afiliado "
+                "não pôde ser gerado. A oferta permanecerá na fila para nova tentativa."
+            )
 
         logger.info(
             "Link de publicação processado para '%s'. " "Afiliador: %s. Transformado: %s.",

@@ -16,6 +16,7 @@ import logging
 import os
 
 from config.logging_config import configurar_logging
+from services.launcher.chrome_launcher import encerrar_chrome_automacao
 from services.runtime.orquestrador import (
     DIRETORIO_PROJETO,
     ConfiguracoesRuntime,
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 def main() -> int:
     os.chdir(DIRETORIO_PROJETO)
+    os.environ["RADAR_MANTER_CHROME_ATIVO"] = "1"
     configurar_logging()
 
     print("=" * 68)
@@ -67,6 +69,12 @@ def main() -> int:
 
     finally:
         orquestrador.encerrar()
+
+        try:
+            encerrar_chrome_automacao()
+        except Exception:
+            logger.exception("Falha ao encerrar o Chrome persistente durante o desligamento.")
+
         trava.liberar()
 
 

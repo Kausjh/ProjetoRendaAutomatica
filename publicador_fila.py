@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
+from urllib.parse import urlparse
 
 from affiliates.registro_afiliadores import criar_gerador_link_afiliado
 from bots.telegram_bot import TelegramBot
@@ -15,6 +16,7 @@ from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.publicados_repository import PublicadosRepository
 from services.cadencia_publicacao import CadenciaPublicacao
 from services.janela_publicacao import JanelaPublicacao
+from services.launcher.chrome_launcher import preparar_chrome
 from services.seletor_editorial import SeletorEditorial
 
 configurar_logging()
@@ -76,6 +78,24 @@ class PublicadorFila:
             urgente_minimo_segundos=(configuracoes.publicacao_urgente_minimo_segundos),
             urgente_maximo_segundos=(configuracoes.publicacao_urgente_maximo_segundos),
         )
+
+    @staticmethod
+    def _oferta_exige_chrome_afiliacao(link: str) -> bool:
+        dominio = (urlparse(link).hostname or "").lower()
+
+        if dominio.startswith("www."):
+            dominio = dominio[4:]
+
+        return dominio == "mercadolivre.com.br" or dominio.endswith(".mercadolivre.com.br")
+
+    async def _garantir_chrome_para_afiliacao(self, link: str) -> None:
+        if not self._oferta_exige_chrome_afiliacao(link):
+            return
+
+        logger.info(
+            "Garantindo Chrome/CDP funcional antes de gerar o link afiliado " "do Mercado Livre."
+        )
+        await asyncio.to_thread(preparar_chrome)
 
     async def executar(self) -> None:
         logger.info("=" * 60)
@@ -198,6 +218,8 @@ class PublicadorFila:
                 )
 
             try:
+                await self._garantir_chrome_para_afiliacao(item.oferta.link)
+
                 await self.bot.enviar_oferta(
                     oferta=item.oferta,
                     resultado_historico=item.resultado_historico,
