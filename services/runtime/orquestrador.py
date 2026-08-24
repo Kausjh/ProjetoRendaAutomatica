@@ -715,11 +715,25 @@ class OrquestradorRuntime:
                     self._pipeline_imediato_pendente = True
                     continue
 
-                proxima_execucao = time.monotonic() + intervalo_segundos
+                agora_pos_ciclo = time.monotonic()
+
+                if proxima_execucao <= agora_pos_ciclo:
+                    proxima_execucao = calcular_proxima_execucao(
+                        execucao_anterior=proxima_execucao,
+                        agora=agora_pos_ciclo,
+                        intervalo_segundos=intervalo_segundos,
+                    )
+
+                espera = max(
+                    0.0,
+                    proxima_execucao - time.monotonic(),
+                )
 
                 logger.info(
-                    "Ciclo administrativo concluido. Proximo ciclo em %.1f minuto(s).",
-                    intervalo_segundos / 60.0,
+                    "Ciclo administrativo concluido. "
+                    "Agenda automatica preservada; proximo ciclo em "
+                    "aproximadamente %.1f minuto(s).",
+                    espera / 60.0,
                 )
                 continue
 
