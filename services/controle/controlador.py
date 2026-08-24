@@ -5,10 +5,13 @@ from __future__ import annotations
 import os
 from collections import Counter
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Protocol
 
 from repositories.controle_administrativo_repository import (
+    MODO_OPERACAO_PADRAO,
+    MODOS_OPERACAO_PUBLICACAO,
+    PONTUACAO_MINIMA_AUTOMATICA_HIBRIDO,
     ControleAdministrativoRepository,
 )
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
@@ -17,6 +20,9 @@ from services.controle.estado import (
     EstadoConectividade,
     EstadoFila,
     EstadoProcesso,
+)
+from services.controle.politica_publicacao_administrativa import (
+    requer_aprovacao_hibrida,
 )
 from services.launcher.chrome_launcher import cdp_esta_funcional
 
@@ -78,15 +84,94 @@ class ControladorAdministrativo:
             resultado=resultado,
         )
 
+    def _modo_operacao(self) -> str:
+        if self.repositorio_admin is None:
+            return MODO_OPERACAO_PADRAO
+
+        return self.repositorio_admin.obter_modo_operacao()
+
+    def _intervalo_previsao_publicacao(self) -> float:
+        if self.repositorio_admin is None:
+            return 130.0
+
+        valor = self.repositorio_admin.obter_estado(
+            "intervalo_previsao_publicacao_segundos",
+            "130",
+        )
+
+        try:
+            return max(1.0, float(valor or 130.0))
+        except (TypeError, ValueError):
+            return 130.0
+
+    def _proxima_previsao_base(
+        self,
+        agora: datetime,
+    ) -> datetime:
+        if self.repositorio_admin is None:
+            return agora
+
+        valor = self.repositorio_admin.obter_estado(
+            "proxima_publicacao_estimada_em",
+        )
+
+        if not valor:
+            return agora
+
+        try:
+            prevista = datetime.fromisoformat(valor)
+        except ValueError:
+            return agora
+
+        if prevista.tzinfo is None or prevista.utcoffset() is None:
+            return agora
+
+        prevista_local = prevista.astimezone()
+
+        return max(agora, prevista_local)
+
     def obter_operacao(self) -> dict[str, object]:
+        modo = self._modo_operacao()
+
+        publicador_pausado = bool(
+            getattr(
+                self.orquestrador,
+                "publicador_pausado",
+                False,
+            )
+        )
+        pipeline_ativo = self._estado_processo(self.orquestrador.processo_pipeline).ativo
+        publicador_ativo = self._estado_processo(self.orquestrador.processo_publicador).ativo
+        bot_ativo = self._estado_processo(self.orquestrador.processo_bot).ativo
+
+        proxima_publicacao_estimada_em = None
+
+        if publicador_ativo and not publicador_pausado:
+            fila = self.listar_fila(limite=100)
+
+            previsoes: list[datetime] = []
+
+            for item in fila["itens"]:
+                valor = item.get("previsao_publicacao")
+
+                if not valor:
+                    continue
+
+                try:
+                    previsao = datetime.fromisoformat(str(valor))
+                except ValueError:
+                    continue
+
+                if previsao.tzinfo is None or previsao.utcoffset() is None:
+                    continue
+
+                previsoes.append(previsao.astimezone())
+
+            if previsoes:
+                proxima_publicacao_estimada_em = min(previsoes).isoformat(timespec="seconds")
+
         return {
-            "publicador_pausado": bool(
-                getattr(
-                    self.orquestrador,
-                    "publicador_pausado",
-                    False,
-                )
-            ),
+            "publicador_pausado": publicador_pausado,
             "pipeline_imediato_pendente": bool(
                 getattr(
                     self.orquestrador,
@@ -101,11 +186,12 @@ class ControladorAdministrativo:
                     False,
                 )
             ),
-            "pipeline_ativo": (self._estado_processo(self.orquestrador.processo_pipeline).ativo),
-            "publicador_ativo": (
-                self._estado_processo(self.orquestrador.processo_publicador).ativo
-            ),
-            "bot_ativo": (self._estado_processo(self.orquestrador.processo_bot).ativo),
+            "pipeline_ativo": pipeline_ativo,
+            "publicador_ativo": publicador_ativo,
+            "bot_ativo": bot_ativo,
+            "modo_operacao": modo,
+            "pontuacao_minima_automatica_hibrido": (PONTUACAO_MINIMA_AUTOMATICA_HIBRIDO),
+            "proxima_publicacao_estimada_em": (proxima_publicacao_estimada_em),
             "coletado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
         }
 
@@ -222,14 +308,67 @@ class ControladorAdministrativo:
         limite = max(1, min(limite, 100))
         itens = self.fila.listar_pendentes(limite=limite)
 
+        agora = datetime.now().astimezone()
+        modo = self._modo_operacao()
+        intervalo_previsao = self._intervalo_previsao_publicacao()
+        proxima_base = self._proxima_previsao_base(agora)
+        indice_automatico = 0
+
         resultado: list[dict[str, object]] = []
 
-        for item in itens:
+        for ordem, item in enumerate(itens, start=1):
             oferta = item.oferta
+            requer_aprovacao = requer_aprovacao_hibrida(
+                item=item,
+                modo=modo,
+            )
+
+            segurado_futuro = item.segurado_ate is not None and item.segurado_ate > agora
+
+            previsao: datetime | None
+            tipo_previsao: str
+            estado_agenda: str
+
+            if item.agendado_para is not None:
+                candidatos = [
+                    agora,
+                    item.agendado_para,
+                ]
+
+                if segurado_futuro and item.segurado_ate is not None:
+                    candidatos.append(item.segurado_ate)
+
+                previsao = max(candidatos)
+                tipo_previsao = "agendado"
+                estado_agenda = "agendado"
+            elif segurado_futuro:
+                previsao = item.segurado_ate
+                tipo_previsao = "liberacao_estimada"
+                estado_agenda = "segurado"
+            elif modo == "manual":
+                previsao = None
+                tipo_previsao = "manual"
+                estado_agenda = "aguardando_manual"
+            elif requer_aprovacao:
+                previsao = None
+                tipo_previsao = "aprovacao"
+                estado_agenda = "aguardando_aprovacao"
+            else:
+                previsao = proxima_base + timedelta(
+                    seconds=intervalo_previsao * indice_automatico,
+                )
+                indice_automatico += 1
+                tipo_previsao = "estimado"
+                estado_agenda = "liberado"
+
+            segundos_para_previsao = (
+                max(0, int((previsao - agora).total_seconds())) if previsao is not None else None
+            )
 
             resultado.append(
                 {
                     "id": item.id,
+                    "ordem": ordem,
                     "nome": oferta.nome,
                     "loja": oferta.loja,
                     "preco": float(oferta.preco),
@@ -256,6 +395,20 @@ class ControladorAdministrativo:
                     "pontuacao": float(item.pontuacao),
                     "prioridade": float(item.prioridade),
                     "deve_republicar_por_queda": (item.deve_republicar_por_queda),
+                    "segurado_ate": (
+                        item.segurado_ate.isoformat() if item.segurado_ate is not None else None
+                    ),
+                    "agendado_para": (
+                        item.agendado_para.isoformat() if item.agendado_para is not None else None
+                    ),
+                    "aprovado_manualmente": item.aprovado_manualmente,
+                    "requer_aprovacao_hibrida": requer_aprovacao,
+                    "estado_agenda": estado_agenda,
+                    "previsao_publicacao": (
+                        previsao.isoformat(timespec="seconds") if previsao is not None else None
+                    ),
+                    "tipo_previsao": tipo_previsao,
+                    "segundos_para_previsao": segundos_para_previsao,
                     "criado_em": item.criado_em.isoformat(),
                     "atualizado_em": item.atualizado_em.isoformat(),
                     "status": item.status,
@@ -264,6 +417,8 @@ class ControladorAdministrativo:
 
         return {
             "quantidade": len(resultado),
+            "modo_operacao": modo,
+            "intervalo_previsao_segundos": intervalo_previsao,
             "itens": resultado,
         }
 
@@ -272,36 +427,91 @@ class ControladorAdministrativo:
         item_id: int,
         acao: str,
         dispositivo: str | None = None,
+        agendar_para: str | None = None,
     ) -> dict[str, object]:
         if item_id <= 0:
             raise ValueError("ID do item precisa ser maior que zero.")
 
-        acoes = {
+        detalhes: dict[str, object] | None = None
+
+        acoes_simples = {
             "adiantar": self.fila.adiantar_item,
             "adiar": self.fila.adiar_item,
-            "descartar": (self.fila.descartar_administrativamente),
-            "publicar-agora": (self.fila.solicitar_publicacao_imediata),
+            "descartar": self.fila.descartar_administrativamente,
+            "publicar-agora": self.fila.solicitar_publicacao_imediata,
+            "liberar": self.fila.liberar_item,
+            "aprovar": self.fila.aprovar_item,
+            "revisar": self.fila.revisar_item,
         }
 
-        funcao = acoes.get(acao)
+        retencoes = {
+            "segurar-5": 5,
+            "segurar-15": 15,
+            "segurar-30": 30,
+            "segurar-60": 60,
+        }
 
-        if funcao is None:
+        try:
+            if acao in acoes_simples:
+                executado = acoes_simples[acao](item_id)
+            elif acao in retencoes:
+                minutos = retencoes[acao]
+                executado = self.fila.segurar_item(
+                    item_id,
+                    minutos,
+                )
+                detalhes = {
+                    "minutos": minutos,
+                }
+            elif acao == "agendar":
+                if not agendar_para:
+                    raise ValueError("Parametro 'para' e obrigatorio para agendar.")
+
+                try:
+                    horario = datetime.fromisoformat(
+                        agendar_para.strip(),
+                    )
+                except ValueError as erro:
+                    raise ValueError(
+                        "Parametro 'para' precisa ser um horario ISO 8601 valido."
+                    ) from erro
+
+                executado = self.fila.agendar_item(
+                    item_id,
+                    horario,
+                )
+                detalhes = {
+                    "agendado_para": horario.astimezone().isoformat(timespec="seconds"),
+                }
+            else:
+                self._auditar(
+                    acao=f"fila.{acao}",
+                    alvo=str(item_id),
+                    detalhes=None,
+                    dispositivo=dispositivo,
+                    resultado="acao_invalida",
+                )
+                raise ValueError(f"Acao administrativa desconhecida: {acao}.")
+        except ValueError:
+            if acao != "agendar":
+                raise
+
             self._auditar(
                 acao=f"fila.{acao}",
                 alvo=str(item_id),
-                detalhes=None,
+                detalhes={
+                    "agendado_para": agendar_para,
+                },
                 dispositivo=dispositivo,
-                resultado="acao_invalida",
+                resultado="dados_invalidos",
             )
-            raise ValueError(f"Acao administrativa desconhecida: {acao}.")
-
-        executado = funcao(item_id)
+            raise
 
         if not executado:
             self._auditar(
                 acao=f"fila.{acao}",
                 alvo=str(item_id),
-                detalhes=None,
+                detalhes=detalhes,
                 dispositivo=dispositivo,
                 resultado="item_indisponivel",
             )
@@ -310,7 +520,7 @@ class ControladorAdministrativo:
         self._auditar(
             acao=f"fila.{acao}",
             alvo=str(item_id),
-            detalhes=None,
+            detalhes=detalhes,
             dispositivo=dispositivo,
             resultado="sucesso",
         )
@@ -319,6 +529,7 @@ class ControladorAdministrativo:
             "sucesso": True,
             "item_id": item_id,
             "acao": acao,
+            "detalhes": detalhes,
             "fila": self.listar_fila(limite=100),
             "executado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
         }
@@ -329,6 +540,48 @@ class ControladorAdministrativo:
         acao: str,
         dispositivo: str | None = None,
     ) -> dict[str, object]:
+        nome_acao = f"operacao.{componente}.{acao}"
+
+        if componente == "modo":
+            if acao not in MODOS_OPERACAO_PUBLICACAO:
+                self._auditar(
+                    acao=nome_acao,
+                    alvo="modo",
+                    detalhes=None,
+                    dispositivo=dispositivo,
+                    resultado="acao_invalida",
+                )
+                raise ValueError("Modo de operacao desconhecido.")
+
+            if self.repositorio_admin is None:
+                raise ValueError("Repositorio administrativo indisponivel.")
+
+            anterior = self.repositorio_admin.obter_modo_operacao()
+            self.repositorio_admin.definir_modo_operacao(acao)
+
+            resultado_operacao = "mantido" if anterior == acao else f"alterado_para_{acao}"
+
+            self._auditar(
+                acao=nome_acao,
+                alvo="modo",
+                detalhes={
+                    "anterior": anterior,
+                    "novo": acao,
+                    "resultado_operacao": resultado_operacao,
+                },
+                dispositivo=dispositivo,
+                resultado="sucesso",
+            )
+
+            return {
+                "sucesso": True,
+                "componente": componente,
+                "acao": acao,
+                "resultado": resultado_operacao,
+                "operacao": self.obter_operacao(),
+                "executado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
+            }
+
         acoes = {
             ("publicador", "pausar"): (self.orquestrador.pausar_publicador),
             ("publicador", "retomar"): (self.orquestrador.retomar_publicador),
@@ -338,7 +591,6 @@ class ControladorAdministrativo:
         }
 
         funcao = acoes.get((componente, acao))
-        nome_acao = f"operacao.{componente}.{acao}"
 
         if funcao is None:
             self._auditar(
@@ -381,6 +633,44 @@ class ControladorAdministrativo:
             "resultado": resultado_operacao,
             "operacao": self.obter_operacao(),
             "executado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
+        }
+
+    def obter_agenda(
+        self,
+        limite: int = 100,
+    ) -> dict[str, object]:
+        fila = self.listar_fila(
+            limite=limite,
+        )
+        operacao = self.obter_operacao()
+
+        itens = [
+            {
+                "id": item["id"],
+                "ordem": item["ordem"],
+                "nome": item["nome"],
+                "pontuacao": item["pontuacao"],
+                "prioridade": item["prioridade"],
+                "estado_agenda": item["estado_agenda"],
+                "segurado_ate": item["segurado_ate"],
+                "agendado_para": item["agendado_para"],
+                "previsao_publicacao": item["previsao_publicacao"],
+                "tipo_previsao": item["tipo_previsao"],
+                "segundos_para_previsao": item["segundos_para_previsao"],
+                "aprovado_manualmente": item["aprovado_manualmente"],
+                "requer_aprovacao_hibrida": (item["requer_aprovacao_hibrida"]),
+            }
+            for item in fila["itens"]
+        ]
+
+        return {
+            "modo_operacao": fila["modo_operacao"],
+            "pontuacao_minima_automatica_hibrido": (PONTUACAO_MINIMA_AUTOMATICA_HIBRIDO),
+            "intervalo_previsao_segundos": (fila["intervalo_previsao_segundos"]),
+            "proxima_publicacao_estimada_em": (operacao["proxima_publicacao_estimada_em"]),
+            "quantidade": len(itens),
+            "itens": itens,
+            "coletado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
         }
 
     def listar_publicacoes(

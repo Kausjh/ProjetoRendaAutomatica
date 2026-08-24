@@ -28,6 +28,9 @@ class ItemFilaPublicacao:
     criado_em: datetime
     atualizado_em: datetime
     status: str
+    segurado_ate: datetime | None = None
+    agendado_para: datetime | None = None
+    aprovado_manualmente: bool = False
 
 
 class FilaPublicacaoRepository:
@@ -74,6 +77,9 @@ class FilaPublicacaoRepository:
                     pontuacao REAL NOT NULL,
                     prioridade REAL NOT NULL,
                     deve_republicar_por_queda INTEGER NOT NULL DEFAULT 0,
+                    segurado_ate TEXT,
+                    agendado_para TEXT,
+                    aprovado_manualmente INTEGER NOT NULL DEFAULT 0,
                     status TEXT NOT NULL DEFAULT 'pendente',
                     criado_em TEXT NOT NULL,
                     atualizado_em TEXT NOT NULL,
@@ -103,15 +109,23 @@ class FilaPublicacaoRepository:
                 "chave_familia": "TEXT",
                 "familia": "TEXT",
                 "confianca_familia": "REAL NOT NULL DEFAULT 0",
+                "segurado_ate": "TEXT",
+                "agendado_para": "TEXT",
+                "aprovado_manualmente": "INTEGER NOT NULL DEFAULT 0",
             }
 
             for coluna, tipo in migracoes.items():
                 if coluna not in colunas:
-                    conexao.execute(f"ALTER TABLE fila_publicacao " f"ADD COLUMN {coluna} {tipo}")
+                    conexao.execute(f"ALTER TABLE fila_publicacao ADD COLUMN {coluna} {tipo}")
 
             conexao.execute("""
                 CREATE INDEX IF NOT EXISTS idx_fila_familia_status
                 ON fila_publicacao(chave_familia, status)
+                """)
+
+            conexao.execute("""
+                CREATE INDEX IF NOT EXISTS idx_fila_agenda
+                ON fila_publicacao(status, agendado_para, segurado_ate)
                 """)
 
             conexao.execute("""
@@ -180,6 +194,18 @@ class FilaPublicacaoRepository:
                         pontuacao = ?,
                         prioridade = ?,
                         deve_republicar_por_queda = ?,
+                        segurado_ate = CASE
+                            WHEN status = 'pendente' THEN segurado_ate
+                            ELSE NULL
+                        END,
+                        agendado_para = CASE
+                            WHEN status = 'pendente' THEN agendado_para
+                            ELSE NULL
+                        END,
+                        aprovado_manualmente = CASE
+                            WHEN status = 'pendente' THEN aprovado_manualmente
+                            ELSE 0
+                        END,
                         status = 'pendente',
                         atualizado_em = ?,
                         motivo_saida = NULL
@@ -523,6 +549,9 @@ class FilaPublicacaoRepository:
                     status = 'publicado',
                     publicado_em = ?,
                     atualizado_em = ?,
+                    segurado_ate = NULL,
+                    agendado_para = NULL,
+                    aprovado_manualmente = 0,
                     motivo_saida = NULL
                 WHERE id = ?
                 """,
@@ -539,6 +568,9 @@ class FilaPublicacaoRepository:
                 SET
                     status = 'descartado',
                     atualizado_em = ?,
+                    segurado_ate = NULL,
+                    agendado_para = NULL,
+                    aprovado_manualmente = 0,
                     motivo_saida = ?
                 WHERE id = ?
                 """,
@@ -546,9 +578,10 @@ class FilaPublicacaoRepository:
             )
 
     def expirar_antigos(self, idade_maxima_minutos: float) -> int:
-        limite = datetime.now().astimezone() - timedelta(minutes=idade_maxima_minutos)
+        agora = datetime.now().astimezone()
+        limite = agora - timedelta(minutes=idade_maxima_minutos)
         limite_iso = limite.isoformat(timespec="seconds")
-        agora_iso = datetime.now().astimezone().isoformat(timespec="seconds")
+        agora_iso = agora.isoformat(timespec="seconds")
 
         with self._conectar() as conexao:
             cursor = conexao.execute(
@@ -560,8 +593,13 @@ class FilaPublicacaoRepository:
                     motivo_saida = 'Oferta ficou antiga demais na fila.'
                 WHERE status = 'pendente'
                   AND criado_em < ?
+                  AND agendado_para IS NULL
+                  AND (
+                      segurado_ate IS NULL
+                      OR segurado_ate <= ?
+                  )
                 """,
-                (agora_iso, limite_iso),
+                (agora_iso, limite_iso, agora_iso),
             )
 
         return int(cursor.rowcount)
@@ -581,10 +619,15 @@ class FilaPublicacaoRepository:
                 SELECT id
                 FROM fila_publicacao
                 WHERE status = 'pendente'
+                  AND agendado_para IS NULL
+                  AND (
+                      segurado_ate IS NULL
+                      OR segurado_ate <= ?
+                  )
                 ORDER BY prioridade ASC, criado_em ASC
                 LIMIT ?
                 """,
-                (remover,),
+                (agora_iso, remover),
             ).fetchall()
 
             ids_numericos = [int(linha["id"]) for linha in ids]
@@ -624,6 +667,168 @@ class FilaPublicacaoRepository:
             return None
 
         return self._converter_linha(linha)
+
+    def segurar_item(
+        self,
+        item_id: int,
+        minutos: int,
+    ) -> bool:
+        if minutos <= 0 or minutos > 10080:
+            raise ValueError("Minutos de retencao precisam estar entre 1 e 10080.")
+
+        agora = datetime.now().astimezone()
+        segurado_ate = agora + timedelta(minutes=minutos)
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    segurado_ate = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (
+                    segurado_ate.isoformat(timespec="seconds"),
+                    agora.isoformat(timespec="seconds"),
+                    item_id,
+                ),
+            )
+
+        return cursor.rowcount > 0
+
+    def agendar_item(
+        self,
+        item_id: int,
+        para: datetime,
+    ) -> bool:
+        if para.tzinfo is None or para.utcoffset() is None:
+            raise ValueError("Horario de agendamento precisa incluir fuso horario.")
+
+        agora = datetime.now().astimezone()
+        para_local = para.astimezone()
+
+        if para_local <= agora:
+            raise ValueError("Horario de agendamento precisa estar no futuro.")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    agendado_para = ?,
+                    segurado_ate = NULL,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (
+                    para_local.isoformat(timespec="seconds"),
+                    agora.isoformat(timespec="seconds"),
+                    item_id,
+                ),
+            )
+
+        return cursor.rowcount > 0
+
+    def liberar_item(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    segurado_ate = NULL,
+                    agendado_para = NULL,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (agora, item_id),
+            )
+
+        return cursor.rowcount > 0
+
+    def aprovar_item(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    aprovado_manualmente = 1,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (agora, item_id),
+            )
+
+        return cursor.rowcount > 0
+
+    def revisar_item(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    aprovado_manualmente = 0,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (agora, item_id),
+            )
+
+        return cursor.rowcount > 0
+
+    def obter_agendado_liberado(
+        self,
+        agora: datetime | None = None,
+    ) -> ItemFilaPublicacao | None:
+        referencia = agora or datetime.now().astimezone()
+
+        if referencia.tzinfo is None or referencia.utcoffset() is None:
+            referencia = referencia.astimezone()
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute("""
+                SELECT *
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                  AND agendado_para IS NOT NULL
+                ORDER BY agendado_para ASC, prioridade DESC, criado_em ASC
+                """).fetchall()
+
+        for linha in linhas:
+            agendado_para = datetime.fromisoformat(linha["agendado_para"])
+            segurado_ate = (
+                datetime.fromisoformat(linha["segurado_ate"]) if linha["segurado_ate"] else None
+            )
+
+            if agendado_para > referencia:
+                continue
+
+            if segurado_ate is not None and segurado_ate > referencia:
+                continue
+
+            return self._converter_linha(linha)
+
+        return None
 
     def adiantar_item(
         self,
@@ -730,6 +935,9 @@ class FilaPublicacaoRepository:
                 SET
                     status = 'descartado',
                     atualizado_em = ?,
+                    segurado_ate = NULL,
+                    agendado_para = NULL,
+                    aprovado_manualmente = 0,
                     motivo_saida = ?
                 WHERE id = ?
                   AND status = 'pendente'
@@ -888,6 +1096,13 @@ class FilaPublicacaoRepository:
             ResultadoHistoricoPreco(**historico_dados) if historico_dados is not None else None
         )
 
+        segurado_ate = (
+            datetime.fromisoformat(linha["segurado_ate"]) if linha["segurado_ate"] else None
+        )
+        agendado_para = (
+            datetime.fromisoformat(linha["agendado_para"]) if linha["agendado_para"] else None
+        )
+
         return ItemFilaPublicacao(
             id=int(linha["id"]),
             oferta=oferta,
@@ -895,6 +1110,9 @@ class FilaPublicacaoRepository:
             pontuacao=float(linha["pontuacao"]),
             deve_republicar_por_queda=bool(linha["deve_republicar_por_queda"]),
             prioridade=float(linha["prioridade"]),
+            segurado_ate=segurado_ate,
+            agendado_para=agendado_para,
+            aprovado_manualmente=bool(linha["aprovado_manualmente"]),
             criado_em=datetime.fromisoformat(linha["criado_em"]),
             atualizado_em=datetime.fromisoformat(linha["atualizado_em"]),
             status=str(linha["status"]),

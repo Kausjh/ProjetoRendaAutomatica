@@ -99,6 +99,18 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/agenda":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            100,
+                        )
+                        dados = controlador.obter_agenda(
+                            limite=limite,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/auditoria":
                         limite = self._obter_inteiro(
                             parametros,
@@ -198,6 +210,7 @@ class ServidorStatusAdministrativo:
                         return
 
                 url = urlparse(self.path)
+                parametros = parse_qs(url.query)
                 partes = [parte for parte in url.path.split("/") if parte]
                 dispositivo = (
                     self.headers.get(
@@ -226,7 +239,7 @@ class ServidorStatusAdministrativo:
                         self._responder_json(
                             500,
                             {
-                                "erro": ("Falha interna ao executar " "acao operacional."),
+                                "erro": ("Falha interna ao executar acao operacional."),
                             },
                         )
                         return
@@ -258,12 +271,15 @@ class ServidorStatusAdministrativo:
                     return
 
                 acao = partes[2]
+                valores_para = parametros.get("para")
+                agendar_para = valores_para[0] if valores_para else None
 
                 try:
                     dados = controlador.executar_acao_fila(
                         item_id=item_id,
                         acao=acao,
                         dispositivo=dispositivo,
+                        agendar_para=agendar_para,
                     )
                 except ValueError as erro:
                     self._responder_json(
@@ -277,7 +293,7 @@ class ServidorStatusAdministrativo:
                     self._responder_json(
                         500,
                         {
-                            "erro": ("Falha interna ao executar " "acao da fila."),
+                            "erro": ("Falha interna ao executar acao da fila."),
                         },
                     )
                     return

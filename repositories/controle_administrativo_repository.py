@@ -8,6 +8,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+MODOS_OPERACAO_PUBLICACAO = frozenset(
+    {
+        "automatico",
+        "manual",
+        "hibrido",
+    }
+)
+MODO_OPERACAO_PADRAO = "automatico"
+PONTUACAO_MINIMA_AUTOMATICA_HIBRIDO = 80.0
+
 
 class ControleAdministrativoRepository:
     def __init__(
@@ -122,6 +132,44 @@ class ControleAdministrativoRepository:
             "on",
             "yes",
         }
+
+    def remover_estado(
+        self,
+        chave: str,
+    ) -> None:
+        with self._conectar() as conexao:
+            conexao.execute(
+                """
+                DELETE FROM estado_operacional
+                WHERE chave = ?
+                """,
+                (chave,),
+            )
+
+    def obter_modo_operacao(self) -> str:
+        modo = self.obter_estado(
+            "modo_operacao",
+            MODO_OPERACAO_PADRAO,
+        )
+
+        if modo not in MODOS_OPERACAO_PUBLICACAO:
+            return MODO_OPERACAO_PADRAO
+
+        return modo
+
+    def definir_modo_operacao(
+        self,
+        modo: str,
+    ) -> None:
+        modo_normalizado = modo.strip().casefold()
+
+        if modo_normalizado not in MODOS_OPERACAO_PUBLICACAO:
+            raise ValueError("Modo de operacao invalido.")
+
+        self.definir_estado(
+            "modo_operacao",
+            modo_normalizado,
+        )
 
     def registrar_auditoria(
         self,

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta
 
 from models.oferta import Oferta
 from repositories.controle_administrativo_repository import (
@@ -217,6 +219,201 @@ def test_post_operacao_sem_token_e_recusado(tmp_path):
             assert erro.code == 401
         else:
             raise AssertionError("API aceitou POST operacional sem token.")
+
+    finally:
+        servidor.encerrar()
+
+
+def test_post_modo_manual_persiste_e_audita(tmp_path):
+    _, admin, _, servidor = criar_servidor(tmp_path)
+
+    servidor.iniciar()
+
+    try:
+        porta = servidor._servidor.server_address[1]
+
+        status, dados = requisitar(
+            f"http://127.0.0.1:{porta}/operacao/modo/manual",
+            metodo="POST",
+        )
+
+        assert status == 200
+        assert dados["operacao"]["modo_operacao"] == "manual"
+        assert admin.obter_modo_operacao() == "manual"
+
+        auditoria = admin.listar_auditoria(limite=10)
+
+        assert auditoria[0]["acao"] == "operacao.modo.manual"
+        assert auditoria[0]["detalhes"]["novo"] == "manual"
+
+    finally:
+        servidor.encerrar()
+
+
+def test_post_fila_segurar_reflete_na_api(tmp_path):
+    fila, admin, _, servidor = criar_servidor(tmp_path)
+
+    fila.adicionar_ou_atualizar(
+        oferta=criar_oferta(),
+        resultado_historico=None,
+        pontuacao=90.0,
+        deve_republicar_por_queda=False,
+        prioridade=80.0,
+    )
+
+    item_id = fila.listar_pendentes(limite=1)[0].id
+
+    servidor.iniciar()
+
+    try:
+        porta = servidor._servidor.server_address[1]
+
+        status, _ = requisitar(
+            f"http://127.0.0.1:{porta}/fila/{item_id}/segurar-15",
+            metodo="POST",
+        )
+
+        assert status == 200
+
+        _, dados_fila = requisitar(f"http://127.0.0.1:{porta}/fila")
+
+        item = dados_fila["itens"][0]
+
+        assert item["estado_agenda"] == "segurado"
+        assert item["segurado_ate"] is not None
+        assert item["previsao_publicacao"] is not None
+
+        auditoria = admin.listar_auditoria(limite=10)
+
+        assert auditoria[0]["acao"] == "fila.segurar-15"
+        assert auditoria[0]["detalhes"]["minutos"] == 15
+
+    finally:
+        servidor.encerrar()
+
+
+def test_post_fila_agendar_e_liberar(tmp_path):
+    fila, _, _, servidor = criar_servidor(tmp_path)
+
+    fila.adicionar_ou_atualizar(
+        oferta=criar_oferta(),
+        resultado_historico=None,
+        pontuacao=90.0,
+        deve_republicar_por_queda=False,
+        prioridade=80.0,
+    )
+
+    item_id = fila.listar_pendentes(limite=1)[0].id
+    para = (datetime.now().astimezone() + timedelta(minutes=20)).replace(microsecond=0)
+    para_url = urllib.parse.quote(
+        para.isoformat(),
+        safe="",
+    )
+
+    servidor.iniciar()
+
+    try:
+        porta = servidor._servidor.server_address[1]
+
+        status, _ = requisitar(
+            (f"http://127.0.0.1:{porta}" f"/fila/{item_id}/agendar?para={para_url}"),
+            metodo="POST",
+        )
+
+        assert status == 200
+
+        _, agenda = requisitar(f"http://127.0.0.1:{porta}/agenda")
+
+        assert agenda["quantidade"] == 1
+        assert agenda["itens"][0]["estado_agenda"] == "agendado"
+        assert agenda["itens"][0]["agendado_para"] == para.isoformat()
+
+        status_liberar, _ = requisitar(
+            f"http://127.0.0.1:{porta}/fila/{item_id}/liberar",
+            metodo="POST",
+        )
+
+        assert status_liberar == 200
+
+        _, fila_liberada = requisitar(f"http://127.0.0.1:{porta}/fila")
+
+        assert fila_liberada["itens"][0]["agendado_para"] is None
+        assert fila_liberada["itens"][0]["segurado_ate"] is None
+
+    finally:
+        servidor.encerrar()
+
+
+def test_modo_hibrido_exige_aprovacao_para_score_baixo(tmp_path):
+    fila, _, _, servidor = criar_servidor(tmp_path)
+
+    fila.adicionar_ou_atualizar(
+        oferta=criar_oferta(),
+        resultado_historico=None,
+        pontuacao=75.0,
+        deve_republicar_por_queda=False,
+        prioridade=80.0,
+    )
+
+    item_id = fila.listar_pendentes(limite=1)[0].id
+
+    servidor.iniciar()
+
+    try:
+        porta = servidor._servidor.server_address[1]
+
+        requisitar(
+            f"http://127.0.0.1:{porta}/operacao/modo/hibrido",
+            metodo="POST",
+        )
+
+        _, dados_fila = requisitar(f"http://127.0.0.1:{porta}/fila")
+
+        item = dados_fila["itens"][0]
+
+        assert item["requer_aprovacao_hibrida"] is True
+        assert item["estado_agenda"] == "aguardando_aprovacao"
+        assert item["previsao_publicacao"] is None
+
+        status_aprovar, _ = requisitar(
+            f"http://127.0.0.1:{porta}/fila/{item_id}/aprovar",
+            metodo="POST",
+        )
+
+        assert status_aprovar == 200
+
+        _, dados_aprovados = requisitar(f"http://127.0.0.1:{porta}/fila")
+
+        item_aprovado = dados_aprovados["itens"][0]
+
+        assert item_aprovado["aprovado_manualmente"] is True
+        assert item_aprovado["requer_aprovacao_hibrida"] is False
+        assert item_aprovado["estado_agenda"] == "liberado"
+        assert item_aprovado["previsao_publicacao"] is not None
+
+    finally:
+        servidor.encerrar()
+
+
+def test_operacao_nao_expoe_previsao_vencida_sem_fila(tmp_path):
+    _, admin, _, servidor = criar_servidor(tmp_path)
+
+    previsao_vencida = (datetime.now().astimezone() - timedelta(minutes=10)).replace(microsecond=0)
+
+    admin.definir_estado(
+        "proxima_publicacao_estimada_em",
+        previsao_vencida.isoformat(),
+    )
+
+    servidor.iniciar()
+
+    try:
+        porta = servidor._servidor.server_address[1]
+
+        status, operacao = requisitar(f"http://127.0.0.1:{porta}/operacao")
+
+        assert status == 200
+        assert operacao["proxima_publicacao_estimada_em"] is None
 
     finally:
         servidor.encerrar()

@@ -5,16 +5,22 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 from affiliates.registro_afiliadores import criar_gerador_link_afiliado
 from bots.telegram_bot import TelegramBot
 from config.configuracoes import Configuracoes
 from config.logging_config import configurar_logging
+from repositories.controle_administrativo_repository import (
+    ControleAdministrativoRepository,
+)
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.publicados_repository import PublicadosRepository
 from services.cadencia_publicacao import CadenciaPublicacao
+from services.controle.politica_publicacao_administrativa import (
+    item_liberado_para_fluxo_automatico,
+)
 from services.janela_publicacao import JanelaPublicacao
 from services.launcher.chrome_launcher import preparar_chrome
 from services.seletor_editorial import SeletorEditorial
@@ -38,6 +44,12 @@ class PublicadorFila:
 
         self.fila = FilaPublicacaoRepository()
         self.publicados = PublicadosRepository()
+        self.controle_admin = ControleAdministrativoRepository()
+        self.controle_admin.definir_estado(
+            "intervalo_previsao_publicacao_segundos",
+            str(configuracoes.publicacao_intervalo_modo_segundos),
+        )
+        self._ultimo_modo_operacao: str | None = None
 
         self.janela_publicacao = JanelaPublicacao(
             hora_inicio_madrugada=configuracoes.hora_inicio_madrugada,
@@ -77,6 +89,33 @@ class PublicadorFila:
             ),
             urgente_minimo_segundos=(configuracoes.publicacao_urgente_minimo_segundos),
             urgente_maximo_segundos=(configuracoes.publicacao_urgente_maximo_segundos),
+        )
+
+    def _registrar_previsao_publicacao(
+        self,
+        segundos: float,
+    ) -> None:
+        segundos_validos = max(0.0, float(segundos))
+        prevista = datetime.now().astimezone() + timedelta(
+            seconds=segundos_validos,
+        )
+
+        self.controle_admin.definir_estado(
+            "proxima_publicacao_estimada_em",
+            prevista.isoformat(timespec="seconds"),
+        )
+
+    def _registrar_modo_se_mudou(
+        self,
+        modo: str,
+    ) -> None:
+        if modo == self._ultimo_modo_operacao:
+            return
+
+        self._ultimo_modo_operacao = modo
+        logger.info(
+            "Modo administrativo de publicacao ativo: %s.",
+            modo,
         )
 
     @staticmethod
@@ -170,17 +209,17 @@ class PublicadorFila:
 
     async def executar(self) -> None:
         logger.info("=" * 60)
-        logger.info("Publicador contínuo da fila iniciado.")
+        logger.info("Publicador continuo da fila iniciado.")
         logger.info(
             (
                 "Anti-repost por família ativo: cooldown %.0f min | "
-                "queda mínima para republicação antecipada %.1f%%."
+                "queda minima para republicacao antecipada %.1f%%."
             ),
             self.configuracoes.cooldown_familia_minutos,
             self.configuracoes.queda_minima_repost_familia_percentual,
         )
         logger.info(
-            "Cadência normal: %.0f-%.0fs, modo %.0fs | curto %.0f-%.0fs (%.0f%%).",
+            "Cadencia normal: %.0f-%.0fs, modo %.0fs | curto %.0f-%.0fs (%.0f%%).",
             self.configuracoes.publicacao_intervalo_minimo_segundos,
             self.configuracoes.publicacao_intervalo_maximo_segundos,
             self.configuracoes.publicacao_intervalo_modo_segundos,
@@ -190,9 +229,9 @@ class PublicadorFila:
         )
         logger.info("=" * 60)
 
-        proxima_publicacao = time.monotonic() + (
-            self.configuracoes.publicacao_atraso_inicial_segundos
-        )
+        atraso_inicial = self.configuracoes.publicacao_atraso_inicial_segundos
+        proxima_publicacao = time.monotonic() + atraso_inicial
+        self._registrar_previsao_publicacao(atraso_inicial)
 
         while True:
             expiradas = self.fila.expirar_antigos(self.configuracoes.fila_idade_maxima_minutos)
@@ -203,13 +242,16 @@ class PublicadorFila:
                     expiradas,
                 )
 
+            modo = self.controle_admin.obter_modo_operacao()
+            self._registrar_modo_se_mudou(modo)
+
             item_forcado = self.fila.consumir_publicacao_imediata()
 
             if item_forcado is not None:
                 resultado_forcado = await self._publicar_item(
                     item=item_forcado,
-                    prioridade_editorial=(item_forcado.prioridade),
-                    motivos=["Acao administrativa: " "publicar agora"],
+                    prioridade_editorial=item_forcado.prioridade,
+                    motivos=["Acao administrativa: publicar agora"],
                     forcar=True,
                 )
 
@@ -217,19 +259,39 @@ class PublicadorFila:
                     intervalo = self.cadencia.proximo_intervalo(
                         item_forcado.oferta.tipo_oportunidade
                     )
+                else:
+                    intervalo = 60.0
 
-                    proxima_publicacao = time.monotonic() + intervalo
+                proxima_publicacao = time.monotonic() + intervalo
+                self._registrar_previsao_publicacao(intervalo)
+                continue
 
-                    logger.info(
-                        (
-                            "Proxima publicacao podera ocorrer "
-                            "em aproximadamente %.1f segundo(s)."
-                        ),
-                        intervalo,
+            item_agendado = self.fila.obter_agendado_liberado()
+
+            if item_agendado is not None:
+                resultado_agendado = await self._publicar_item(
+                    item=item_agendado,
+                    prioridade_editorial=item_agendado.prioridade,
+                    motivos=["Agendamento administrativo"],
+                    forcar=True,
+                )
+
+                if resultado_agendado == "publicado":
+                    intervalo = self.cadencia.proximo_intervalo(
+                        item_agendado.oferta.tipo_oportunidade
                     )
                 else:
-                    proxima_publicacao = time.monotonic() + 60.0
+                    self.fila.segurar_item(
+                        item_agendado.id,
+                        1,
+                    )
+                    intervalo = 60.0
+                    logger.warning(
+                        "Publicacao agendada falhou; nova tentativa em cerca de 60 segundos."
+                    )
 
+                proxima_publicacao = time.monotonic() + intervalo
+                self._registrar_previsao_publicacao(intervalo)
                 continue
 
             agora_monotonic = time.monotonic()
@@ -244,6 +306,17 @@ class PublicadorFila:
                 continue
 
             pendentes = self.fila.listar_pendentes(limite=self.configuracoes.tamanho_maximo_fila)
+
+            agora = datetime.now().astimezone()
+            pendentes = [
+                item
+                for item in pendentes
+                if item_liberado_para_fluxo_automatico(
+                    item=item,
+                    modo=modo,
+                    agora=agora,
+                )
+            ]
 
             if not pendentes:
                 await asyncio.sleep(self.configuracoes.publicador_intervalo_verificacao_segundos)
@@ -263,7 +336,7 @@ class PublicadorFila:
             logger.info(
                 (
                     "Snapshot editorial da fila: %s item(ns) pendente(s), "
-                    "%s família(s) semântica(s), %s item(ns) com família."
+                    "%s familia(s) semantica(s), %s item(ns) com familia."
                 ),
                 resumo_familias["itens"],
                 resumo_familias["familias"],
@@ -273,12 +346,12 @@ class PublicadorFila:
             escolha = self.seletor.escolher(
                 pendentes=pendentes,
                 historico_publicacoes=historico,
-                agora=datetime.now().astimezone(),
+                agora=agora,
             )
 
             if escolha is None:
                 logger.info(
-                    "Nenhum item liberado para publicação agora. "
+                    "Nenhum item liberado para publicacao agora. "
                     "Cooldowns editoriais/anti-repost podem estar segurando a fila."
                 )
                 await asyncio.sleep(self.configuracoes.publicador_intervalo_verificacao_segundos)
@@ -288,20 +361,23 @@ class PublicadorFila:
 
             resultado_publicacao = await self._publicar_item(
                 item=item,
-                prioridade_editorial=(escolha.prioridade_editorial),
+                prioridade_editorial=escolha.prioridade_editorial,
                 motivos=escolha.motivos,
             )
 
             if resultado_publicacao != "publicado":
-                proxima_publicacao = time.monotonic() + 60.0
+                intervalo = 60.0
+                proxima_publicacao = time.monotonic() + intervalo
+                self._registrar_previsao_publicacao(intervalo)
                 continue
 
             intervalo = self.cadencia.proximo_intervalo(item.oferta.tipo_oportunidade)
 
             proxima_publicacao = time.monotonic() + intervalo
+            self._registrar_previsao_publicacao(intervalo)
 
             logger.info(
-                "Próxima publicação poderá ocorrer em aproximadamente %.1f segundo(s).",
+                "Proxima publicacao podera ocorrer em aproximadamente %.1f segundo(s).",
                 intervalo,
             )
 
