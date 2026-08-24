@@ -4,13 +4,19 @@ import hmac
 import json
 import os
 import threading
+from collections import deque
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 
 from services.controle.controlador import ControladorAdministrativo
+
+DIRETORIO_PROJETO = Path(__file__).resolve().parents[2]
+DIRETORIO_LOGS = DIRETORIO_PROJETO / "logs"
 
 
 class ServidorStatusAdministrativo:
@@ -88,6 +94,36 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/operacao":
+                        dados = controlador.obter_operacao()
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/auditoria":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            50,
+                        )
+                        dados = controlador.listar_auditoria(
+                            limite=limite,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/logs":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            150,
+                        )
+
+                        dados = self._obter_logs(
+                            limite=limite,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/fila":
                         limite = self._obter_inteiro(
                             parametros,
@@ -131,6 +167,190 @@ class ServidorStatusAdministrativo:
                     404,
                     {"erro": "Rota nao encontrada."},
                 )
+
+            def do_POST(self) -> None:
+                if token_administrativo:
+                    autorizacao = self.headers.get(
+                        "Authorization",
+                        "",
+                    )
+
+                    prefixo = "Bearer "
+
+                    token_recebido = (
+                        autorizacao[len(prefixo) :].strip()
+                        if autorizacao.startswith(prefixo)
+                        else ""
+                    )
+
+                    autorizado = bool(token_recebido) and hmac.compare_digest(
+                        token_recebido,
+                        token_administrativo,
+                    )
+
+                    if not autorizado:
+                        self._responder_json(
+                            401,
+                            {
+                                "erro": "Nao autorizado.",
+                            },
+                        )
+                        return
+
+                url = urlparse(self.path)
+                partes = [parte for parte in url.path.split("/") if parte]
+                dispositivo = (
+                    self.headers.get(
+                        "X-Radar-Device",
+                        "",
+                    ).strip()[:120]
+                    or None
+                )
+
+                if len(partes) == 3 and partes[0] == "operacao":
+                    try:
+                        dados = controlador.executar_acao_operacional(
+                            componente=partes[1],
+                            acao=partes[2],
+                            dispositivo=dispositivo,
+                        )
+                    except ValueError as erro:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+                    except Exception:
+                        self._responder_json(
+                            500,
+                            {
+                                "erro": ("Falha interna ao executar " "acao operacional."),
+                            },
+                        )
+                        return
+
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                if len(partes) != 3 or partes[0] != "fila":
+                    self._responder_json(
+                        404,
+                        {
+                            "erro": "Rota nao encontrada.",
+                        },
+                    )
+                    return
+
+                try:
+                    item_id = int(partes[1])
+                except ValueError:
+                    self._responder_json(
+                        400,
+                        {
+                            "erro": "ID da fila invalido.",
+                        },
+                    )
+                    return
+
+                acao = partes[2]
+
+                try:
+                    dados = controlador.executar_acao_fila(
+                        item_id=item_id,
+                        acao=acao,
+                        dispositivo=dispositivo,
+                    )
+                except ValueError as erro:
+                    self._responder_json(
+                        400,
+                        {
+                            "erro": str(erro),
+                        },
+                    )
+                    return
+                except Exception:
+                    self._responder_json(
+                        500,
+                        {
+                            "erro": ("Falha interna ao executar " "acao da fila."),
+                        },
+                    )
+                    return
+
+                self._responder_json(
+                    200,
+                    dados,
+                )
+
+            @staticmethod
+            def _obter_logs(
+                limite: int,
+            ) -> dict[str, Any]:
+                limite = max(1, min(limite, 500))
+
+                data_atual = datetime.now().strftime("%Y-%m-%d")
+                caminho = DIRETORIO_LOGS / f"{data_atual}.log"
+
+                if not caminho.is_file():
+                    return {
+                        "quantidade": 0,
+                        "arquivo": caminho.name,
+                        "itens": [],
+                    }
+
+                ultimas_linhas = deque(maxlen=limite)
+
+                with caminho.open(
+                    "r",
+                    encoding="utf-8",
+                    errors="replace",
+                ) as arquivo:
+                    for linha in arquivo:
+                        linha = linha.rstrip()
+
+                        if linha:
+                            ultimas_linhas.append(linha)
+
+                itens: list[dict[str, str]] = []
+
+                for linha in ultimas_linhas:
+                    partes = linha.split(" | ", 2)
+
+                    if len(partes) == 3:
+                        horario_completo, nivel, mensagem = partes
+
+                        horario = (
+                            horario_completo.split(" ", 1)[1]
+                            if " " in horario_completo
+                            else horario_completo
+                        )
+
+                        itens.append(
+                            {
+                                "horario": horario,
+                                "nivel": nivel,
+                                "mensagem": mensagem,
+                            }
+                        )
+                    else:
+                        itens.append(
+                            {
+                                "horario": "",
+                                "nivel": "RAW",
+                                "mensagem": linha,
+                            }
+                        )
+
+                return {
+                    "quantidade": len(itens),
+                    "arquivo": caminho.name,
+                    "itens": itens,
+                }
 
             @staticmethod
             def _obter_inteiro(

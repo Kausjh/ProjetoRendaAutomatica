@@ -97,6 +97,77 @@ class PublicadorFila:
         )
         await asyncio.to_thread(preparar_chrome)
 
+    async def _publicar_item(
+        self,
+        item,
+        prioridade_editorial: float,
+        motivos: list[str] | None = None,
+        forcar: bool = False,
+    ) -> str:
+        if not forcar:
+            resultado_janela = self.janela_publicacao.avaliar(
+                oferta=item.oferta,
+                pontuacao=item.pontuacao,
+                resultado_historico=(item.resultado_historico),
+            )
+
+            if not resultado_janela.pode_publicar:
+                logger.info(
+                    ("Fila aguardando horario " "apropriado para '%s': %s"),
+                    item.oferta.nome,
+                    resultado_janela.motivo,
+                )
+                return "adiado"
+
+        logger.info(
+            (
+                "Publicando da fila: %s | score=%.2f | "
+                "prioridade editorial=%.2f | familia=%s | "
+                "confiança família=%.1f"
+            ),
+            item.oferta.nome,
+            item.pontuacao,
+            prioridade_editorial,
+            (item.oferta.familia_produto or "nao identificada"),
+            item.oferta.confianca_familia,
+        )
+
+        if motivos:
+            logger.info(
+                "Ajustes editoriais: %s",
+                " | ".join(motivos),
+            )
+
+        if forcar:
+            logger.warning(
+                ("Publicacao imediata solicitada " "administrativamente para: %s"),
+                item.oferta.nome,
+            )
+
+        try:
+            await self._garantir_chrome_para_afiliacao(item.oferta.link)
+
+            await self.bot.enviar_oferta(
+                oferta=item.oferta,
+                resultado_historico=(item.resultado_historico),
+            )
+
+            self.publicados.marcar_como_publicada(item.oferta.link)
+
+            self.fila.marcar_publicado(item.id)
+
+            logger.info("Oferta publicada com sucesso a partir da fila.")
+
+            return "publicado"
+
+        except Exception:
+            logger.exception(
+                "Erro ao publicar item da fila: %s",
+                item.oferta.nome,
+            )
+
+            return "erro"
+
     async def executar(self) -> None:
         logger.info("=" * 60)
         logger.info("Publicador contínuo da fila iniciado.")
@@ -127,7 +198,39 @@ class PublicadorFila:
             expiradas = self.fila.expirar_antigos(self.configuracoes.fila_idade_maxima_minutos)
 
             if expiradas:
-                logger.info("Ofertas expiradas removidas da fila: %s", expiradas)
+                logger.info(
+                    "Ofertas expiradas removidas da fila: %s",
+                    expiradas,
+                )
+
+            item_forcado = self.fila.consumir_publicacao_imediata()
+
+            if item_forcado is not None:
+                resultado_forcado = await self._publicar_item(
+                    item=item_forcado,
+                    prioridade_editorial=(item_forcado.prioridade),
+                    motivos=["Acao administrativa: " "publicar agora"],
+                    forcar=True,
+                )
+
+                if resultado_forcado == "publicado":
+                    intervalo = self.cadencia.proximo_intervalo(
+                        item_forcado.oferta.tipo_oportunidade
+                    )
+
+                    proxima_publicacao = time.monotonic() + intervalo
+
+                    logger.info(
+                        (
+                            "Proxima publicacao podera ocorrer "
+                            "em aproximadamente %.1f segundo(s)."
+                        ),
+                        intervalo,
+                    )
+                else:
+                    proxima_publicacao = time.monotonic() + 60.0
+
+                continue
 
             agora_monotonic = time.monotonic()
 
@@ -183,59 +286,13 @@ class PublicadorFila:
 
             item = escolha.item
 
-            resultado_janela = self.janela_publicacao.avaliar(
-                oferta=item.oferta,
-                pontuacao=item.pontuacao,
-                resultado_historico=item.resultado_historico,
+            resultado_publicacao = await self._publicar_item(
+                item=item,
+                prioridade_editorial=(escolha.prioridade_editorial),
+                motivos=escolha.motivos,
             )
 
-            if not resultado_janela.pode_publicar:
-                logger.info(
-                    "Fila aguardando horário apropriado para '%s': %s",
-                    item.oferta.nome,
-                    resultado_janela.motivo,
-                )
-                proxima_publicacao = time.monotonic() + 60.0
-                continue
-
-            logger.info(
-                (
-                    "Publicando da fila: %s | score=%.2f | "
-                    "prioridade editorial=%.2f | família=%s | "
-                    "confiança família=%.1f"
-                ),
-                item.oferta.nome,
-                item.pontuacao,
-                escolha.prioridade_editorial,
-                item.oferta.familia_produto or "não identificada",
-                item.oferta.confianca_familia,
-            )
-
-            if escolha.motivos:
-                logger.info(
-                    "Ajustes editoriais: %s",
-                    " | ".join(escolha.motivos),
-                )
-
-            try:
-                await self._garantir_chrome_para_afiliacao(item.oferta.link)
-
-                await self.bot.enviar_oferta(
-                    oferta=item.oferta,
-                    resultado_historico=item.resultado_historico,
-                )
-
-                self.publicados.marcar_como_publicada(item.oferta.link)
-                self.fila.marcar_publicado(item.id)
-
-                logger.info("Oferta publicada com sucesso a partir da fila.")
-
-            except Exception:
-                logger.exception(
-                    "Erro ao publicar item da fila: %s",
-                    item.oferta.nome,
-                )
-
+            if resultado_publicacao != "publicado":
                 proxima_publicacao = time.monotonic() + 60.0
                 continue
 

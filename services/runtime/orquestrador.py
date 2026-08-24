@@ -7,13 +7,21 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
 from config.configuracoes import Configuracoes
+from repositories.controle_administrativo_repository import (
+    ControleAdministrativoRepository,
+)
 from services.controle.controlador import ControladorAdministrativo
+from services.launcher.chrome_launcher import (
+    encerrar_chrome_automacao,
+    preparar_chrome,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +167,15 @@ class OrquestradorRuntime:
         self.processo_pipeline: subprocess.Popen[bytes] | None = None
         self._encerrando = False
 
+        self.repositorio_admin = ControleAdministrativoRepository()
+        self._lock_administrativo = threading.RLock()
+        self._publicador_pausado = self.repositorio_admin.obter_booleano(
+            "publicador_pausado",
+            False,
+        )
+        self._pipeline_imediato_pendente = False
+        self._reinicio_chrome_em_andamento = False
+
         # Estado de conectividade usado para registrar apenas transiÃ§Ãµes,
         # evitando repetir o mesmo aviso a cada ciclo de monitoramento.
         self._estado_conectividade: dict[str, bool | None] = {
@@ -167,7 +184,10 @@ class OrquestradorRuntime:
             "mercado_livre": None,
         }
 
-        self.controle_administrativo = ControladorAdministrativo(self)
+        self.controle_administrativo = ControladorAdministrativo(
+            self,
+            repositorio_admin=self.repositorio_admin,
+        )
 
     def validar_ambiente(self) -> None:
         faltando = [
@@ -343,6 +363,9 @@ class OrquestradorRuntime:
         self.iniciar_bot()
 
     def iniciar_publicador(self) -> None:
+        if self._publicador_pausado:
+            return
+
         if self.processo_publicador is not None and self.processo_publicador.poll() is None:
             return
 
@@ -362,7 +385,7 @@ class OrquestradorRuntime:
         )
 
     def garantir_publicador_ativo(self) -> None:
-        if self._encerrando:
+        if self._encerrando or self._publicador_pausado:
             return
 
         processo = self.processo_publicador
@@ -387,6 +410,118 @@ class OrquestradorRuntime:
             time.sleep(self.configuracoes.atraso_reinicio_bot_segundos)
 
         self.iniciar_publicador()
+
+    @property
+    def publicador_pausado(self) -> bool:
+        return self._publicador_pausado
+
+    @property
+    def pipeline_imediato_pendente(self) -> bool:
+        return self._pipeline_imediato_pendente
+
+    @property
+    def reinicio_chrome_em_andamento(self) -> bool:
+        return self._reinicio_chrome_em_andamento
+
+    def pausar_publicador(self) -> str:
+        with self._lock_administrativo:
+            if self._publicador_pausado:
+                return "ja_pausado"
+
+            self._publicador_pausado = True
+            self.repositorio_admin.definir_booleano(
+                "publicador_pausado",
+                True,
+            )
+
+            processo = self.processo_publicador
+            self._encerrar_processo(
+                processo=processo,
+                nome="publicador da fila",
+            )
+            self.processo_publicador = None
+
+        logger.warning("Publicador pausado por acao administrativa.")
+        return "pausado"
+
+    def retomar_publicador(self) -> str:
+        with self._lock_administrativo:
+            if not self._publicador_pausado:
+                return "ja_liberado"
+
+            self._publicador_pausado = False
+            self.repositorio_admin.definir_booleano(
+                "publicador_pausado",
+                False,
+            )
+
+        logger.info("Pausa administrativa do publicador removida.")
+        self.iniciar_publicador()
+
+        if self.processo_publicador is not None and self.processo_publicador.poll() is None:
+            return "retomado"
+
+        return "liberado_aguardando_condicoes"
+
+    def solicitar_pipeline_imediato(self) -> str:
+        with self._lock_administrativo:
+            processo = self.processo_pipeline
+
+            if processo is not None and processo.poll() is None:
+                return "pipeline_em_execucao"
+
+            if self._pipeline_imediato_pendente:
+                return "ja_solicitado"
+
+            self._pipeline_imediato_pendente = True
+
+        logger.info("Execucao imediata do pipeline solicitada administrativamente.")
+        return "solicitado"
+
+    def reiniciar_bot_administrativamente(self) -> str:
+        with self._lock_administrativo:
+            processo = self.processo_bot
+            self._encerrar_processo(
+                processo=processo,
+                nome="bot de consulta",
+            )
+            self.processo_bot = None
+
+        logger.warning("Reinicio do bot solicitado administrativamente.")
+        self.iniciar_bot()
+
+        if self.processo_bot is not None and self.processo_bot.poll() is None:
+            return "reiniciado"
+
+        return "aguardando_telegram"
+
+    def solicitar_reinicio_chrome(self) -> str:
+        with self._lock_administrativo:
+            if self._reinicio_chrome_em_andamento:
+                return "ja_em_andamento"
+
+            self._reinicio_chrome_em_andamento = True
+
+        thread = threading.Thread(
+            target=self._reiniciar_chrome_worker,
+            name="reinicio-chrome-administrativo",
+            daemon=True,
+        )
+        thread.start()
+
+        logger.warning("Reinicio do Chrome/CDP solicitado administrativamente.")
+        return "solicitado"
+
+    def _reiniciar_chrome_worker(self) -> None:
+        try:
+            encerrar_chrome_automacao()
+            preparar_chrome()
+            logger.info("Chrome/CDP reiniciado administrativamente com sucesso.")
+        except Exception:
+            logger.exception("Falha ao reiniciar Chrome/CDP administrativamente.")
+        finally:
+            with self._lock_administrativo:
+                self._reinicio_chrome_em_andamento = False
 
     def suspender_servicos_telegram(self) -> None:
         """Encerra filhos do Telegram rapidamente durante queda de rede."""
@@ -563,6 +698,30 @@ class OrquestradorRuntime:
         while not self._encerrando:
             self.garantir_bot_ativo()
             self.garantir_publicador_ativo()
+
+            if self._pipeline_imediato_pendente:
+                if not self.verificar_internet():
+                    time.sleep(self.configuracoes.intervalo_verificacao_rede_segundos)
+                    continue
+
+                if not self.verificar_mercado_livre():
+                    time.sleep(self.configuracoes.intervalo_verificacao_rede_segundos)
+                    continue
+
+                self._pipeline_imediato_pendente = False
+                codigo_ciclo = self.executar_pipeline()
+
+                if codigo_ciclo == CODIGO_SAIDA_REDE_INDISPONIVEL:
+                    self._pipeline_imediato_pendente = True
+                    continue
+
+                proxima_execucao = time.monotonic() + intervalo_segundos
+
+                logger.info(
+                    "Ciclo administrativo concluido. Proximo ciclo em %.1f minuto(s).",
+                    intervalo_segundos / 60.0,
+                )
+                continue
 
             agora = time.monotonic()
 

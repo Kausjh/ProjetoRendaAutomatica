@@ -114,6 +114,14 @@ class FilaPublicacaoRepository:
                 ON fila_publicacao(chave_familia, status)
                 """)
 
+            conexao.execute("""
+                CREATE TABLE IF NOT EXISTS controle_publicacao (
+                    chave TEXT PRIMARY KEY,
+                    valor TEXT NOT NULL,
+                    atualizado_em TEXT NOT NULL
+                )
+                """)
+
     def adicionar_ou_atualizar(
         self,
         oferta: Oferta,
@@ -595,6 +603,233 @@ class FilaPublicacaoRepository:
                 )
 
         return len(ids_numericos)
+
+    def obter_pendente_por_id(
+        self,
+        item_id: int,
+    ) -> ItemFilaPublicacao | None:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT *
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'pendente'
+                LIMIT 1
+                """,
+                (item_id,),
+            ).fetchone()
+
+        if linha is None:
+            return None
+
+        return self._converter_linha(linha)
+
+    def adiantar_item(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            existe = conexao.execute(
+                """
+                SELECT id
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (item_id,),
+            ).fetchone()
+
+            if existe is None:
+                return False
+
+            linha = conexao.execute("""
+                SELECT MAX(prioridade) AS prioridade
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                """).fetchone()
+
+            prioridade_maxima = float(linha["prioridade"] or 0.0)
+
+            conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    prioridade = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (
+                    prioridade_maxima + 1.0,
+                    agora,
+                    item_id,
+                ),
+            )
+
+        return True
+
+    def adiar_item(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            existe = conexao.execute(
+                """
+                SELECT id
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (item_id,),
+            ).fetchone()
+
+            if existe is None:
+                return False
+
+            linha = conexao.execute("""
+                SELECT MIN(prioridade) AS prioridade
+                FROM fila_publicacao
+                WHERE status = 'pendente'
+                """).fetchone()
+
+            prioridade_minima = float(linha["prioridade"] or 0.0)
+
+            conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    prioridade = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (
+                    prioridade_minima - 1.0,
+                    agora,
+                    item_id,
+                ),
+            )
+
+        return True
+
+    def descartar_administrativamente(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET
+                    status = 'descartado',
+                    atualizado_em = ?,
+                    motivo_saida = ?
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (
+                    agora,
+                    "Descartado por acao administrativa.",
+                    item_id,
+                ),
+            )
+
+        return cursor.rowcount > 0
+
+    def solicitar_publicacao_imediata(
+        self,
+        item_id: int,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            existe = conexao.execute(
+                """
+                SELECT id
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'pendente'
+                """,
+                (item_id,),
+            ).fetchone()
+
+            if existe is None:
+                return False
+
+            conexao.execute(
+                """
+                INSERT INTO controle_publicacao (
+                    chave,
+                    valor,
+                    atualizado_em
+                )
+                VALUES (
+                    'publicar_agora',
+                    ?,
+                    ?
+                )
+                ON CONFLICT(chave) DO UPDATE SET
+                    valor = excluded.valor,
+                    atualizado_em = excluded.atualizado_em
+                """,
+                (
+                    str(item_id),
+                    agora,
+                ),
+            )
+
+        return True
+
+    def consumir_publicacao_imediata(
+        self,
+    ) -> ItemFilaPublicacao | None:
+        with self._conectar() as conexao:
+            registro = conexao.execute("""
+                SELECT valor
+                FROM controle_publicacao
+                WHERE chave = 'publicar_agora'
+                LIMIT 1
+                """).fetchone()
+
+            if registro is None:
+                return None
+
+            try:
+                item_id = int(registro["valor"])
+            except (TypeError, ValueError):
+                conexao.execute("""
+                    DELETE FROM controle_publicacao
+                    WHERE chave = 'publicar_agora'
+                    """)
+                return None
+
+            linha = conexao.execute(
+                """
+                SELECT *
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'pendente'
+                LIMIT 1
+                """,
+                (item_id,),
+            ).fetchone()
+
+            conexao.execute("""
+                DELETE FROM controle_publicacao
+                WHERE chave = 'publicar_agora'
+                """)
+
+        if linha is None:
+            return None
+
+        return self._converter_linha(linha)
 
     def historico_publicacoes_recentes(
         self,
