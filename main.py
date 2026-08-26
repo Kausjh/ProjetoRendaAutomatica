@@ -6,6 +6,9 @@ import logging
 from config.configuracoes import Configuracoes
 from config.logging_config import configurar_logging
 from filters.oferta_filter import OfertaFilter
+from repositories.controle_administrativo_repository import (
+    ControleAdministrativoRepository,
+)
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.historico_precos_repository import HistoricoPrecosRepository
 from repositories.publicados_repository import PublicadosRepository
@@ -44,6 +47,8 @@ async def main() -> None:
     repository = PublicadosRepository()
 
     fila_publicacao_repository = FilaPublicacaoRepository()
+
+    controle_administrativo_repository = ControleAdministrativoRepository()
 
     relatorios_repository = RelatoriosRepository()
 
@@ -147,10 +152,13 @@ async def main() -> None:
 
     logger.info(
         (
-            "Fila inteligente ativa: score mínimo %.1f, até %s entradas novas "
-            "por ciclo, máximo de %s pendentes."
+            "Fila inteligente ativa: score principal %.1f, reposição adaptativa "
+            "até %.1f quando necessário, alvo mínimo %s pendentes, até %s novas "
+            "entradas por ciclo e máximo de %s pendentes."
         ),
         configuracoes.pontuacao_minima_fila,
+        configuracoes.pontuacao_minima_reposicao_fila,
+        configuracoes.alvo_minimo_pendentes_fila,
         configuracoes.maximo_entradas_fila_por_ciclo,
         configuracoes.tamanho_maximo_fila,
     )
@@ -167,6 +175,12 @@ async def main() -> None:
         limite_ofertas=(configuracoes.limite_ofertas),
         maximo_entradas_fila_por_ciclo=(configuracoes.maximo_entradas_fila_por_ciclo),
         pontuacao_minima_fila=configuracoes.pontuacao_minima_fila,
+        fila_reposicao_adaptativa_ativa=(configuracoes.fila_reposicao_adaptativa_ativa),
+        pontuacao_minima_reposicao_fila=(configuracoes.pontuacao_minima_reposicao_fila),
+        alvo_minimo_pendentes_fila=(configuracoes.alvo_minimo_pendentes_fila),
+        queda_minima_republicacao_percentual=(configuracoes.queda_minima_repost_familia_percentual),
+        cooldown_republicacao_sem_queda_minutos=(configuracoes.cooldown_familia_minutos),
+        repositorio_admin=controle_administrativo_repository,
         tamanho_maximo_fila=configuracoes.tamanho_maximo_fila,
         fila_idade_maxima_minutos=configuracoes.fila_idade_maxima_minutos,
         maximo_entradas_por_categoria_ciclo=(configuracoes.maximo_entradas_por_categoria_ciclo),

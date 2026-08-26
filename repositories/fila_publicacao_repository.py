@@ -136,6 +136,62 @@ class FilaPublicacaoRepository:
                 )
                 """)
 
+            conexao.executescript("""
+                CREATE TABLE IF NOT EXISTS historico_publicacoes_fila (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    fila_item_id INTEGER NOT NULL,
+                    link TEXT NOT NULL,
+                    chave_canonica TEXT,
+                    chave_familia TEXT,
+                    familia TEXT,
+                    categoria TEXT,
+                    marca TEXT,
+                    tipo_oportunidade TEXT NOT NULL,
+                    oferta_json TEXT NOT NULL,
+                    pontuacao REAL NOT NULL,
+                    publicado_em TEXT NOT NULL
+                );
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_historico_publicacao_evento
+                ON historico_publicacoes_fila(fila_item_id, publicado_em, oferta_json);
+
+                CREATE INDEX IF NOT EXISTS idx_historico_publicacao_link
+                ON historico_publicacoes_fila(link, publicado_em DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_historico_publicacao_data
+                ON historico_publicacoes_fila(publicado_em DESC);
+                """)
+
+            conexao.execute("""
+                INSERT OR IGNORE INTO historico_publicacoes_fila (
+                    fila_item_id,
+                    link,
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    oferta_json,
+                    pontuacao,
+                    publicado_em
+                )
+                SELECT
+                    id,
+                    link,
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    oferta_json,
+                    pontuacao,
+                    publicado_em
+                FROM fila_publicacao
+                WHERE publicado_em IS NOT NULL
+                """)
+
     def adicionar_ou_atualizar(
         self,
         oferta: Oferta,
@@ -143,6 +199,7 @@ class FilaPublicacaoRepository:
         pontuacao: float,
         deve_republicar_por_queda: bool,
         prioridade: float,
+        permitir_republicacao: bool = False,
     ) -> str:
         agora = datetime.now().astimezone()
         agora_iso = agora.isoformat(timespec="seconds")
@@ -175,8 +232,12 @@ class FilaPublicacaoRepository:
             ).fetchone()
 
             if existente is not None:
-                if existente["status"] == "publicado":
+                status_existente = str(existente["status"])
+
+                if status_existente == "publicado" and not permitir_republicacao:
                     return "ja_publicado_pela_fila"
+
+                reativando = status_existente != "pendente"
 
                 conexao.execute(
                     """
@@ -207,7 +268,15 @@ class FilaPublicacaoRepository:
                             ELSE 0
                         END,
                         status = 'pendente',
+                        criado_em = CASE
+                            WHEN status = 'pendente' THEN criado_em
+                            ELSE ?
+                        END,
                         atualizado_em = ?,
+                        publicado_em = CASE
+                            WHEN status = 'pendente' THEN publicado_em
+                            ELSE NULL
+                        END,
                         motivo_saida = NULL
                     WHERE id = ?
                     """,
@@ -225,10 +294,20 @@ class FilaPublicacaoRepository:
                         prioridade,
                         int(deve_republicar_por_queda),
                         agora_iso,
+                        agora_iso,
                         existente["id"],
                     ),
                 )
-                return "atualizado"
+
+                if not reativando:
+                    return "atualizado"
+
+                if status_existente == "publicado":
+                    if deve_republicar_por_queda:
+                        return "reativado_por_queda"
+                    return "reativado_por_tempo"
+
+                return "reativado"
 
             substituido = self._substituir_canonico_se_melhor(
                 conexao=conexao,
@@ -405,7 +484,7 @@ class FilaPublicacaoRepository:
 
         oferta_existente = Oferta(**json.loads(existente["oferta_json"]))
 
-        logger.info(
+        logger.debug(
             (
                 "Família semântica detectada: %s | variante atual: '%s' "
                 "(R$ %.2f) | nova variante: '%s' (R$ %.2f)"
@@ -427,7 +506,7 @@ class FilaPublicacaoRepository:
         )
 
         if not novo_melhor:
-            logger.info(
+            logger.debug(
                 (
                     "Anti-duplicata de família: variante descartada '%s' "
                     "(R$ %.2f). Representante mantido: '%s' (R$ %.2f)."
@@ -439,7 +518,7 @@ class FilaPublicacaoRepository:
             )
             return True
 
-        logger.info(
+        logger.debug(
             ("Anti-duplicata de família: representante trocado. " "'%s' R$ %.2f -> '%s' R$ %.2f."),
             oferta_existente.nome,
             preco_existente,
@@ -556,6 +635,41 @@ class FilaPublicacaoRepository:
                 WHERE id = ?
                 """,
                 (agora, agora, item_id),
+            )
+
+            conexao.execute(
+                """
+                INSERT OR IGNORE INTO historico_publicacoes_fila (
+                    fila_item_id,
+                    link,
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    oferta_json,
+                    pontuacao,
+                    publicado_em
+                )
+                SELECT
+                    id,
+                    link,
+                    chave_canonica,
+                    chave_familia,
+                    familia,
+                    categoria,
+                    marca,
+                    tipo_oportunidade,
+                    oferta_json,
+                    pontuacao,
+                    publicado_em
+                FROM fila_publicacao
+                WHERE id = ?
+                  AND status = 'publicado'
+                  AND publicado_em IS NOT NULL
+                """,
+                (item_id,),
             )
 
     def marcar_descartado(self, item_id: int, motivo: str) -> None:
@@ -1039,6 +1153,27 @@ class FilaPublicacaoRepository:
 
         return self._converter_linha(linha)
 
+    def obter_ultima_publicacao_link(self, link: str) -> datetime | None:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT publicado_em
+                FROM historico_publicacoes_fila
+                WHERE link = ?
+                ORDER BY publicado_em DESC
+                LIMIT 1
+                """,
+                (link,),
+            ).fetchone()
+
+        if linha is None or not linha["publicado_em"]:
+            return None
+
+        try:
+            return datetime.fromisoformat(str(linha["publicado_em"]))
+        except ValueError:
+            return None
+
     def historico_publicacoes_recentes(
         self,
         minutos: float,
@@ -1060,11 +1195,9 @@ class FilaPublicacaoRepository:
                     publicado_em,
                     pontuacao,
                     oferta_json
-                FROM fila_publicacao
-                WHERE status = 'publicado'
-                  AND publicado_em IS NOT NULL
-                  AND publicado_em >= ?
-                ORDER BY publicado_em DESC
+                FROM historico_publicacoes_fila
+                WHERE publicado_em >= ?
+                ORDER BY publicado_em DESC, id DESC
                 LIMIT ?
                 """,
                 (desde_iso, limite),

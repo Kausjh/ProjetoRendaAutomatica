@@ -20,6 +20,7 @@ from repositories.publicados_repository import PublicadosRepository
 from services.cadencia_publicacao import CadenciaPublicacao
 from services.controle.politica_publicacao_administrativa import (
     item_liberado_para_fluxo_automatico,
+    requer_aprovacao_hibrida,
 )
 from services.janela_publicacao import JanelaPublicacao
 from services.launcher.chrome_launcher import preparar_chrome
@@ -50,6 +51,7 @@ class PublicadorFila:
             str(configuracoes.publicacao_intervalo_modo_segundos),
         )
         self._ultimo_modo_operacao: str | None = None
+        self._ultimo_estado_fluxo: tuple[str, str] | None = None
 
         self.janela_publicacao = JanelaPublicacao(
             hora_inicio_madrugada=configuracoes.hora_inicio_madrugada,
@@ -118,6 +120,32 @@ class PublicadorFila:
             modo,
         )
 
+    def _registrar_estado_fluxo(
+        self,
+        codigo: str,
+        detalhe: str,
+    ) -> None:
+        estado = (codigo, detalhe)
+
+        if estado == self._ultimo_estado_fluxo:
+            return
+
+        self._ultimo_estado_fluxo = estado
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        self.controle_admin.definir_estado(
+            "fluxo_publicacao_estado",
+            codigo,
+        )
+        self.controle_admin.definir_estado(
+            "fluxo_publicacao_detalhe",
+            detalhe,
+        )
+        self.controle_admin.definir_estado(
+            "fluxo_publicacao_atualizado_em",
+            agora,
+        )
+
     @staticmethod
     def _oferta_exige_chrome_afiliacao(link: str) -> bool:
         dominio = (urlparse(link).hostname or "").lower()
@@ -131,7 +159,7 @@ class PublicadorFila:
         if not self._oferta_exige_chrome_afiliacao(link):
             return
 
-        logger.info(
+        logger.debug(
             "Garantindo Chrome/CDP funcional antes de gerar o link afiliado " "do Mercado Livre."
         )
         await asyncio.to_thread(preparar_chrome)
@@ -151,12 +179,21 @@ class PublicadorFila:
             )
 
             if not resultado_janela.pode_publicar:
-                logger.info(
+                logger.debug(
                     ("Fila aguardando horario " "apropriado para '%s': %s"),
                     item.oferta.nome,
                     resultado_janela.motivo,
                 )
+                self._registrar_estado_fluxo(
+                    "horario",
+                    resultado_janela.motivo,
+                )
                 return "adiado"
+
+        self._registrar_estado_fluxo(
+            "publicando",
+            item.oferta.nome,
+        )
 
         logger.info(
             (
@@ -200,6 +237,10 @@ class PublicadorFila:
             return "publicado"
 
         except Exception:
+            self._registrar_estado_fluxo(
+                "erro_publicacao",
+                item.oferta.nome,
+            )
             logger.exception(
                 "Erro ao publicar item da fila: %s",
                 item.oferta.nome,
@@ -232,6 +273,10 @@ class PublicadorFila:
         atraso_inicial = self.configuracoes.publicacao_atraso_inicial_segundos
         proxima_publicacao = time.monotonic() + atraso_inicial
         self._registrar_previsao_publicacao(atraso_inicial)
+        self._registrar_estado_fluxo(
+            "cadencia",
+            f"Atraso inicial de {atraso_inicial:.0f}s.",
+        )
 
         while True:
             expiradas = self.fila.expirar_antigos(self.configuracoes.fila_idade_maxima_minutos)
@@ -264,6 +309,10 @@ class PublicadorFila:
 
                 proxima_publicacao = time.monotonic() + intervalo
                 self._registrar_previsao_publicacao(intervalo)
+                self._registrar_estado_fluxo(
+                    "cadencia",
+                    f"Próxima tentativa em cerca de {intervalo:.0f}s.",
+                )
                 continue
 
             item_agendado = self.fila.obter_agendado_liberado()
@@ -292,6 +341,10 @@ class PublicadorFila:
 
                 proxima_publicacao = time.monotonic() + intervalo
                 self._registrar_previsao_publicacao(intervalo)
+                self._registrar_estado_fluxo(
+                    "cadencia",
+                    f"Próxima tentativa em cerca de {intervalo:.0f}s.",
+                )
                 continue
 
             agora_monotonic = time.monotonic()
@@ -305,12 +358,22 @@ class PublicadorFila:
                 )
                 continue
 
-            pendentes = self.fila.listar_pendentes(limite=self.configuracoes.tamanho_maximo_fila)
+            pendentes_totais = self.fila.listar_pendentes(
+                limite=self.configuracoes.tamanho_maximo_fila
+            )
+
+            if not pendentes_totais:
+                self._registrar_estado_fluxo(
+                    "fila_vazia",
+                    "Aguardando o próximo ciclo abastecer a fila.",
+                )
+                await asyncio.sleep(self.configuracoes.publicador_intervalo_verificacao_segundos)
+                continue
 
             agora = datetime.now().astimezone()
             pendentes = [
                 item
-                for item in pendentes
+                for item in pendentes_totais
                 if item_liberado_para_fluxo_automatico(
                     item=item,
                     modo=modo,
@@ -319,6 +382,27 @@ class PublicadorFila:
             ]
 
             if not pendentes:
+                if modo == "manual":
+                    codigo = "modo_manual"
+                    detalhe = (
+                        f"{len(pendentes_totais)} item(ns) pendente(s); "
+                        "publicação automática pausada pelo modo manual."
+                    )
+                elif modo == "hibrido" and any(
+                    requer_aprovacao_hibrida(item, modo) for item in pendentes_totais
+                ):
+                    codigo = "aguardando_aprovacao"
+                    detalhe = (
+                        "Modo híbrido aguardando aprovação de ofertas " "abaixo do piso automático."
+                    )
+                else:
+                    codigo = "agenda"
+                    detalhe = "Itens pendentes estão segurados ou agendados " "para outro horário."
+
+                self._registrar_estado_fluxo(
+                    codigo,
+                    detalhe,
+                )
                 await asyncio.sleep(self.configuracoes.publicador_intervalo_verificacao_segundos)
                 continue
 
@@ -333,7 +417,7 @@ class PublicadorFila:
 
             resumo_familias = self.fila.resumo_familias_pendentes()
 
-            logger.info(
+            logger.debug(
                 (
                     "Snapshot editorial da fila: %s item(ns) pendente(s), "
                     "%s familia(s) semantica(s), %s item(ns) com familia."
@@ -350,9 +434,13 @@ class PublicadorFila:
             )
 
             if escolha is None:
-                logger.info(
+                logger.debug(
                     "Nenhum item liberado para publicacao agora. "
                     "Cooldowns editoriais/anti-repost podem estar segurando a fila."
+                )
+                self._registrar_estado_fluxo(
+                    "cooldown",
+                    "Cooldowns editoriais ou anti-repost estão segurando a fila.",
                 )
                 await asyncio.sleep(self.configuracoes.publicador_intervalo_verificacao_segundos)
                 continue
@@ -375,8 +463,12 @@ class PublicadorFila:
 
             proxima_publicacao = time.monotonic() + intervalo
             self._registrar_previsao_publicacao(intervalo)
+            self._registrar_estado_fluxo(
+                "cadencia",
+                f"Próxima tentativa em cerca de {intervalo:.0f}s.",
+            )
 
-            logger.info(
+            logger.debug(
                 "Proxima publicacao podera ocorrer em aproximadamente %.1f segundo(s).",
                 intervalo,
             )

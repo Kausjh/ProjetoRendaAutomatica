@@ -5,6 +5,9 @@ from datetime import datetime
 from time import perf_counter
 
 from filters.oferta_filter import OfertaFilter
+from repositories.controle_administrativo_repository import (
+    ControleAdministrativoRepository,
+)
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
@@ -42,6 +45,12 @@ class ExecutorPipeline:
         curadoria_publicacao: CuradoriaPublicacao | None = None,
         deduplicacao_canonica_ativa: bool = True,
         confianca_minima_deduplicacao: float = 90.0,
+        fila_reposicao_adaptativa_ativa: bool = True,
+        pontuacao_minima_reposicao_fila: float = 45.0,
+        alvo_minimo_pendentes_fila: int = 2,
+        queda_minima_republicacao_percentual: float = 5.0,
+        cooldown_republicacao_sem_queda_minutos: float = 720.0,
+        repositorio_admin: ControleAdministrativoRepository | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -64,6 +73,12 @@ class ExecutorPipeline:
         self.curadoria_publicacao = curadoria_publicacao or CuradoriaPublicacao()
         self.deduplicacao_canonica_ativa = deduplicacao_canonica_ativa
         self.confianca_minima_deduplicacao = confianca_minima_deduplicacao
+        self.fila_reposicao_adaptativa_ativa = fila_reposicao_adaptativa_ativa
+        self.pontuacao_minima_reposicao_fila = pontuacao_minima_reposicao_fila
+        self.alvo_minimo_pendentes_fila = alvo_minimo_pendentes_fila
+        self.queda_minima_republicacao_percentual = queda_minima_republicacao_percentual
+        self.cooldown_republicacao_sem_queda_minutos = cooldown_republicacao_sem_queda_minutos
+        self.repositorio_admin = repositorio_admin
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -131,7 +146,7 @@ class ExecutorPipeline:
                 if resultado_historico.preco_caiu:
                     quantidade_quedas_detectadas += 1
 
-                    logger.info(
+                    logger.debug(
                         ("Queda de preço detectada: %s | " "%s %.2f → %s %.2f | %.2f%%"),
                         oferta.nome,
                         oferta.moeda,
@@ -147,7 +162,7 @@ class ExecutorPipeline:
                 ):
                     quantidade_menores_precos += 1
 
-                    logger.info(
+                    logger.debug(
                         "Novo menor preço histórico: %s | %s %.2f",
                         oferta.nome,
                         oferta.moeda,
@@ -162,7 +177,7 @@ class ExecutorPipeline:
             resultado_filtro = self.filtro.analisar(oferta)
 
             if not resultado_filtro.aprovada:
-                logger.info(
+                logger.debug(
                     "Oferta rejeitada: %s | Motivo: %s", oferta.nome, resultado_filtro.motivo
                 )
 
@@ -187,7 +202,7 @@ class ExecutorPipeline:
 
                 detalhes = list(resultado_curadoria.bloqueios) or list(resultado_curadoria.motivos)
 
-                logger.info(
+                logger.debug(
                     "Oferta rejeitada pela curadoria: %s | nota=%.1f | %s",
                     oferta.nome,
                     resultado_curadoria.nota,
@@ -197,24 +212,34 @@ class ExecutorPipeline:
 
             oferta_ja_publicada = self.repository.ja_foi_publicada(oferta.link)
 
+            queda_percentual_republicacao = self._obter_queda_percentual(resultado_historico)
             deve_republicar_por_queda = (
                 oferta_ja_publicada
-                and resultado_historico is not None
-                and resultado_historico.preco_caiu
+                and queda_percentual_republicacao >= self.queda_minima_republicacao_percentual
             )
+            pode_republicar_por_tempo = oferta_ja_publicada and self._pode_republicar_por_tempo(
+                oferta.link
+            )
+            permitir_republicacao = deve_republicar_por_queda or pode_republicar_por_tempo
 
-            if oferta_ja_publicada and not deve_republicar_por_queda:
-                logger.info("Ignorando oferta já publicada: %s", oferta.nome)
+            if oferta_ja_publicada and not permitir_republicacao:
+                logger.debug("Ignorando oferta já publicada: %s", oferta.nome)
 
                 quantidade_ignorada += 1
                 continue
 
             if deve_republicar_por_queda:
-                logger.info(
+                logger.debug(
                     (
-                        "Oferta já publicada está elegível para "
-                        "republicação porque o preço caiu: %s"
+                        "Oferta já publicada voltou a ser elegível por queda "
+                        "material de %.2f%%: %s"
                     ),
+                    queda_percentual_republicacao,
+                    oferta.nome,
+                )
+            elif pode_republicar_por_tempo:
+                logger.debug(
+                    "Oferta já publicada voltou a ser elegível após o cooldown: %s",
                     oferta.nome,
                 )
 
@@ -255,10 +280,16 @@ class ExecutorPipeline:
                 quantidade_anomalias_publicaveis += 1
 
             ofertas_aprovadas.append(
-                (oferta, pontuacao, resultado_historico, deve_republicar_por_queda)
+                (
+                    oferta,
+                    pontuacao,
+                    resultado_historico,
+                    deve_republicar_por_queda,
+                    permitir_republicacao,
+                )
             )
 
-            logger.info("Oferta elegível: %s | Pontuação final: %.2f", oferta.nome, pontuacao)
+            logger.debug("Oferta elegível: %s | Pontuação final: %.2f", oferta.nome, pontuacao)
 
         if self.deduplicacao_canonica_ativa:
             ofertas_aprovadas, quantidade_deduplicada_canonica = self._deduplicar_ofertas_canonicas(
@@ -274,44 +305,32 @@ class ExecutorPipeline:
             reverse=True,
         )
 
-        ofertas_publicaveis = []
-        quantidade_adiada_por_horario = 0
+        expiradas = self.fila_publicacao_repository.expirar_antigos(self.fila_idade_maxima_minutos)
 
-        for item in ofertas_aprovadas:
-            oferta_avaliada, pontuacao_avaliada, historico_avaliado, _ = item
+        if expiradas:
+            logger.info("Itens antigos expirados da fila: %s", expiradas)
 
-            resultado_janela = self.janela_publicacao.avaliar(
-                oferta=oferta_avaliada,
-                pontuacao=pontuacao_avaliada,
-                resultado_historico=historico_avaliado,
-            )
+        quantidade_pendente_antes = self.fila_publicacao_repository.quantidade_pendente()
 
-            if resultado_janela.pode_publicar:
-                ofertas_publicaveis.append(item)
-                continue
+        candidatos_fila, quantidade_reposicao_adaptativa = self._selecionar_candidatos_para_fila(
+            candidatos=ofertas_aprovadas,
+            pontuacao_minima_principal=self.pontuacao_minima_fila,
+            reposicao_adaptativa_ativa=self.fila_reposicao_adaptativa_ativa,
+            pontuacao_minima_reposicao=self.pontuacao_minima_reposicao_fila,
+            alvo_minimo_pendentes=self.alvo_minimo_pendentes_fila,
+            quantidade_pendente=quantidade_pendente_antes,
+        )
 
-            quantidade_adiada_por_horario += 1
+        quantidade_descartada_score_fila = len(ofertas_aprovadas) - len(candidatos_fila)
 
+        if quantidade_reposicao_adaptativa > 0:
             logger.info(
-                "Oferta adiada por horário: %s | Motivo: %s",
-                oferta_avaliada.nome,
-                resultado_janela.motivo,
+                (
+                    "Reposição adaptativa da fila: %s candidato(s) abaixo do piso "
+                    "principal selecionado(s) para abastecer a fila."
+                ),
+                quantidade_reposicao_adaptativa,
             )
-
-        if quantidade_adiada_por_horario > 0:
-            logger.info(
-                "Ofertas adiadas para o horário de maior audiência: %s",
-                quantidade_adiada_por_horario,
-            )
-
-        candidatos_fila = [
-            item
-            for item in ofertas_publicaveis
-            if item[1] >= self.pontuacao_minima_fila
-            or item[0].tipo_oportunidade in {"possivel_preco_bugado", "anomalia_forte"}
-        ]
-
-        quantidade_descartada_score_fila = len(ofertas_publicaveis) - len(candidatos_fila)
 
         candidatos_fila.sort(
             key=lambda item: (
@@ -344,16 +363,12 @@ class ExecutorPipeline:
                 self.maximo_entradas_por_categoria_ciclo,
             )
 
-        expiradas = self.fila_publicacao_repository.expirar_antigos(self.fila_idade_maxima_minutos)
-
-        if expiradas:
-            logger.info("Itens antigos expirados da fila: %s", expiradas)
-
         for (
             oferta,
             pontuacao,
             resultado_historico,
             deve_republicar_por_queda,
+            permitir_republicacao,
         ) in candidatos_fila:
             prioridade = self._calcular_prioridade_fila(
                 oferta=oferta,
@@ -367,14 +382,24 @@ class ExecutorPipeline:
                 pontuacao=pontuacao,
                 deve_republicar_por_queda=deve_republicar_por_queda,
                 prioridade=prioridade,
+                permitir_republicacao=permitir_republicacao,
             )
 
-            if resultado_fila in {"adicionado", "substituido_canonico"}:
+            if resultado_fila in {
+                "adicionado",
+                "reativado",
+                "reativado_por_queda",
+                "reativado_por_tempo",
+            }:
                 quantidade_enfileirada += 1
-            elif resultado_fila == "atualizado":
+            elif resultado_fila in {
+                "atualizado",
+                "substituido_canonico",
+                "substituido_familia",
+            }:
                 quantidade_atualizada_na_fila += 1
 
-            logger.info(
+            logger.debug(
                 ("Fila: %s | %s | score=%.2f | prioridade=%.2f | " "categoria=%s | marca=%s"),
                 resultado_fila,
                 oferta.nome,
@@ -398,28 +423,8 @@ class ExecutorPipeline:
 
         quantidade_nao_enfileirada = max(
             0,
-            len(ofertas_publicaveis) - len(candidatos_fila),
+            len(ofertas_aprovadas) - len(candidatos_fila),
         )
-
-        logger.info("Ofertas aprovadas pelo filtro: %s", quantidade_aprovada_pelo_filtro)
-
-        logger.info("Ofertas elegíveis para publicação: %s", len(ofertas_aprovadas))
-
-        logger.info(
-            "Ofertas que passaram também pela janela de horário: %s",
-            len(ofertas_publicaveis),
-        )
-
-        logger.info("Ofertas adicionadas/renovadas na fila: %s", quantidade_enfileirada)
-
-        logger.info("Ofertas atualizadas na fila: %s", quantidade_atualizada_na_fila)
-
-        logger.info(
-            "Ofertas fora da fila por score/capacidade do ciclo: %s",
-            quantidade_nao_enfileirada,
-        )
-
-        logger.info("Fila pendente após o ciclo: %s", quantidade_pendente_fila)
 
         taxa_aprovacao_filtro = (
             quantidade_aprovada_pelo_filtro / len(ofertas) * 100 if ofertas else 0.0
@@ -427,66 +432,39 @@ class ExecutorPipeline:
 
         tempo_total = perf_counter() - inicio_execucao
 
-        logger.info("Resumo da execução:")
-
-        logger.info("Scrapers executados: %s", self.quantidade_scrapers)
-
-        logger.info("Ofertas coletadas: %s", len(ofertas))
-
-        logger.info("Ofertas aprovadas pelo filtro: %s", quantidade_aprovada_pelo_filtro)
-
-        logger.info("Taxa de aprovação do filtro: %.2f%%", taxa_aprovacao_filtro)
-
-        logger.info("Ofertas elegíveis para publicação: %s", len(ofertas_aprovadas))
-
-        logger.info("Ofertas enfileiradas neste ciclo: %s", quantidade_enfileirada)
-
         logger.info(
-            "Ofertas atualizadas na fila neste ciclo: %s",
+            (
+                "Resumo do ciclo | coletadas=%s | filtro=%s | elegíveis=%s | "
+                "fila +%s/~%s | reposição=%s | abaixo_score=%s | pendentes=%s"
+            ),
+            len(ofertas),
+            quantidade_aprovada_pelo_filtro,
+            len(ofertas_aprovadas),
+            quantidade_enfileirada,
             quantidade_atualizada_na_fila,
-        )
-
-        logger.info(
-            "Ofertas abaixo do score mínimo da fila: %s",
+            quantidade_reposicao_adaptativa,
             quantidade_descartada_score_fila,
+            quantidade_pendente_fila,
         )
 
-        logger.info("Fila pendente ao fim do ciclo: %s", quantidade_pendente_fila)
-
         logger.info(
-            "Candidatos segurados pela diversidade de entrada: %s",
-            quantidade_limitada_por_diversidade,
-        )
-
-        logger.info("Ofertas rejeitadas pelo filtro: %s", quantidade_filtrada)
-
-        logger.info(
-            "Ofertas rejeitadas pela curadoria: %s",
+            (
+                "Qualidade do ciclo | rejeitadas=%s | curadoria=%s | "
+                "deduplicadas=%s | já_publicadas=%s | quedas=%s | mínimos=%s | "
+                "anomalias=%s/%s | erros=%s"
+            ),
+            quantidade_filtrada,
             quantidade_rejeitada_curadoria,
-        )
-
-        logger.info(
-            "Anúncios redundantes removidos por produto canônico: %s",
             quantidade_deduplicada_canonica,
+            quantidade_ignorada,
+            quantidade_quedas_detectadas,
+            quantidade_menores_precos,
+            quantidade_anomalias_publicaveis,
+            quantidade_anomalias_retidas,
+            quantidade_com_erro,
         )
 
-        logger.info("Ofertas já publicadas e sem nova queda: %s", quantidade_ignorada)
-
-        logger.info("Novos preços registrados: %s", quantidade_precos_registrados)
-
-        logger.info("Quedas de preço detectadas: %s", quantidade_quedas_detectadas)
-
-        logger.info("Novos menores preços históricos: %s", quantidade_menores_precos)
-
-        logger.info("Anomalias de preço detectadas: %s", quantidade_anomalias_detectadas)
-
-        logger.info("Anomalias liberadas para publicação: %s", quantidade_anomalias_publicaveis)
-
-        logger.info("Anomalias retidas por segurança: %s", quantidade_anomalias_retidas)
-
-        logger.info("Ofertas com erro: %s", quantidade_com_erro)
-
-        logger.info("Tempo total da execução: %.2f segundo(s)", tempo_total)
+        logger.info("Ciclo concluído em %.2f segundo(s).", tempo_total)
 
         relatorio = {
             "data_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -498,6 +476,8 @@ class ExecutorPipeline:
             "ofertas_enfileiradas": quantidade_enfileirada,
             "ofertas_atualizadas_na_fila": quantidade_atualizada_na_fila,
             "ofertas_abaixo_score_fila": quantidade_descartada_score_fila,
+            "reposicao_adaptativa_fila": quantidade_reposicao_adaptativa,
+            "fila_pendente_antes": quantidade_pendente_antes,
             "fila_pendente_ao_fim": quantidade_pendente_fila,
             "candidatos_segurados_diversidade_entrada": (quantidade_limitada_por_diversidade),
             # Compatibilidade temporária com consumidores antigos do relatório.
@@ -518,11 +498,116 @@ class ExecutorPipeline:
             "tempo_total_segundos": round(tempo_total, 2),
         }
 
+        self._registrar_telemetria_fluxo(
+            ofertas_coletadas=len(ofertas),
+            ofertas_elegiveis=len(ofertas_aprovadas),
+            ofertas_enfileiradas=quantidade_enfileirada,
+            ofertas_abaixo_score=quantidade_descartada_score_fila,
+            reposicao_adaptativa=quantidade_reposicao_adaptativa,
+            fila_pendente=quantidade_pendente_fila,
+        )
+
         self.relatorios_repository.salvar(relatorio)
 
         logger.info("Execução finalizada.")
 
         logger.info("=" * 60)
+
+    @staticmethod
+    def _obter_queda_percentual(
+        resultado_historico: ResultadoHistoricoPreco | None,
+    ) -> float:
+        if resultado_historico is None or not resultado_historico.preco_caiu:
+            return 0.0
+
+        try:
+            return abs(float(resultado_historico.variacao_percentual))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _pode_republicar_por_tempo(self, link: str) -> bool:
+        ultima_publicacao = self.fila_publicacao_repository.obter_ultima_publicacao_link(link)
+
+        if ultima_publicacao is None:
+            return False
+
+        agora = datetime.now().astimezone()
+        minutos = max(
+            0.0,
+            (agora - ultima_publicacao.astimezone()).total_seconds() / 60.0,
+        )
+
+        return minutos >= self.cooldown_republicacao_sem_queda_minutos
+
+    @staticmethod
+    def _selecionar_candidatos_para_fila(
+        candidatos: list,
+        pontuacao_minima_principal: float,
+        reposicao_adaptativa_ativa: bool,
+        pontuacao_minima_reposicao: float,
+        alvo_minimo_pendentes: int,
+        quantidade_pendente: int,
+    ) -> tuple[list, int]:
+        """Mantém o piso principal e usa reposição controlada só quando falta fila.
+
+        A reposição não transforma o piso baixo no novo padrão. Ela apenas completa
+        o mínimo operacional da fila com os melhores candidatos disponíveis, sem
+        ultrapassar o alvo mínimo e sem furar curadoria/deduplicação.
+        """
+
+        fortes = [
+            item
+            for item in candidatos
+            if item[1] >= pontuacao_minima_principal
+            or item[0].tipo_oportunidade in {"possivel_preco_bugado", "anomalia_forte"}
+        ]
+
+        if not reposicao_adaptativa_ativa:
+            return fortes, 0
+
+        vagas_reposicao = max(
+            0,
+            int(alvo_minimo_pendentes) - int(quantidade_pendente) - len(fortes),
+        )
+
+        if vagas_reposicao <= 0:
+            return fortes, 0
+
+        ids_fortes = {id(item) for item in fortes}
+
+        reposicao = [
+            item
+            for item in candidatos
+            if id(item) not in ids_fortes and item[1] >= pontuacao_minima_reposicao
+        ][:vagas_reposicao]
+
+        return fortes + reposicao, len(reposicao)
+
+    def _registrar_telemetria_fluxo(
+        self,
+        ofertas_coletadas: int,
+        ofertas_elegiveis: int,
+        ofertas_enfileiradas: int,
+        ofertas_abaixo_score: int,
+        reposicao_adaptativa: int,
+        fila_pendente: int,
+    ) -> None:
+        if self.repositorio_admin is None:
+            return
+
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+        valores = {
+            "pipeline_ultimo_ofertas_coletadas": ofertas_coletadas,
+            "pipeline_ultimo_ofertas_elegiveis": ofertas_elegiveis,
+            "pipeline_ultimo_ofertas_enfileiradas": ofertas_enfileiradas,
+            "pipeline_ultimo_ofertas_abaixo_score": ofertas_abaixo_score,
+            "pipeline_ultimo_reposicao_adaptativa": reposicao_adaptativa,
+            "pipeline_ultimo_fila_pendente": fila_pendente,
+            "pipeline_ultimo_executado_em": agora,
+        }
+
+        for chave, valor in valores.items():
+            self.repositorio_admin.definir_estado(chave, str(valor))
 
     @staticmethod
     def _selecionar_candidatos_diversos(
@@ -629,7 +714,8 @@ class ExecutorPipeline:
         removidas = 0
 
         for item in ofertas_aprovadas:
-            oferta, pontuacao, _, _ = item
+            oferta = item[0]
+            pontuacao = item[1]
 
             chave = oferta.chave_produto_canonica
 
@@ -645,7 +731,8 @@ class ExecutorPipeline:
                 continue
 
             item_existente = selecionadas[indice_existente]
-            oferta_existente, pontuacao_existente, _, _ = item_existente
+            oferta_existente = item_existente[0]
+            pontuacao_existente = item_existente[1]
 
             if self._nova_oferta_e_melhor_representante(
                 oferta_nova=oferta,
@@ -653,7 +740,7 @@ class ExecutorPipeline:
                 oferta_atual=oferta_existente,
                 pontuacao_atual=pontuacao_existente,
             ):
-                logger.info(
+                logger.debug(
                     ("Deduplicação canônica: trocando representante de %s | " "%s %.2f -> %s %.2f"),
                     oferta.produto_canonico,
                     oferta_existente.moeda,
@@ -663,7 +750,7 @@ class ExecutorPipeline:
                 )
                 selecionadas[indice_existente] = item
             else:
-                logger.info(
+                logger.debug(
                     "Deduplicação canônica: anúncio redundante removido: %s | %s",
                     oferta.nome,
                     oferta.produto_canonico,

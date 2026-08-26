@@ -90,6 +90,34 @@ class ControladorAdministrativo:
 
         return self.repositorio_admin.obter_modo_operacao()
 
+    def _estado_admin(
+        self,
+        chave: str,
+        padrao: str | None = None,
+    ) -> str | None:
+        if self.repositorio_admin is None:
+            return padrao
+
+        return self.repositorio_admin.obter_estado(
+            chave,
+            padrao,
+        )
+
+    def _estado_admin_inteiro(
+        self,
+        chave: str,
+        padrao: int = 0,
+    ) -> int:
+        valor = self._estado_admin(
+            chave,
+            str(padrao),
+        )
+
+        try:
+            return int(str(valor))
+        except (TypeError, ValueError):
+            return padrao
+
     def _intervalo_previsao_publicacao(self) -> float:
         if self.repositorio_admin is None:
             return 130.0
@@ -293,14 +321,84 @@ class ControladorAdministrativo:
 
         ultima_publicacao = publicacoes_24h[0] if publicacoes_24h else None
 
+        datas_publicacao: list[datetime] = []
+
+        for item in publicacoes_24h:
+            valor = item.get("publicado_em")
+
+            if not valor:
+                continue
+
+            try:
+                instante = datetime.fromisoformat(str(valor))
+            except ValueError:
+                continue
+
+            if instante.tzinfo is None or instante.utcoffset() is None:
+                continue
+
+            datas_publicacao.append(instante.astimezone())
+
+        datas_publicacao.sort()
+
+        intervalos_minutos = [
+            (atual - anterior).total_seconds() / 60.0
+            for anterior, atual in zip(
+                datas_publicacao,
+                datas_publicacao[1:],
+                strict=False,
+            )
+            if atual > anterior
+        ]
+
+        intervalo_medio_minutos = (
+            round(sum(intervalos_minutos) / len(intervalos_minutos), 1)
+            if intervalos_minutos
+            else None
+        )
+
+        fluxo_publicacao = {
+            "codigo": self._estado_admin(
+                "fluxo_publicacao_estado",
+                "desconhecido",
+            ),
+            "detalhe": self._estado_admin(
+                "fluxo_publicacao_detalhe",
+                "Sem diagnóstico recente do publicador.",
+            ),
+            "atualizado_em": self._estado_admin(
+                "fluxo_publicacao_atualizado_em",
+            ),
+        }
+
+        ultimo_pipeline = {
+            "ofertas_coletadas": self._estado_admin_inteiro("pipeline_ultimo_ofertas_coletadas"),
+            "ofertas_elegiveis": self._estado_admin_inteiro("pipeline_ultimo_ofertas_elegiveis"),
+            "ofertas_enfileiradas": self._estado_admin_inteiro(
+                "pipeline_ultimo_ofertas_enfileiradas"
+            ),
+            "ofertas_abaixo_score": self._estado_admin_inteiro(
+                "pipeline_ultimo_ofertas_abaixo_score"
+            ),
+            "reposicao_adaptativa": self._estado_admin_inteiro(
+                "pipeline_ultimo_reposicao_adaptativa"
+            ),
+            "fila_pendente": self._estado_admin_inteiro("pipeline_ultimo_fila_pendente"),
+            "executado_em": self._estado_admin("pipeline_ultimo_executado_em"),
+        }
+
         return {
             "publicacoes_24h": len(publicacoes_24h),
             "publicacoes_1h": len(publicacoes_1h),
+            "ritmo_medio_por_hora_24h": round(len(publicacoes_24h) / 24.0, 2),
+            "intervalo_medio_publicacoes_minutos_24h": intervalo_medio_minutos,
             "fila_pendente": resumo_fila["itens"],
             "familias_pendentes": resumo_fila["familias"],
             "pontuacao_media_24h": pontuacao_media,
             "ultima_publicacao": ultima_publicacao,
-            "categorias_mais_publicadas": (categorias_mais_publicadas),
+            "categorias_mais_publicadas": categorias_mais_publicadas,
+            "fluxo_publicacao": fluxo_publicacao,
+            "ultimo_pipeline": ultimo_pipeline,
             "coletado_em": datetime.now().astimezone().isoformat(timespec="seconds"),
         }
 

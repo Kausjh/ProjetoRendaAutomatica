@@ -110,6 +110,18 @@ class Configuracoes:
             nome="PONTUACAO_MINIMA_FILA", valor_padrao=72.0
         )
 
+        self.fila_reposicao_adaptativa_ativa = self._buscar_booleano(
+            nome="FILA_REPOSICAO_ADAPTATIVA_ATIVA", valor_padrao=True
+        )
+
+        self.pontuacao_minima_reposicao_fila = self._buscar_decimal(
+            nome="PONTUACAO_MINIMA_REPOSICAO_FILA", valor_padrao=45.0
+        )
+
+        self.alvo_minimo_pendentes_fila = self._buscar_inteiro(
+            nome="ALVO_MINIMO_PENDENTES_FILA", valor_padrao=2
+        )
+
         self.maximo_entradas_fila_por_ciclo = self._buscar_inteiro(
             nome="MAXIMO_ENTRADAS_FILA_POR_CICLO", valor_padrao=12
         )
@@ -317,6 +329,17 @@ class Configuracoes:
 
         if not 0 <= self.pontuacao_minima_fila <= 100:
             raise ValueError("PONTUACAO_MINIMA_FILA precisa estar entre 0 e 100.")
+
+        if not 0 <= self.pontuacao_minima_reposicao_fila <= 100:
+            raise ValueError("PONTUACAO_MINIMA_REPOSICAO_FILA precisa estar entre 0 e 100.")
+
+        if self.pontuacao_minima_reposicao_fila > self.pontuacao_minima_fila:
+            raise ValueError(
+                "PONTUACAO_MINIMA_REPOSICAO_FILA não pode ser maior que " "PONTUACAO_MINIMA_FILA."
+            )
+
+        if self.alvo_minimo_pendentes_fila <= 0:
+            raise ValueError("ALVO_MINIMO_PENDENTES_FILA precisa ser maior que zero.")
 
         if self.maximo_entradas_fila_por_ciclo <= 0:
             raise ValueError("MAXIMO_ENTRADAS_FILA_POR_CICLO precisa ser maior que zero.")

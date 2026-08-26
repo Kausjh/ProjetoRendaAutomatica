@@ -141,7 +141,7 @@ class SeletorEditorial:
                 "possivel_preco_bugado",
                 "anomalia_forte",
             }:
-                logger.info(
+                logger.debug(
                     (
                         "Anti-repost: família '%s' liberada antes do cooldown "
                         "por oportunidade anômala validada."
@@ -165,7 +165,7 @@ class SeletorEditorial:
                 item.deve_republicar_por_queda
                 and queda >= self.queda_minima_repost_familia_percentual
             ):
-                logger.info(
+                logger.debug(
                     (
                         "Anti-repost: família '%s' liberada antes do cooldown "
                         "por queda real de %.2f%% (mínimo %.2f%%)."
@@ -182,7 +182,7 @@ class SeletorEditorial:
                 self.cooldown_familia_minutos - minutos,
             )
 
-            logger.info(
+            logger.debug(
                 (
                     "Anti-repost: bloqueando família '%s' por cooldown. "
                     "Publicado há %.1f min; faltam aproximadamente %.1f min. "

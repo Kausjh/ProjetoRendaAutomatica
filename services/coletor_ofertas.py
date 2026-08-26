@@ -49,7 +49,7 @@ class ColetorOfertas:
 
         for oferta in ofertas:
             if oferta.link in links:
-                logger.info("Oferta duplicada removida: %s", oferta.nome)
+                logger.debug("Oferta duplicada removida: %s", oferta.nome)
                 continue
 
             links.add(oferta.link)
@@ -88,14 +88,14 @@ class ColetorOfertas:
             classificacao = self.classificador.aplicar_classificacao(oferta)
 
             if not classificacao.eh_nicho:
-                logger.info(
+                logger.debug(
                     "Oferta fora do nicho removida: '%s'. Motivo: %s",
                     oferta.nome,
                     classificacao.motivo,
                 )
                 continue
 
-            logger.info(
+            logger.debug(
                 ("Oferta classificada: '%s' | " "Categoria: %s | Relevância: %.2f."),
                 oferta.nome,
                 classificacao.categoria,
