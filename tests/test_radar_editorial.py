@@ -243,3 +243,140 @@ def test_marketing_4k_com_gpu_fraca_tem_prioridade_editorial(tmp_path):
 
     assert resultado is not None
     assert resultado.motivo == "contexto_marketing_gpu_desproporcional"
+
+
+def test_cpu_antiga_avulsa_pode_ser_detectada_sem_gerar_comentario(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Processador Intel Core i5-4570 3.2GHz",
+            categoria="Processador",
+        ),
+        resultado_historico=None,
+        pontuacao=65.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is None
+
+
+def test_oferta_comum_de_score_baixo_fica_quieta(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Mouse Gamer USB RGB",
+            categoria="Periféricos",
+            marca=None,
+        ),
+        resultado_historico=None,
+        pontuacao=68.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is None
+
+
+def test_oferta_comum_so_entra_no_comentario_generico_acima_da_regua(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Mouse Gamer USB RGB",
+            categoria="Periféricos",
+            marca=None,
+        ),
+        resultado_historico=None,
+        pontuacao=76.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is not None
+    assert resultado.motivo == "comentario_contextual"
+
+
+def test_contexto_leve_de_score_baixo_fica_quieto(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Monitor Gamer 24 Full HD 75Hz",
+            categoria="Monitor",
+            marca=None,
+        ),
+        resultado_historico=None,
+        pontuacao=66.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is None
+
+
+def test_contexto_leve_com_score_bom_pode_ser_comentado(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Monitor Gamer 24 Full HD 75Hz",
+            categoria="Monitor",
+            marca=None,
+        ),
+        resultado_historico=None,
+        pontuacao=74.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is not None
+    assert resultado.motivo == "contexto_monitor_gamer_basico"
+
+
+def test_incompatibilidade_tecnica_tem_prioridade_maxima(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "Kit Upgrade Ryzen 5 5600G 16GB DDR3",
+            categoria="Kit upgrade",
+            marca=None,
+        ),
+        resultado_historico=historico(-20.0, menor_preco=True),
+        pontuacao=90.0,
+        deve_republicar_por_queda=True,
+        agora=agora,
+    )
+
+    assert resultado is not None
+    assert resultado.motivo == "contexto_incompatibilidade_memoria"
+    assert "não" in resultado.texto.casefold() or "nao" in resultado.texto.casefold()
+
+
+def test_cpu_basica_vendida_como_gamer_recebe_alerta_editorial(tmp_path):
+    editorial = criar_editorial(tmp_path)
+    agora = datetime(2026, 8, 26, 14, 0, tzinfo=UTC)
+
+    resultado = editorial.avaliar_oferta(
+        oferta=oferta(
+            "PC Gamer Intel N100 16GB SSD 512GB",
+            categoria="Computador",
+            marca=None,
+        ),
+        resultado_historico=None,
+        pontuacao=70.0,
+        deve_republicar_por_queda=False,
+        agora=agora,
+    )
+
+    assert resultado is not None
+    assert resultado.motivo == "contexto_marketing_cpu_basica"

@@ -66,7 +66,9 @@ class RadarEditorial:
     INTERVALO_MINIMO_COMENTARIOS = timedelta(minutes=12)
     ATRASO_RESPOSTA_MINIMO_SEGUNDOS = 8
     ATRASO_RESPOSTA_MAXIMO_SEGUNDOS = 38
-    CHANCE_BASE = 0.16
+    CHANCE_BASE = 0.10
+    PONTUACAO_MINIMA_COMENTARIO_GENERICO = 76.0
+    PONTUACAO_MINIMA_CONTEXTO_LEVE = 72.0
     LIMITE_REPETICAO_TEXTOS = 40
 
     def __init__(
@@ -162,6 +164,54 @@ class RadarEditorial:
         sinal: SinalContextoEditorial,
     ) -> list[tuple[str, str]]:
         referencia = sinal.referencia
+
+        if sinal.tipo == "incompatibilidade_socket":
+            return [
+                (
+                    "tecnico",
+                    f"{referencia}: essa combinação de plataforma não fecha. eu conferiria o anúncio antes de comprar",
+                ),
+                (
+                    "fiscal",
+                    f"{referencia} no mesmo anúncio. ou o título misturou peças diferentes, ou tem compatibilidade errada aí",
+                ),
+                (
+                    "estagiario",
+                    f"{referencia}. eu parei nessa parte porque socket não costuma aceitar negociação",
+                ),
+            ]
+
+        if sinal.tipo == "incompatibilidade_memoria":
+            return [
+                (
+                    "tecnico",
+                    f"{referencia}: a combinação de CPU e memória não bate tecnicamente. confere a ficha antes de fechar",
+                ),
+                (
+                    "fiscal",
+                    f"{referencia} apareceu junto. isso merece revisão porque as plataformas não combinam",
+                ),
+                (
+                    "estagiario",
+                    f"{referencia}. dessa vez eu não culpo o algoritmo; a ficha técnica que tá brigando consigo mesma",
+                ),
+            ]
+
+        if sinal.tipo == "marketing_cpu_basica":
+            return [
+                (
+                    "estagiario",
+                    f"{referencia} com 'gamer' no anúncio. o marketing chegou antes do benchmark",
+                ),
+                (
+                    "fiscal",
+                    f"{referencia} numa máquina vendida como gamer. eu julgaria pelo hardware, não pelo adjetivo",
+                ),
+                (
+                    "tecnico",
+                    f"{referencia} é uma CPU bem básica pra proposta gamer. vale conferir o uso real antes de comprar",
+                ),
+            ]
 
         if sinal.tipo == "upgrade_antigo":
             return [
@@ -610,18 +660,18 @@ class RadarEditorial:
 
         if sinal_contexto is not None and sinal_contexto.severidade >= 4:
             motivo = f"contexto_{sinal_contexto.tipo}"
-            chance = 0.88
+            chance = 0.96 if sinal_contexto.severidade >= 5 else 0.88
+            candidatos = self._candidatos_contexto_tecnico(sinal_contexto)
+
+        elif sinal_contexto is not None and sinal_contexto.severidade >= 3:
+            motivo = f"contexto_{sinal_contexto.tipo}"
+            chance = 0.62
             candidatos = self._candidatos_contexto_tecnico(sinal_contexto)
 
         elif deve_republicar_por_queda and queda >= 5:
             motivo = "republicacao_por_queda"
             chance = 0.72
             candidatos = self._candidatos_republicacao_queda(queda)
-
-        elif sinal_contexto is not None and sinal_contexto.severidade >= 2:
-            motivo = f"contexto_{sinal_contexto.tipo}"
-            chance = 0.68 if sinal_contexto.severidade >= 3 else 0.46
-            candidatos = self._candidatos_contexto_tecnico(sinal_contexto)
 
         elif queda >= 15:
             motivo = "queda_forte"
@@ -642,7 +692,16 @@ class RadarEditorial:
             chance = 0.30
             candidatos = self._candidatos_score_alto(pontuacao)
 
+        elif sinal_contexto is not None and sinal_contexto.severidade >= 2:
+            if pontuacao < self.PONTUACAO_MINIMA_CONTEXTO_LEVE:
+                return None
+            motivo = f"contexto_{sinal_contexto.tipo}"
+            chance = 0.32
+            candidatos = self._candidatos_contexto_tecnico(sinal_contexto)
+
         else:
+            if pontuacao < self.PONTUACAO_MINIMA_COMENTARIO_GENERICO:
+                return None
             motivo = "comentario_contextual"
             chance = self.CHANCE_BASE
             candidatos = self._candidatos_categoria(oferta)
