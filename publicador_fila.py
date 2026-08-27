@@ -24,6 +24,7 @@ from services.controle.politica_publicacao_administrativa import (
 )
 from services.janela_publicacao import JanelaPublicacao
 from services.launcher.chrome_launcher import preparar_chrome
+from services.radar_editorial import RadarEditorial
 from services.seletor_editorial import SeletorEditorial
 
 configurar_logging()
@@ -92,6 +93,8 @@ class PublicadorFila:
             urgente_minimo_segundos=(configuracoes.publicacao_urgente_minimo_segundos),
             urgente_maximo_segundos=(configuracoes.publicacao_urgente_maximo_segundos),
         )
+
+        self.editorial = RadarEditorial()
 
     def _registrar_previsao_publicacao(
         self,
@@ -228,11 +231,23 @@ class PublicadorFila:
                 resultado_historico=(item.resultado_historico),
             )
 
+            mensagem_publicada_id = self.bot.ultima_mensagem_publicada_id
+
             self.publicados.marcar_como_publicada(item.oferta.link)
 
             self.fila.marcar_publicado(item.id)
 
             logger.info("Oferta publicada com sucesso a partir da fila.")
+
+            await self.editorial.tentar_comentar_oferta(
+                bot=self.bot,
+                mensagem_id=mensagem_publicada_id,
+                oferta=item.oferta,
+                resultado_historico=item.resultado_historico,
+                pontuacao=item.pontuacao,
+                deve_republicar_por_queda=item.deve_republicar_por_queda,
+                forcar=forcar,
+            )
 
             return "publicado"
 
@@ -289,6 +304,8 @@ class PublicadorFila:
 
             modo = self.controle_admin.obter_modo_operacao()
             self._registrar_modo_se_mudou(modo)
+
+            await self.editorial.tentar_interacao_do_dia(self.bot)
 
             item_forcado = self.fila.consumir_publicacao_imediata()
 

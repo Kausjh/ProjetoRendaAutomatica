@@ -2,7 +2,7 @@ import logging
 from dataclasses import replace
 from urllib.parse import urlparse
 
-from telegram import Bot
+from telegram import Bot, ReplyParameters
 
 from affiliates.gerador_link_afiliado import GeradorLinkAfiliado
 from affiliates.resultado_link_afiliado import ResultadoLinkAfiliado
@@ -22,6 +22,7 @@ class TelegramBot:
 
         self.channel_id = channel_id
         self.gerador_link_afiliado = gerador_link_afiliado
+        self.ultima_mensagem_publicada_id: int | None = None
 
     @staticmethod
     def _eh_link_mercado_livre(link: str) -> bool:
@@ -35,9 +36,50 @@ class TelegramBot:
     async def enviar_mensagem(self, mensagem: str) -> None:
         await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
 
+    async def responder_mensagem(
+        self,
+        mensagem_id: int,
+        mensagem: str,
+    ) -> None:
+        try:
+            await self.bot.send_message(
+                chat_id=self.channel_id,
+                text=mensagem,
+                disable_notification=True,
+                reply_parameters=ReplyParameters(
+                    message_id=mensagem_id,
+                ),
+            )
+        except Exception as erro:
+            logger.info(
+                "Telegram não vinculou o comentário à publicação; "
+                "enviando como mensagem editorial independente. Detalhes: %s",
+                erro,
+            )
+            await self.bot.send_message(
+                chat_id=self.channel_id,
+                text=mensagem,
+                disable_notification=True,
+            )
+
+    async def enviar_enquete(
+        self,
+        pergunta: str,
+        opcoes,
+    ) -> None:
+        await self.bot.send_poll(
+            chat_id=self.channel_id,
+            question=pergunta,
+            options=opcoes,
+            is_anonymous=True,
+            allows_multiple_answers=False,
+            disable_notification=True,
+        )
+
     async def enviar_oferta(
         self, oferta: Oferta, resultado_historico: ResultadoHistoricoPreco | None = None
     ) -> ResultadoLinkAfiliado:
+        self.ultima_mensagem_publicada_id = None
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
 
         if self._eh_link_mercado_livre(oferta.link) and not resultado_link.foi_transformado:
@@ -61,10 +103,15 @@ class TelegramBot:
 
         if oferta.imagem:
             try:
-                await self.bot.send_photo(
+                mensagem_enviada = await self.bot.send_photo(
                     chat_id=self.channel_id, photo=oferta.imagem, caption=mensagem
                 )
 
+                self.ultima_mensagem_publicada_id = getattr(
+                    mensagem_enviada,
+                    "message_id",
+                    None,
+                )
                 return resultado_link
 
             except Exception:
@@ -74,6 +121,11 @@ class TelegramBot:
                     exc_info=True,
                 )
 
-        await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
+        mensagem_enviada = await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
 
+        self.ultima_mensagem_publicada_id = getattr(
+            mensagem_enviada,
+            "message_id",
+            None,
+        )
         return resultado_link

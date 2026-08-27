@@ -112,3 +112,4 @@ execucao_em_andamento.lock
 
 # Artefatos locais de etapas de desenvolvimento
 /LEIA-ME-ETAPA-*.txt
+database/radar_editorial.json
