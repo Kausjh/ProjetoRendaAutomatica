@@ -53,6 +53,13 @@ class CuradoriaPublicacao:
         "não funciona",
         "para retirada de pecas",
         "para retirada de peças",
+        "vencido",
+        "vencida",
+        "validade curta",
+        "proximo do vencimento",
+        "proximo do vencimento",
+        "sem lacre",
+        "lacre violado",
     )
 
     TERMOS_ACESSORIO_AMBIGUO: tuple[str, ...] = (
@@ -73,6 +80,29 @@ class CuradoriaPublicacao:
         "placa filha",
     )
 
+    PADROES_RUIDO_POR_CATEGORIA: dict[
+        str,
+        tuple[str, ...],
+    ] = {
+        "Placa de v?deo": (
+            r"^(?:novo\s+|nova\s+)?(?:ventilador|fan|cooler)\b",
+            r"^(?:novo\s+|nova\s+)?(?:capa|cover|caixa|malha)\b",
+        ),
+        "Suplementos": (
+            r"^(?:coqueteleira|shaker|dosador|scoop|funil)\b",
+            r"^(?:pote|embalagem)\s+vazi",
+        ),
+        "Caf\u00e9": (
+            r"^(?:porta capsulas?|capsula reutilizavel|cafeteira|"
+            r"moedor|filtro de cafe|caneca)\b",
+        ),
+        "Energ\u00e9ticos": (
+            r"^(?:camiseta|camisa|bone|adesivo|placa decorativa|"
+            r"copo|caneca|porta lata|porta-lata|suporte para lata|"
+            r"abridor|garrafa|squeeze)\b",
+        ),
+        "Chocolate e snacks": (r"^(?:forma|molde|essencia|aroma|corante)\b.*\bchocolate\b",),
+    }
     TERMOS_KIT_COMBO: tuple[str, ...] = (
         "kit",
         "combo",
@@ -85,6 +115,10 @@ class CuradoriaPublicacao:
             "Maker e bancada",
             "Suportes e conectividade",
             "Iluminação de setup",
+            "Suplementos",
+            "Energ\u00e9ticos",
+            "Caf\u00e9",
+            "Chocolate e snacks",
         }
     )
 
@@ -112,6 +146,10 @@ class CuradoriaPublicacao:
         "Realidade virtual": 700.0,
         "Mobiliário e ergonomia": 150.0,
         "Climatização e conforto": 40.0,
+        "Suplementos": 5.0,
+        "Energ\u00e9ticos": 3.0,
+        "Caf\u00e9": 5.0,
+        "Chocolate e snacks": 2.0,
     }
 
     def __init__(self, nota_minima: float = 55.0, ativa: bool = True) -> None:
@@ -155,6 +193,16 @@ class CuradoriaPublicacao:
         if riscos_acessorio:
             bloqueios.append(
                 "Anúncio parece peça/acessório ambíguo: " + ", ".join(riscos_acessorio) + "."
+            )
+
+        padroes_ruido_categoria = self.PADROES_RUIDO_POR_CATEGORIA.get(
+            oferta.categoria or "",
+            (),
+        )
+
+        if any(re.search(padrao, texto) for padrao in padroes_ruido_categoria):
+            bloqueios.append(
+                "Anuncio parece ser acessorio, embalagem ou item " "associado ao produto principal."
             )
 
         if oferta.preco <= 0:

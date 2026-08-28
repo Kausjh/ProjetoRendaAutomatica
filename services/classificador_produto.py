@@ -435,6 +435,64 @@ class ClassificadorProduto:
             "impressora tanque",
             "multifuncional",
         ),
+        "Suplementos": (
+            "creatina monohidratada",
+            "creatina",
+            "creatine",
+            "whey protein",
+            "whey",
+            "protein powder",
+            "pre treino",
+            "pre-treino",
+            "pre workout",
+            "beta alanina",
+            "glutamina",
+            "bcaa",
+            "hipercalorico",
+            "barra proteica",
+            "protein bar",
+        ),
+        "Energ\u00e9ticos": (
+            "energetico",
+            "energy drink",
+            "monster energy",
+            "red bull",
+            "tnt energy",
+            "baly energy",
+            "fusion energy",
+        ),
+        "Caf\u00e9": (
+            "cafe em graos",
+            "cafe moido",
+            "cafe soluvel",
+            "cafe especial",
+            "capsula de cafe",
+            "capsulas de cafe",
+            "capsula nespresso",
+            "capsula dolce gusto",
+            "cafe 3 coracoes",
+            "cafe melitta",
+            "cafe",
+        ),
+        "Chocolate e snacks": (
+            "lacta",
+            "garoto",
+            "kitkat",
+            "bis",
+            "talento",
+            "ouro branco",
+            "sonho de valsa",
+            "hersheys",
+            "hershey",
+            "nestle",
+            "barra de chocolate",
+            "chocolate lacta",
+            "chocolate nestle",
+            "chocolate hershey",
+            "kitkat",
+            "oreo",
+            "chocolate",
+        ),
     }
 
     TERMOS_GAMER: tuple[str, ...] = ("gamer", "gaming", "rgb", "argb", "esports", "e-sports")
@@ -724,6 +782,25 @@ class ClassificadorProduto:
 
     def _categoria_explicita_no_inicio(self, texto: str) -> tuple[str, list[str]] | None:
         regras: tuple[tuple[str, str], ...] = (
+            (
+                "Suplementos",
+                r"^(?:creatina|creatine|whey|pre treino|pre-treino|"
+                r"beta alanina|glutamina|bcaa|hipercalorico|barra proteica)\b",
+            ),
+            (
+                "Energ\u00e9ticos",
+                r"^(?:energetico|energy drink|monster energy|red bull|"
+                r"tnt energy|baly energy|fusion energy)\b",
+            ),
+            (
+                "Caf\u00e9",
+                r"^(?:cafe|capsula de cafe|capsulas de cafe|"
+                r"capsula nespresso|capsula dolce gusto)\b",
+            ),
+            (
+                "Chocolate e snacks",
+                r"^(?:chocolate|barra de chocolate|kitkat|oreo)\b",
+            ),
             ("Armazenamento", r"^(?:ssd|nvme|hd|disco solido)\b"),
             ("Processador", r"^(?:processador|cpu)\b"),
             ("Memória RAM", r"^(?:memoria ram|memoria ddr|ram)\b"),

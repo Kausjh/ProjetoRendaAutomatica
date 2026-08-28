@@ -100,7 +100,10 @@ async def main() -> None:
 
     logger.info("Identificador público da marca: %s", configuracoes.identificador_marca)
 
-    logger.info("Nicho configurado: hardware, periféricos " "e produtos gamer.")
+    logger.info(
+        "Universo monitorado: tecnologia, setup, games, "
+        "eletronicos e consumo recorrente do publico do Radar."
+    )
 
     logger.info(
         "Produtos atualmente no histórico: %s", historico_precos_repository.quantidade_produtos()
