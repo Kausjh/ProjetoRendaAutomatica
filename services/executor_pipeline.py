@@ -291,6 +291,19 @@ class ExecutorPipeline:
 
             logger.debug("Oferta elegível: %s | Pontuação final: %.2f", oferta.nome, pontuacao)
 
+        salvar_pendentes = getattr(
+            self.historico_precos_service,
+            "salvar_pendentes",
+            None,
+        )
+
+        if callable(salvar_pendentes):
+            try:
+                salvar_pendentes()
+            except Exception:
+                logger.exception("Erro ao persistir lote final do hist\u00f3rico de pre\u00e7os.")
+                quantidade_com_erro += 1
+
         if self.deduplicacao_canonica_ativa:
             ofertas_aprovadas, quantidade_deduplicada_canonica = self._deduplicar_ofertas_canonicas(
                 ofertas_aprovadas

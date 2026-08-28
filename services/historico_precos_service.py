@@ -19,8 +19,17 @@ class ResultadoHistoricoPreco:
 
 
 class HistoricoPrecosService:
-    def __init__(self, repository: HistoricoPrecosRepository) -> None:
+    def __init__(
+        self,
+        repository: HistoricoPrecosRepository,
+        tamanho_lote_salvamento: int = 100,
+    ) -> None:
+        if tamanho_lote_salvamento <= 0:
+            raise ValueError("tamanho_lote_salvamento precisa ser maior que zero.")
+
         self.repository = repository
+        self.tamanho_lote_salvamento = tamanho_lote_salvamento
+        self._alteracoes_pendentes = 0
 
     def analisar_e_registrar(self, oferta: Oferta) -> ResultadoHistoricoPreco:
         chave_produto = self._criar_chave_produto(oferta)
@@ -56,7 +65,10 @@ class HistoricoPrecosService:
             coletado_em=coletado_em,
         )
 
-        self.repository.salvar()
+        self._alteracoes_pendentes += 1
+
+        if self._alteracoes_pendentes >= self.tamanho_lote_salvamento:
+            self.salvar_pendentes()
 
         quantidade_registros = len(historico_anterior)
 
@@ -79,6 +91,13 @@ class HistoricoPrecosService:
             novo_preco_registrado=(novo_preco_registrado),
             quantidade_registros=(quantidade_registros),
         )
+
+    def salvar_pendentes(self) -> None:
+        if self._alteracoes_pendentes <= 0:
+            return
+
+        self.repository.salvar()
+        self._alteracoes_pendentes = 0
 
     def _criar_chave_produto(self, oferta: Oferta) -> str:
         identificadores = (oferta.id_produto, oferta.id_anuncio)

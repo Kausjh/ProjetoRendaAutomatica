@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -62,23 +64,57 @@ class HistoricoPrecosRepository:
 
         self._dados["atualizado_em"] = datetime.now().astimezone().isoformat(timespec="seconds")
 
-        caminho_temporario = self.caminho_arquivo.with_suffix(".tmp")
+        caminho_temporario: Path | None = None
 
-        with caminho_temporario.open(
-            "w",
-            encoding="utf-8",
-        ) as arquivo:
-            json.dump(
-                self._dados,
-                arquivo,
-                ensure_ascii=False,
-                indent=2,
-            )
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.caminho_arquivo.parent,
+                prefix=f".{self.caminho_arquivo.stem}.",
+                suffix=".tmp",
+                delete=False,
+            ) as arquivo:
+                caminho_temporario = Path(arquivo.name)
 
-        os.replace(
-            caminho_temporario,
-            self.caminho_arquivo,
-        )
+                json.dump(
+                    self._dados,
+                    arquivo,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+                arquivo.flush()
+                os.fsync(arquivo.fileno())
+
+            maximo_tentativas = 5
+            atraso_base_segundos = 0.05
+
+            for tentativa in range(
+                1,
+                maximo_tentativas + 1,
+            ):
+                try:
+                    os.replace(
+                        caminho_temporario,
+                        self.caminho_arquivo,
+                    )
+
+                    caminho_temporario = None
+                    return
+
+                except PermissionError:
+                    if tentativa >= maximo_tentativas:
+                        raise
+
+                    time.sleep(atraso_base_segundos * tentativa)
+
+        finally:
+            if caminho_temporario is not None and caminho_temporario.exists():
+                try:
+                    caminho_temporario.unlink()
+                except OSError:
+                    pass
 
     def obter_produto(
         self,
