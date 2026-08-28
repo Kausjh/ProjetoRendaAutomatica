@@ -5,6 +5,7 @@ from affiliates.afiliador_mercado_livre import (
     AfiliadorMercadoLivre,
 )
 from affiliates.afiliador_parametros import AfiliadorParametros
+from affiliates.afiliador_shopee import AfiliadorShopee
 from affiliates.base_afiliador import BaseAfiliador
 from affiliates.carregador_afiliadores import (
     CarregadorAfiliadores,
@@ -28,7 +29,7 @@ def criar_gerador_link_afiliado(
 
     configuracoes_afiliados = ConfiguracoesAfiliados()
 
-    carregador = CarregadorAfiliadores(caminho_arquivo=(configuracoes_afiliados.caminho_arquivo))
+    carregador = CarregadorAfiliadores(caminho_arquivo=configuracoes_afiliados.caminho_arquivo)
 
     afiliadores_configurados = carregador.carregar()
 
@@ -55,7 +56,7 @@ def criar_gerador_link_afiliado(
         quantidade_registrada += 1
 
         logger.info(
-            ("Afiliador registrado: %s | " "Tipo: %s | Prioridade: %s | " "Domínios: %s"),
+            ("Afiliador registrado: %s | " "Tipo: %s | Prioridade: %s | " "Dom?nios: %s"),
             configuracao.nome,
             configuracao.tipo,
             configuracao.prioridade,
@@ -66,7 +67,7 @@ def criar_gerador_link_afiliado(
 
     logger.info(
         (
-            "Registro de afiliadores concluído. "
+            "Registro de afiliadores conclu?do. "
             "Ativos: %s | Desativados: %s | "
             "Fallback: ativo."
         ),
@@ -86,6 +87,12 @@ def _criar_afiliador(
             dominios=configuracao.dominios,
         )
 
+    if configuracao.tipo == "shopee":
+        return AfiliadorShopee(
+            nome=configuracao.nome,
+            dominios=configuracao.dominios,
+        )
+
     if configuracao.tipo == "parametros":
         return AfiliadorParametros(
             nome=configuracao.nome,
@@ -93,4 +100,4 @@ def _criar_afiliador(
             parametros=configuracao.parametros,
         )
 
-    raise ValueError("Tipo de afiliador não implementado: " f"'{configuracao.tipo}'.")
+    raise ValueError("Tipo de afiliador n?o implementado: " f"'{configuracao.tipo}'.")

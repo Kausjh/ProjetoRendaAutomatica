@@ -10,6 +10,15 @@
             ]
         },
         {
+            "nome": "Shopee",
+            "ativo": true,
+            "tipo": "shopee",
+            "prioridade": 900,
+            "dominios": [
+                "shopee.com.br"
+            ]
+        },
+        {
             "nome": "Books to Scrape",
             "ativo": true,
             "tipo": "parametros",
