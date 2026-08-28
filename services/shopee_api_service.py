@@ -24,6 +24,86 @@ class ShopeeApiService:
 
         self.timeout_segundos = timeout_segundos
 
+    def buscar_produtos(
+        self,
+        termo: str,
+        limite: int = 20,
+        pagina: int = 1,
+        tipo_ordenacao: int = 1,
+    ) -> list[dict[str, Any]]:
+        termo_normalizado = termo.strip()
+
+        if not termo_normalizado:
+            raise ValueError("O termo de busca da Shopee n?o pode ficar vazio.")
+
+        if limite < 1 or limite > 500:
+            raise ValueError("O limite da Shopee precisa ficar entre 1 e 500.")
+
+        if pagina < 1:
+            raise ValueError("A p?gina da Shopee precisa ser maior ou igual a 1.")
+
+        if tipo_ordenacao not in {1, 2, 3, 4, 5}:
+            raise ValueError("O tipo de ordena??o da Shopee precisa ficar entre 1 e 5.")
+
+        termo_graphql = json.dumps(
+            termo_normalizado,
+            ensure_ascii=False,
+        )
+
+        query = f"""
+{{
+  productOfferV2(
+    keyword: {termo_graphql}
+    sortType: {tipo_ordenacao}
+    page: {pagina}
+    limit: {limite}
+  ) {{
+    nodes {{
+      itemId
+      productName
+      productLink
+      offerLink
+      imageUrl
+      priceMin
+      priceMax
+      priceDiscountRate
+      sales
+      ratingStar
+      commissionRate
+      shopId
+      shopName
+    }}
+    pageInfo {{
+      page
+      limit
+      hasNextPage
+    }}
+  }}
+}}
+"""
+
+        resposta = self._executar_graphql(query)
+
+        dados = resposta.get("data")
+
+        if not isinstance(dados, dict):
+            raise RuntimeError("A Shopee n?o retornou o campo 'data' esperado.")
+
+        resultado = dados.get("productOfferV2")
+
+        if not isinstance(resultado, dict):
+            raise RuntimeError("A Shopee n?o retornou 'productOfferV2' corretamente.")
+
+        produtos = resultado.get("nodes")
+
+        if produtos is None:
+            return []
+
+        if not isinstance(produtos, list):
+            raise RuntimeError("A Shopee retornou uma lista de produtos inv?lida.")
+
+        return [produto for produto in produtos if isinstance(produto, dict)]
+
     def gerar_shortlink(self, link_original: str) -> str:
         link_normalizado = link_original.strip()
 
