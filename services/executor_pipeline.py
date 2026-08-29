@@ -337,7 +337,7 @@ class ExecutorPipeline:
         candidatos_fila, quantidade_reserva_marketplace = self._garantir_diversidade_marketplace(
             selecionados=candidatos_fila,
             candidatos_disponiveis=ofertas_aprovadas,
-            pontuacao_minima=0.0,
+            pontuacao_minima=self.pontuacao_minima_reposicao_fila,
         )
 
         if quantidade_reserva_marketplace > 0:

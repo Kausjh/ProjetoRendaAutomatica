@@ -35,6 +35,38 @@ class CuradoriaPublicacao:
 
     NOTA_MAXIMA = 100.0
 
+    TERMOS_VARIACAO_GPU: tuple[str, ...] = (
+        "diversos modelos",
+        "varios modelos",
+        "modelos variados",
+        "modelos diversos",
+        "escolha o modelo",
+        "escolha seu modelo",
+        "varias opcoes",
+        "varias variacoes",
+    )
+
+    PADRAO_MODELO_GPU = re.compile(
+        r"(?<!\d)"
+        r"(?:"
+        r"550|560|570|580|590|"
+        r"950|960|970|980|"
+        r"1030|1050|1060|1070|1080|"
+        r"1630|1650|1660|"
+        r"2060|2070|2080|"
+        r"3050|3060|3070|3080|3090|"
+        r"4060|4070|4080|4090|"
+        r"5060|5070|5080|5090|"
+        r"5500|5600|5700|"
+        r"6400|6500|6600|6650|6700|6750|6800|6900|"
+        r"7600|7700|7800|7900|"
+        r"9060|9070"
+        r")"
+        r"(?:\s*(?:ti|super|xt|xtx|gre))?"
+        r"(?!\d)",
+        re.IGNORECASE,
+    )
+
     TERMOS_CONDICAO_RISCO: tuple[str, ...] = (
         "usado",
         "usada",
@@ -176,6 +208,35 @@ class CuradoriaPublicacao:
         motivos: list[str] = []
         bloqueios: list[str] = []
 
+        categoria_normalizada = self._normalizar(oferta.categoria or "")
+
+        if categoria_normalizada == "placa de video":
+            modelos_gpu = self._detectar_modelos_gpu_distintos(texto)
+
+            termos_variacao = self._encontrar(
+                texto,
+                self.TERMOS_VARIACAO_GPU,
+            )
+
+            if len(modelos_gpu) >= 2 or termos_variacao:
+                detalhes: list[str] = []
+
+                if modelos_gpu:
+                    detalhes.append("modelos detectados: " + ", ".join(modelos_gpu))
+
+                if termos_variacao:
+                    detalhes.append("sinais de variacao: " + ", ".join(termos_variacao))
+
+                complemento = " (" + "; ".join(detalhes) + ")" if detalhes else ""
+
+                bloqueios.append(
+                    "Anuncio de placa de video mistura "
+                    "modelos ou variacoes ambiguas"
+                    + complemento
+                    + ". O preco pode pertencer a uma "
+                    "variante diferente da identificada."
+                )
+
         if len(texto) < 8:
             bloqueios.append("Título curto demais para identificar o produto.")
 
@@ -266,6 +327,18 @@ class CuradoriaPublicacao:
         self._aplicar(oferta, resultado)
 
         return resultado
+
+    @classmethod
+    def _detectar_modelos_gpu_distintos(
+        cls,
+        texto: str,
+    ) -> tuple[str, ...]:
+        encontrados = {
+            correspondencia.group(0).strip().lower()
+            for correspondencia in (cls.PADRAO_MODELO_GPU.finditer(texto))
+        }
+
+        return tuple(sorted(encontrados))
 
     @staticmethod
     def _aplicar(oferta: Oferta, resultado: ResultadoCuradoriaPublicacao) -> None:

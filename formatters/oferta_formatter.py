@@ -80,7 +80,24 @@ class OfertaFormatter:
 
                 return "📉 MENOR PREÇO DESDE QUE ACOMPANHAMOS"
 
-        return "🔥 OFERTA IMPERDÍVEL"
+        nota_comprador = max(
+            float(oferta.nota_tecnica) + float(oferta.nota_historica),
+            0.0,
+        )
+
+        if nota_comprador >= 70.0:
+            return "🔥 OFERTA IMPERDÍVEL"
+
+        if nota_comprador >= 60.0:
+            return "🟢 MUITO BOA OFERTA"
+
+        if nota_comprador >= 50.0:
+            return "🟢 BOA OFERTA"
+
+        if nota_comprador >= 45.0:
+            return "🟡 OFERTA INTERESSANTE"
+
+        return "⚪ OFERTA COMUM"
 
     @staticmethod
     def _formatar_preco(
@@ -270,5 +287,8 @@ class OfertaFormatter:
 
         if nota >= 50:
             return "Boa oportunidade"
+
+        if nota >= 45:
+            return "Oferta interessante"
 
         return "Oferta comum"
