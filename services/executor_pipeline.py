@@ -334,6 +334,18 @@ class ExecutorPipeline:
             quantidade_pendente=quantidade_pendente_antes,
         )
 
+        candidatos_fila, quantidade_reserva_marketplace = self._garantir_diversidade_marketplace(
+            selecionados=candidatos_fila,
+            candidatos_disponiveis=ofertas_aprovadas,
+            pontuacao_minima=0.0,
+        )
+
+        if quantidade_reserva_marketplace > 0:
+            logger.info(
+                ("Diversidade de marketplace adicionou %s candidato(s) " "qualificado(s) a fila."),
+                quantidade_reserva_marketplace,
+            )
+
         quantidade_descartada_score_fila = len(ofertas_aprovadas) - len(candidatos_fila)
 
         if quantidade_reposicao_adaptativa > 0:
@@ -490,6 +502,7 @@ class ExecutorPipeline:
             "ofertas_atualizadas_na_fila": quantidade_atualizada_na_fila,
             "ofertas_abaixo_score_fila": quantidade_descartada_score_fila,
             "reposicao_adaptativa_fila": quantidade_reposicao_adaptativa,
+            "reservas_diversidade_marketplace": quantidade_reserva_marketplace,
             "fila_pendente_antes": quantidade_pendente_antes,
             "fila_pendente_ao_fim": quantidade_pendente_fila,
             "candidatos_segurados_diversidade_entrada": (quantidade_limitada_por_diversidade),
@@ -623,6 +636,84 @@ class ExecutorPipeline:
             self.repositorio_admin.definir_estado(chave, str(valor))
 
     @staticmethod
+    def _chave_marketplace(oferta) -> str:
+        valor = getattr(oferta, "marketplace", None) or getattr(oferta, "loja", None)
+
+        if not isinstance(valor, str):
+            return ""
+
+        chave = valor.strip().casefold()
+
+        if "shopee" in chave:
+            return "shopee"
+
+        if "mercado" in chave and "livre" in chave:
+            return "mercado_livre"
+
+        return chave.replace(" ", "_")
+
+    @staticmethod
+    def _garantir_diversidade_marketplace(
+        selecionados: list,
+        candidatos_disponiveis: list,
+        pontuacao_minima: float,
+    ) -> tuple[list, int]:
+        """Reserva o melhor candidato qualificado de cada marketplace."""
+
+        resultado = list(selecionados)
+
+        marketplaces_presentes = {
+            ExecutorPipeline._chave_marketplace(item[0])
+            for item in resultado
+            if ExecutorPipeline._chave_marketplace(item[0])
+        }
+
+        melhores_ausentes: dict[str, object] = {}
+
+        for item in candidatos_disponiveis:
+            oferta = item[0]
+            pontuacao = float(item[1])
+
+            urgente = oferta.tipo_oportunidade in {
+                "possivel_preco_bugado",
+                "anomalia_forte",
+            }
+
+            if pontuacao < pontuacao_minima and not urgente:
+                continue
+
+            marketplace = ExecutorPipeline._chave_marketplace(oferta)
+
+            if not marketplace or marketplace in marketplaces_presentes:
+                continue
+
+            atual = melhores_ausentes.get(marketplace)
+
+            if atual is None or pontuacao > float(atual[1]):
+                melhores_ausentes[marketplace] = item
+
+        reservas = sorted(
+            melhores_ausentes.values(),
+            key=lambda item: float(item[1]),
+            reverse=True,
+        )
+
+        for item in reservas:
+            oferta = item[0]
+            pontuacao = float(item[1])
+
+            logger.info(
+                ("Reserva editorial de marketplace: %s | " "score=%.2f | %s"),
+                ExecutorPipeline._chave_marketplace(oferta),
+                pontuacao,
+                oferta.nome,
+            )
+
+        resultado.extend(reservas)
+
+        return resultado, len(reservas)
+
+    @staticmethod
     def _selecionar_candidatos_diversos(
         candidatos: list,
         limite_total: int,
@@ -663,6 +754,33 @@ class ExecutorPipeline:
 
             selecionados.append(item)
             ids_selecionados.add(id(item))
+
+            categoria = ExecutorPipeline._chave_categoria(item[0].categoria)
+            contagem_categoria[categoria] = contagem_categoria.get(categoria, 0) + 1
+
+        # Antes das rodadas por categoria, preserva pelo menos
+        # um representante de cada marketplace disponivel.
+        marketplaces_selecionados = {
+            ExecutorPipeline._chave_marketplace(item[0])
+            for item in selecionados
+            if ExecutorPipeline._chave_marketplace(item[0])
+        }
+
+        for item in comuns:
+            if len(selecionados) >= limite_total:
+                return selecionados
+
+            if id(item) in ids_selecionados:
+                continue
+
+            marketplace = ExecutorPipeline._chave_marketplace(item[0])
+
+            if not marketplace or marketplace in marketplaces_selecionados:
+                continue
+
+            selecionados.append(item)
+            ids_selecionados.add(id(item))
+            marketplaces_selecionados.add(marketplace)
 
             categoria = ExecutorPipeline._chave_categoria(item[0].categoria)
             contagem_categoria[categoria] = contagem_categoria.get(categoria, 0) + 1
@@ -723,7 +841,7 @@ class ExecutorPipeline:
         """
 
         selecionadas: list = []
-        indice_por_chave: dict[str, int] = {}
+        indice_por_chave: dict[tuple[str, str], int] = {}
         removidas = 0
 
         for item in ofertas_aprovadas:
@@ -736,10 +854,16 @@ class ExecutorPipeline:
                 selecionadas.append(item)
                 continue
 
-            indice_existente = indice_por_chave.get(chave)
+            marketplace = self._chave_marketplace(oferta)
+            chave_deduplicacao = (
+                marketplace,
+                chave,
+            )
+
+            indice_existente = indice_por_chave.get(chave_deduplicacao)
 
             if indice_existente is None:
-                indice_por_chave[chave] = len(selecionadas)
+                indice_por_chave[chave_deduplicacao] = len(selecionadas)
                 selecionadas.append(item)
                 continue
 

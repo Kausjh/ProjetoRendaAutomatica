@@ -382,6 +382,25 @@ class FilaPublicacaoRepository:
 
         return "adicionado"
 
+    @staticmethod
+    def _chave_marketplace_oferta(
+        oferta: Oferta,
+    ) -> str:
+        valor = getattr(oferta, "marketplace", None) or getattr(oferta, "loja", None)
+
+        if not isinstance(valor, str):
+            return ""
+
+        chave = valor.strip().casefold()
+
+        if "shopee" in chave:
+            return "shopee"
+
+        if "mercado" in chave and "livre" in chave:
+            return "mercado_livre"
+
+        return chave.replace(" ", "_")
+
     def _substituir_canonico_se_melhor(
         self,
         conexao: sqlite3.Connection,
@@ -399,17 +418,32 @@ class FilaPublicacaoRepository:
         if not chave or oferta.confianca_normalizacao < 90:
             return False
 
-        existente = conexao.execute(
+        existentes = conexao.execute(
             """
-            SELECT id, prioridade
+            SELECT id, prioridade, oferta_json
             FROM fila_publicacao
             WHERE chave_canonica = ?
               AND status = 'pendente'
             ORDER BY prioridade DESC
-            LIMIT 1
             """,
             (chave,),
-        ).fetchone()
+        ).fetchall()
+
+        marketplace_novo = self._chave_marketplace_oferta(oferta)
+
+        existente = None
+
+        for candidato in existentes:
+            try:
+                oferta_existente = Oferta(**json.loads(candidato["oferta_json"]))
+            except Exception:
+                continue
+
+            marketplace_existente = self._chave_marketplace_oferta(oferta_existente)
+
+            if marketplace_existente == marketplace_novo:
+                existente = candidato
+                break
 
         if existente is None:
             return False
@@ -467,17 +501,32 @@ class FilaPublicacaoRepository:
         if not chave or oferta.confianca_familia < 80:
             return False
 
-        existente = conexao.execute(
+        existentes = conexao.execute(
             """
             SELECT id, prioridade, oferta_json
             FROM fila_publicacao
             WHERE chave_familia = ?
               AND status = 'pendente'
             ORDER BY prioridade DESC
-            LIMIT 1
             """,
             (chave,),
-        ).fetchone()
+        ).fetchall()
+
+        marketplace_novo = self._chave_marketplace_oferta(oferta)
+
+        existente = None
+
+        for candidato in existentes:
+            try:
+                oferta_existente_candidata = Oferta(**json.loads(candidato["oferta_json"]))
+            except Exception:
+                continue
+
+            marketplace_existente = self._chave_marketplace_oferta(oferta_existente_candidata)
+
+            if marketplace_existente == marketplace_novo:
+                existente = candidato
+                break
 
         if existente is None:
             return False
@@ -1211,8 +1260,20 @@ class FilaPublicacaoRepository:
             try:
                 oferta = Oferta(**json.loads(registro["oferta_json"]))
                 registro["preco"] = float(oferta.preco)
+                registro["marketplace"] = getattr(
+                    oferta,
+                    "marketplace",
+                    None,
+                )
+                registro["loja"] = getattr(
+                    oferta,
+                    "loja",
+                    None,
+                )
             except Exception:
                 registro["preco"] = None
+                registro["marketplace"] = None
+                registro["loja"] = None
 
             registro.pop("oferta_json", None)
             historico.append(registro)

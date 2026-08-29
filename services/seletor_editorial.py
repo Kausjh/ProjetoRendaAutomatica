@@ -70,8 +70,13 @@ class SeletorEditorial:
         if not pendentes:
             return None
 
-        candidatos = self._aplicar_bloqueio_categoria(
+        candidatos = self._aplicar_bloqueio_marketplace(
             pendentes=pendentes,
+            historico_publicacoes=historico_publicacoes,
+        )
+
+        candidatos = self._aplicar_bloqueio_categoria(
+            pendentes=candidatos,
             historico_publicacoes=historico_publicacoes,
             agora=agora,
         )
@@ -209,6 +214,77 @@ class SeletorEditorial:
                 return registro
 
         return None
+
+    def _aplicar_bloqueio_marketplace(
+        self,
+        pendentes: list[ItemFilaPublicacao],
+        historico_publicacoes: list[dict],
+    ) -> list[ItemFilaPublicacao]:
+        """Evita repetir marketplace quando existe alternativa valida."""
+
+        ultimo_marketplace = self._ultimo_marketplace_publicado(historico_publicacoes)
+
+        if not ultimo_marketplace:
+            return pendentes
+
+        alternativas: list[ItemFilaPublicacao] = []
+
+        for item in pendentes:
+            urgente = item.oferta.tipo_oportunidade in {
+                "possivel_preco_bugado",
+                "anomalia_forte",
+            }
+
+            marketplace = self._chave_marketplace_oferta(item.oferta)
+
+            if urgente or (marketplace and marketplace != ultimo_marketplace):
+                alternativas.append(item)
+
+        if not alternativas:
+            return pendentes
+
+        return alternativas
+
+    @classmethod
+    def _ultimo_marketplace_publicado(
+        cls,
+        historico_publicacoes: list[dict],
+    ) -> str | None:
+        for registro in historico_publicacoes:
+            marketplace = cls._normalizar_marketplace(
+                registro.get("marketplace") or registro.get("loja")
+            )
+
+            if marketplace:
+                return marketplace
+
+        return None
+
+    @classmethod
+    def _chave_marketplace_oferta(
+        cls,
+        oferta,
+    ) -> str:
+        return cls._normalizar_marketplace(
+            getattr(oferta, "marketplace", None) or getattr(oferta, "loja", None)
+        )
+
+    @staticmethod
+    def _normalizar_marketplace(
+        valor: object,
+    ) -> str:
+        if not isinstance(valor, str):
+            return ""
+
+        chave = valor.strip().casefold()
+
+        if "shopee" in chave:
+            return "shopee"
+
+        if "mercado" in chave and "livre" in chave:
+            return "mercado_livre"
+
+        return chave.replace(" ", "_")
 
     def _aplicar_bloqueio_categoria(
         self,
