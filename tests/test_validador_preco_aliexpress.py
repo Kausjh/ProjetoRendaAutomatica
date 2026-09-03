@@ -34,6 +34,7 @@ def pdp(
     atmosfera=None,
     supplementary=None,
     new_user=True,
+    sku_attr=None,
 ):
     banner = {}
 
@@ -73,6 +74,13 @@ def pdp(
             }
         }
     }
+
+    if sku_attr is not None:
+        dados["data"]["result"]["SKU"] = {
+            "selectedSkuId": (12000057594601401),
+            "selectedSkuAttr": sku_attr,
+            "selectedSkuSaleable": True,
+        }
 
     return json.dumps(dados)
 
@@ -258,3 +266,23 @@ def test_rejeita_url_de_outro_produto():
     )
 
     assert resultado.valido is False
+
+
+def test_preserva_atributo_do_sku_selecionado():
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html_produto(preco="1072.68"),
+        pdp_texto=pdp(
+            sale="1072.68",
+            normal="2437.90",
+            sku_attr=("14:10#PL 128GB"),
+        ),
+        exigir_pdp=True,
+    )
+
+    assert resultado.valido is True
+
+    assert resultado.sku_id == "12000057594601401"
+
+    assert resultado.sku_atributo_selecionado == "14:10#PL 128GB"

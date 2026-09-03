@@ -801,6 +801,13 @@ class ClassificadorProduto:
                 "Chocolate e snacks",
                 r"^(?:chocolate|barra de chocolate|kitkat|oreo)\b",
             ),
+            (
+                "Maker e bancada",
+                r"^(?:mini electric screwdriver|electric screwdriver|"
+                r"precision screwdriver|screwdriver set|"
+                r"type c inductance tester|inductance tester|"
+                r"pcb tester|component tester|motherboard tester)\b",
+            ),
             ("Armazenamento", r"^(?:ssd|nvme|hd|disco solido)\b"),
             ("Processador", r"^(?:processador|cpu)\b"),
             ("Memória RAM", r"^(?:memoria ram|memoria ddr|ram)\b"),
@@ -853,13 +860,53 @@ class ClassificadorProduto:
         ):
             return True
 
-        if re.search(r"^(?:[^ ]+\s+){0,3}(?:computador|desktop|pc)\b", texto):
-            return True
-
-        if re.search(r"\b(?:para|p/?)\s*(?:pc|computador|desktop)\b", texto):
+        if re.search(
+            r"\b(?:para|p/?)\s*" r"(?:pc|computador|desktop)\b",
+            texto,
+        ):
             return False
 
-        return False
+        marcadores_produto = self._localizar_termos(
+            texto,
+            (
+                "computador",
+                "desktop",
+                "pc",
+            ),
+        )
+
+        marcadores_hardware = self._localizar_termos(
+            texto,
+            (
+                "intel core",
+                "intel i3",
+                "intel i5",
+                "intel i7",
+                "intel i9",
+                "core i3",
+                "core i5",
+                "core i7",
+                "core i9",
+                "ryzen",
+                "n95",
+                "n100",
+                "n150",
+                "ddr3",
+                "ddr4",
+                "ddr5",
+                "ram",
+                "8gb",
+                "16gb",
+                "32gb",
+                "ssd",
+                "nvme",
+                "hdd",
+                "windows 10",
+                "windows 11",
+            ),
+        )
+
+        return bool(marcadores_produto) and len(set(marcadores_hardware)) >= 2
 
     def _eh_notebook_principal(self, texto: str) -> bool:
         if self._localizar_termos(

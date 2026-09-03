@@ -13,21 +13,27 @@ class Oferta:
     imagem: str | None
     moeda: str = "R$"
 
-    # Dados comerciais extraídos da loja
+    # Dados comerciais extraidos da loja
     desconto_anunciado: float | None = None
 
-    # Validação
+    # Precos condicionais / dados da fonte
+    preco_novo_usuario: float | None = None
+    moeda_novo_usuario: str | None = None
+    preco_origem: float | None = None
+    moeda_origem: str | None = None
+
+    # Validacao
     valida: bool = True
     motivos_validacao: list[str] = field(default_factory=list)
 
-    # Monetização
+    # Monetizacao
     marketplace: str | None = None
     id_produto: str | None = None
     id_anuncio: str | None = None
     link_afiliado: str | None = None
     pendente_afiliacao: bool = False
 
-    # Classificação de nicho
+    # Classificacao de nicho
     eh_nicho: bool = False
     categoria: str | None = None
     relevancia_nicho: float = 0.0
@@ -39,29 +45,29 @@ class Oferta:
     nota_comercial: float = 0.0
     motivos_comerciais: list[str] = field(default_factory=list)
 
-    # Normalização / identidade canônica
+    # Normalizacao / identidade canonica
     produto_canonico: str | None = None
     chave_produto_canonica: str | None = None
     modelo_produto: str | None = None
     confianca_normalizacao: float = 0.0
 
-    # Família semântica / anti-repost
+    # Familia semantica / anti-repost
     familia_produto: str | None = None
     chave_familia_produto: str | None = None
     confianca_familia: float = 0.0
 
-    # Curadoria de publicação
+    # Curadoria de publicacao
     curadoria_publicavel: bool = True
     nota_curadoria: float = 0.0
     motivos_curadoria: list[str] = field(default_factory=list)
 
-    # Pontuação
+    # Pontuacao
     nota_tecnica: float = 0.0
     nota_historica: float = 0.0
     nota_final: float = 0.0
     componentes_pontuacao: dict[str, float] = field(default_factory=dict)
 
-    # Oportunidades especiais / anomalias de preço
+    # Oportunidades especiais / anomalias de preco
     tipo_oportunidade: str = "normal"
     anomalia_preco: bool = False
     anomalia_publicavel: bool = False
@@ -83,6 +89,6 @@ class Oferta:
         if self.preco >= self.preco_antigo:
             return 0.0
 
-        desconto = ((self.preco_antigo - self.preco) / self.preco_antigo) * 100
+        desconto = (self.preco_antigo - self.preco) / self.preco_antigo * 100
 
         return round(desconto, 2)

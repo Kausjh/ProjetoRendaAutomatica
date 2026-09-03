@@ -32,6 +32,7 @@ class ResultadoPrecoAliExpress:
 
     promocao_novo_usuario: bool = False
     sku_id: str | None = None
+    sku_atributo_selecionado: str | None = None
 
     @property
     def preco(self) -> float | None:
@@ -188,6 +189,33 @@ class ValidadorPrecoAliExpress:
 
         sku_id = _texto(price.get("selectedSkuId")) or None
 
+        sku = resultado.get(
+            "SKU",
+            {},
+        )
+
+        if not isinstance(
+            sku,
+            dict,
+        ):
+            sku = {}
+
+        sku_id_detalhe = _texto(sku.get("selectedSkuId")) or None
+
+        if sku_id and sku_id_detalhe and sku_id_detalhe != sku_id:
+            return self._rejeitar(
+                produto_id,
+                ("selectedSkuId diverge " "entre PRICE e SKU"),
+            )
+
+        sku_atributo_selecionado = _texto(sku.get("selectedSkuAttr")) or None
+
+        if sku.get("selectedSkuSaleable") is False:
+            return self._rejeitar(
+                produto_id,
+                ("SKU selecionado nao esta " "disponivel para venda"),
+            )
+
         product_id_pdp = _texto(price.get("productId"))
 
         if product_id_pdp and product_id_pdp != produto_id:
@@ -258,6 +286,7 @@ class ValidadorPrecoAliExpress:
                 moeda_novo_usuario="BRL",
                 promocao_novo_usuario=True,
                 sku_id=sku_id,
+                sku_atributo_selecionado=sku_atributo_selecionado,
             )
 
         preco_promocional = None
@@ -286,6 +315,7 @@ class ValidadorPrecoAliExpress:
             moeda_novo_usuario=None,
             promocao_novo_usuario=False,
             sku_id=sku_id,
+            sku_atributo_selecionado=sku_atributo_selecionado,
         )
 
     @staticmethod
