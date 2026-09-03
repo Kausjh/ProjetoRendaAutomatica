@@ -180,3 +180,50 @@ def test_aprovacao_manual_persiste_na_fila(tmp_path):
 
     assert revisado is not None
     assert revisado.aprovado_manualmente is False
+
+
+def test_fila_preserva_precos_condicionais_aliexpress(
+    tmp_path,
+):
+    repo = FilaPublicacaoRepository(str(tmp_path / "fila.sqlite3"))
+
+    oferta = Oferta(
+        nome="Produto AliExpress",
+        loja="AliExpress",
+        preco=40.04,
+        preco_antigo=None,
+        link=("https://pt.aliexpress.com/" "item/1005000000000001.html"),
+        imagem=None,
+        moeda="R$",
+        marketplace="aliexpress",
+        preco_novo_usuario=25.04,
+        moeda_novo_usuario="BRL",
+        preco_origem=8.96,
+        moeda_origem="CNY",
+    )
+
+    resultado = repo.adicionar_ou_atualizar(
+        oferta=oferta,
+        resultado_historico=None,
+        pontuacao=70.0,
+        deve_republicar_por_queda=False,
+        prioridade=70.0,
+    )
+
+    assert resultado == "adicionado"
+
+    pendentes = repo.listar_pendentes()
+
+    assert len(pendentes) == 1
+
+    restaurada = pendentes[0].oferta
+
+    assert restaurada.preco == 40.04
+
+    assert restaurada.preco_novo_usuario == 25.04
+
+    assert restaurada.moeda_novo_usuario == "BRL"
+
+    assert restaurada.preco_origem == 8.96
+
+    assert restaurada.moeda_origem == "CNY"

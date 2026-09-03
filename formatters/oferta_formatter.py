@@ -31,6 +31,16 @@ class OfertaFormatter:
             ),
         ]
 
+        preco_novo_usuario = OfertaFormatter._formatar_preco_novo_usuario(oferta)
+
+        if preco_novo_usuario:
+            partes.extend(
+                [
+                    "",
+                    preco_novo_usuario,
+                ]
+            )
+
         historico = OfertaFormatter._formatar_historico(
             oferta=oferta,
             resultado_historico=resultado_historico,
@@ -137,6 +147,66 @@ class OfertaFormatter:
             return "\n".join(linhas)
 
         return f"💰 Preço: {oferta.moeda} {oferta.preco:.2f}"
+
+    @staticmethod
+    def _formatar_preco_novo_usuario(
+        oferta: Oferta,
+    ) -> str:
+        marketplace = str(oferta.marketplace or oferta.loja or "").strip().casefold()
+
+        if "aliexpress" not in marketplace:
+            return ""
+
+        preco = oferta.preco_novo_usuario
+
+        if preco is None:
+            return ""
+
+        try:
+            preco = float(preco)
+        except (TypeError, ValueError):
+            return ""
+
+        if preco <= 0:
+            return ""
+
+        # O preco principal continua sendo o valor
+        # normal/publico usado em historico e score.
+        # Nao duplicamos o bloco quando a condicao
+        # nao traz vantagem real.
+        if preco >= float(oferta.preco):
+            return ""
+
+        moeda = OfertaFormatter._formatar_moeda(oferta.moeda_novo_usuario or oferta.moeda)
+
+        return "\n".join(
+            [
+                ("\U0001f381 Novo usu\u00e1rio no AliExpress: " f"{moeda} {preco:.2f}"),
+                (
+                    "\u2139\ufe0f Pre\u00e7o exclusivo para conta "
+                    "eleg\u00edvel de novo usu\u00e1rio. "
+                    "Confirme a condi\u00e7\u00e3o no AliExpress "
+                    "antes de pagar."
+                ),
+            ]
+        )
+
+    @staticmethod
+    def _formatar_moeda(
+        moeda: str | None,
+    ) -> str:
+        texto = str(moeda or "").strip()
+
+        if not texto:
+            return "R$"
+
+        if texto.casefold() in {
+            "brl",
+            "r$",
+        }:
+            return "R$"
+
+        return texto
 
     @staticmethod
     def _obter_referencia_historica(
