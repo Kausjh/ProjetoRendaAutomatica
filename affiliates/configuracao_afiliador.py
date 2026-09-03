@@ -37,6 +37,7 @@ class ConfiguracaoAfiliador:
             "mercado_livre",
             "parametros",
             "shopee",
+            "awin",
         }
 
         if tipo_normalizado not in tipos_suportados:

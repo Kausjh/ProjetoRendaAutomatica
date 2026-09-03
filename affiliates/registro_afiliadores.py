@@ -1,5 +1,6 @@
 import logging
 
+from affiliates.afiliador_awin import AfiliadorAwin
 from affiliates.afiliador_generico import AfiliadorGenerico
 from affiliates.afiliador_mercado_livre import (
     AfiliadorMercadoLivre,
@@ -91,6 +92,18 @@ def _criar_afiliador(
         return AfiliadorShopee(
             nome=configuracao.nome,
             dominios=configuracao.dominios,
+        )
+
+    if configuracao.tipo == "awin":
+        return AfiliadorAwin(
+            nome=configuracao.nome,
+            dominios=configuracao.dominios,
+            advertiser_id=(
+                configuracao.parametros.get(
+                    "advertiser_id",
+                    "",
+                )
+            ),
         )
 
     if configuracao.tipo == "parametros":

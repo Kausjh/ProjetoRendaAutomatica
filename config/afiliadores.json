@@ -29,6 +29,18 @@
             "parametros": {
                 "ref": "${IDENTIFICADOR_MARCA}"
             }
+        },
+        {
+            "nome": "AliExpress",
+            "ativo": true,
+            "tipo": "awin",
+            "prioridade": 800,
+            "dominios": [
+                "aliexpress.com"
+            ],
+            "parametros": {
+                "advertiser_id": "18879"
+            }
         }
     ]
 }
