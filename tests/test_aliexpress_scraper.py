@@ -717,3 +717,23 @@ def test_sku_sem_capacidade_comparavel_continua_valido():
     ofertas = scraper.buscar_ofertas(limite=1)
 
     assert len(ofertas) == 1
+
+
+def test_cooling_fan_nao_vira_notebook():
+    oferta = _oferta_para_classificar(
+        "New Original Laptop Notebook CPU " "Cooling Fan For Lenovo ThinkPad"
+    )
+
+    resultado = ClassificadorProduto().classificar(oferta)
+
+    assert resultado.categoria == "Refrigera??o de PC"
+
+
+def test_cpu_cooler_nao_vira_processador():
+    oferta = _oferta_para_classificar(
+        "CPU Cooler 4Pin PWM CPU Processor " "Cooler For Intel LGA1700 AMD AM4"
+    )
+
+    resultado = ClassificadorProduto().classificar(oferta)
+
+    assert resultado.categoria == "Refrigera??o de PC"

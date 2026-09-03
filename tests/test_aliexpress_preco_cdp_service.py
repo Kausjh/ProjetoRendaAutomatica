@@ -491,3 +491,101 @@ def test_listener_pdp_e_removido_apos_cada_produto():
         )
         == []
     )
+
+
+def test_desafio_humano_interrompe_lote():
+    primeiro = "1005000000000001"
+    segundo = "1005000000000002"
+    terceiro = "1005000000000003"
+
+    url_primeiro = "https://pt.aliexpress.com/" f"item/{primeiro}.html"
+
+    url_segundo = "https://pt.aliexpress.com/" f"item/{segundo}.html"
+
+    url_terceiro = "https://pt.aliexpress.com/" f"item/{terceiro}.html"
+
+    pagina = PaginaFake(
+        {
+            url_primeiro: {
+                "html": ("<html><body>" "Please verify you are human" "</body></html>"),
+                "pdp": None,
+            },
+            url_segundo: pagina_produto(
+                segundo,
+                "38.04",
+            ),
+            url_terceiro: pagina_produto(
+                terceiro,
+                "75.08",
+            ),
+        }
+    )
+
+    service = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+    )
+
+    resultados = service.validar_produtos_com_pagina(
+        pagina=pagina,
+        produto_ids=[
+            primeiro,
+            segundo,
+            terceiro,
+        ],
+    )
+
+    assert len(pagina.gotos) == 1
+
+    assert resultados[primeiro].motivo == service.MOTIVO_DESAFIO
+
+    assert resultados[segundo].motivo == service.MOTIVO_COOLDOWN
+
+    assert resultados[terceiro].motivo == service.MOTIVO_COOLDOWN
+
+
+def test_cooldown_impede_nova_navegacao():
+    desafio = "1005000000000010"
+    produto = "1005000000000011"
+
+    url_desafio = "https://pt.aliexpress.com/" f"item/{desafio}.html"
+
+    url_produto = "https://pt.aliexpress.com/" f"item/{produto}.html"
+
+    pagina = PaginaFake(
+        {
+            url_desafio: {
+                "html": ("<html><body>" "Human Verification" "</body></html>"),
+                "pdp": None,
+            },
+            url_produto: pagina_produto(
+                produto,
+                "38.04",
+            ),
+        }
+    )
+
+    service = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+    )
+
+    primeiro = service.validar_produtos_com_pagina(
+        pagina=pagina,
+        produto_ids=[
+            desafio,
+        ],
+    )
+
+    assert primeiro[desafio].motivo == service.MOTIVO_DESAFIO
+
+    quantidade_antes = len(pagina.gotos)
+
+    segundo = service.validar_produtos_com_pagina(
+        pagina=pagina,
+        produto_ids=[
+            produto,
+        ],
+    )
+
+    assert len(pagina.gotos) == quantidade_antes
+
+    assert segundo[produto].motivo == service.MOTIVO_COOLDOWN

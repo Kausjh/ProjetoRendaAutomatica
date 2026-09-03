@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import time
+import unicodedata
 from collections.abc import Iterable
 
 from playwright.sync_api import (
@@ -31,12 +33,37 @@ class AliExpressPrecoCdpService:
 
     URL_PRODUTO = "https://pt.aliexpress.com/" "item/{produto_id}.html"
 
+    MOTIVO_DESAFIO = "desafio humano/captcha detectado"
+
+    MOTIVO_COOLDOWN = "AliExpress em cooldown apos desafio humano"
+
+    MARCADORES_URL_DESAFIO = (
+        "/punish",
+        "captcha",
+        "x5secdata",
+    )
+
+    MARCADORES_HTML_DESAFIO = (
+        "verify you are human",
+        "human verification",
+        "slide to verify",
+        "please verify",
+        "unusual traffic",
+        "security verification",
+        "verificacao humana",
+        "verifique se voce e humano",
+        "deslize para verificar",
+        "trafego incomum",
+        "atividade incomum",
+    )
+
     def __init__(
         self,
         validador: ValidadorPrecoAliExpress | None = None,
         endpoint_cdp: str = ENDPOINT_CDP,
         timeout_navegacao_ms: int = 90_000,
         espera_pos_carga_ms: int = 2_500,
+        cooldown_desafio_segundos: int = 1_800,
     ) -> None:
         endpoint_cdp = endpoint_cdp.strip()
 
@@ -49,6 +76,9 @@ class AliExpressPrecoCdpService:
         if espera_pos_carga_ms < 0:
             raise ValueError("espera_pos_carga_ms nao pode " "ser negativa.")
 
+        if cooldown_desafio_segundos < 0:
+            raise ValueError("cooldown_desafio_segundos nao pode " "ser negativo.")
+
         self.validador = validador if validador is not None else ValidadorPrecoAliExpress()
 
         self.endpoint_cdp = endpoint_cdp
@@ -56,6 +86,10 @@ class AliExpressPrecoCdpService:
         self.timeout_navegacao_ms = timeout_navegacao_ms
 
         self.espera_pos_carga_ms = espera_pos_carga_ms
+
+        self.cooldown_desafio_segundos = cooldown_desafio_segundos
+
+        self._desafio_ate_monotonic = 0.0
 
     def validar_produtos(
         self,
@@ -68,6 +102,19 @@ class AliExpressPrecoCdpService:
 
         if not ids:
             return {}
+
+        if self._em_cooldown_desafio():
+            logger.warning(
+                "AliExpress em cooldown apos " "verificacao humana. " "Validacao CDP ignorada."
+            )
+
+            return {
+                produto_id: self._rejeitar(
+                    produto_id,
+                    self.MOTIVO_COOLDOWN,
+                )
+                for produto_id in ids
+            }
 
         logger.info(
             "Conectando ao Chrome/CDP para " "validar %s produto(s) AliExpress.",
@@ -117,6 +164,15 @@ class AliExpressPrecoCdpService:
             ResultadoPrecoAliExpress,
         ] = {}
 
+        if self._em_cooldown_desafio():
+            return {
+                produto_id: self._rejeitar(
+                    produto_id,
+                    self.MOTIVO_COOLDOWN,
+                )
+                for produto_id in ids
+            }
+
         for indice, produto_id in enumerate(
             ids,
             start=1,
@@ -142,6 +198,23 @@ class AliExpressPrecoCdpService:
             )
 
             resultados[produto_id] = resultado
+
+            if resultado.motivo == self.MOTIVO_DESAFIO:
+                for produto_restante in ids[indice:]:
+                    resultados[produto_restante] = self._rejeitar(
+                        produto_restante,
+                        self.MOTIVO_COOLDOWN,
+                    )
+
+                logger.warning(
+                    "Lote AliExpress interrompido "
+                    "apos verificacao humana. "
+                    "%s produto(s) restante(s) "
+                    "nao serao acessados.",
+                    len(ids) - indice,
+                )
+
+                break
 
         return resultados
 
@@ -208,6 +281,24 @@ class AliExpressPrecoCdpService:
                     ("erro Playwright ao ler " f"produto: {erro}"),
                 )
 
+            if self._eh_desafio_humano(
+                url_final=url_final,
+                html=html,
+            ):
+                self._ativar_cooldown_desafio()
+
+                logger.warning(
+                    "Verificacao humana detectada "
+                    "no AliExpress. Produto: %s. "
+                    "Entrando em cooldown.",
+                    produto_id,
+                )
+
+                return self._rejeitar(
+                    produto_id,
+                    self.MOTIVO_DESAFIO,
+                )
+
             return self.validador.validar_html(
                 produto_id=produto_id,
                 url_final=url_final,
@@ -224,6 +315,38 @@ class AliExpressPrecoCdpService:
                 )
             except Exception:
                 pass
+
+    def _ativar_cooldown_desafio(
+        self,
+    ) -> None:
+        self._desafio_ate_monotonic = time.monotonic() + self.cooldown_desafio_segundos
+
+    def _em_cooldown_desafio(
+        self,
+    ) -> bool:
+        return time.monotonic() < self._desafio_ate_monotonic
+
+    @classmethod
+    def _eh_desafio_humano(
+        cls,
+        url_final: str,
+        html: str,
+    ) -> bool:
+        url_normalizada = str(url_final).casefold()
+
+        if any(marcador in url_normalizada for marcador in cls.MARCADORES_URL_DESAFIO):
+            return True
+
+        html_normalizado = "".join(
+            caractere
+            for caractere in unicodedata.normalize(
+                "NFKD",
+                str(html),
+            )
+            if not unicodedata.combining(caractere)
+        ).casefold()
+
+        return any(marcador in html_normalizado for marcador in cls.MARCADORES_HTML_DESAFIO)
 
     @staticmethod
     def _normalizar_ids(

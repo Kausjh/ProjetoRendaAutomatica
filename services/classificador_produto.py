@@ -809,6 +809,13 @@ class ClassificadorProduto:
                 r"pcb tester|component tester|motherboard tester)\b",
             ),
             ("Armazenamento", r"^(?:ssd|nvme|hd|disco solido)\b"),
+            (
+                "Refrigera??o de PC",
+                r"^(?:(?:new|original)\s+){0,3}"
+                r"(?:(?:laptop|notebook)\s+){0,2}"
+                r"(?:cpu\s+)?"
+                r"(?:cooling fan|cpu cooler|processor cooler|cooler)\b",
+            ),
             ("Processador", r"^(?:processador|cpu)\b"),
             ("Memória RAM", r"^(?:memoria ram|memoria ddr|ram)\b"),
             ("Placa de vídeo", r"^(?:placa de video|placa grafica|gpu)\b"),
