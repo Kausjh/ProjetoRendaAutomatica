@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 import unicodedata
 from collections.abc import Iterable
+from pathlib import Path
 
 from playwright.sync_api import (
     Error as PlaywrightError,
@@ -28,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 class AliExpressPrecoCdpService:
     ENDPOINT_CDP = "http://127.0.0.1:9222"
+
+    ARQUIVO_COOLDOWN_PADRAO = Path.home() / ".radar_de_ofertas" / "aliexpress_cooldown.txt"
 
     ENDPOINT_PDP = "mtop.aliexpress.pdp.pc.query"
 
@@ -64,6 +68,7 @@ class AliExpressPrecoCdpService:
         timeout_navegacao_ms: int = 90_000,
         espera_pos_carga_ms: int = 2_500,
         cooldown_desafio_segundos: int = 1_800,
+        arquivo_cooldown: str | Path | None = None,
     ) -> None:
         endpoint_cdp = endpoint_cdp.strip()
 
@@ -88,6 +93,10 @@ class AliExpressPrecoCdpService:
         self.espera_pos_carga_ms = espera_pos_carga_ms
 
         self.cooldown_desafio_segundos = cooldown_desafio_segundos
+
+        self.arquivo_cooldown = (
+            Path(arquivo_cooldown).expanduser() if arquivo_cooldown is not None else None
+        )
 
         self._desafio_ate_monotonic = 0.0
 
@@ -319,12 +328,92 @@ class AliExpressPrecoCdpService:
     def _ativar_cooldown_desafio(
         self,
     ) -> None:
-        self._desafio_ate_monotonic = time.monotonic() + self.cooldown_desafio_segundos
+        duracao = float(self.cooldown_desafio_segundos)
+
+        self._desafio_ate_monotonic = time.monotonic() + duracao
+
+        if self.arquivo_cooldown is None:
+            return
+
+        if duracao <= 0:
+            self._limpar_cooldown_persistente()
+            return
+
+        expira_em_epoch = time.time() + duracao
+
+        try:
+            self.arquivo_cooldown.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            temporario = self.arquivo_cooldown.with_name(self.arquivo_cooldown.name + ".tmp")
+
+            temporario.write_text(
+                f"{expira_em_epoch:.6f}",
+                encoding="utf-8",
+            )
+
+            temporario.replace(self.arquivo_cooldown)
+
+        except OSError:
+            logger.exception("Nao foi possivel persistir " "o cooldown do AliExpress.")
 
     def _em_cooldown_desafio(
         self,
     ) -> bool:
-        return time.monotonic() < self._desafio_ate_monotonic
+        agora_monotonic = time.monotonic()
+
+        if agora_monotonic < self._desafio_ate_monotonic:
+            return True
+
+        if self.arquivo_cooldown is None:
+            return False
+
+        try:
+            if not self.arquivo_cooldown.is_file():
+                return False
+
+            texto = self.arquivo_cooldown.read_text(encoding="utf-8").strip()
+
+            expira_em_epoch = float(texto)
+
+            if not math.isfinite(expira_em_epoch):
+                raise ValueError("timestamp de cooldown " "nao finito")
+
+        except (OSError, ValueError):
+            logger.warning(
+                "Estado de cooldown do " "AliExpress invalido. " "O arquivo sera descartado.",
+                exc_info=True,
+            )
+
+            self._limpar_cooldown_persistente()
+            return False
+
+        restante = expira_em_epoch - time.time()
+
+        if restante <= 0:
+            self._limpar_cooldown_persistente()
+            return False
+
+        self._desafio_ate_monotonic = agora_monotonic + restante
+
+        return True
+
+    def _limpar_cooldown_persistente(
+        self,
+    ) -> None:
+        if self.arquivo_cooldown is None:
+            return
+
+        try:
+            self.arquivo_cooldown.unlink(missing_ok=True)
+
+        except OSError:
+            logger.warning(
+                "Nao foi possivel remover " "o estado expirado de cooldown " "do AliExpress.",
+                exc_info=True,
+            )
 
     @classmethod
     def _eh_desafio_humano(

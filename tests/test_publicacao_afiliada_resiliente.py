@@ -158,3 +158,51 @@ def test_formatter_nao_exibe_preco_condicional_invalido():
     assert "Novo usu\u00e1rio" not in mensagem
 
     assert "\U0001f4b0 Pre\u00e7o: R$ 40.04" in mensagem
+
+
+def test_telegram_bloqueia_shopee_sem_link_afiliado():
+    original = "https://shopee.com.br/" "product/123/456"
+
+    resultado = ResultadoLinkAfiliado(
+        link_original=original,
+        link_publicacao=original,
+        afiliador_utilizado="Shopee",
+        foi_transformado=False,
+    )
+
+    bot = criar_bot(resultado)
+
+    try:
+        asyncio.run(bot.enviar_oferta(criar_oferta(original)))
+
+    except RuntimeError as erro:
+        assert "link afiliado" in str(erro)
+
+    else:
+        raise AssertionError("Oferta Shopee sem monetizacao " "nao deveria ser publicada.")
+
+    assert bot.bot.mensagens == []
+
+
+def test_telegram_bloqueia_aliexpress_sem_link_afiliado():
+    original = "https://pt.aliexpress.com/" "item/1005000000000001.html"
+
+    resultado = ResultadoLinkAfiliado(
+        link_original=original,
+        link_publicacao=original,
+        afiliador_utilizado="AliExpress",
+        foi_transformado=False,
+    )
+
+    bot = criar_bot(resultado)
+
+    try:
+        asyncio.run(bot.enviar_oferta(criar_oferta(original)))
+
+    except RuntimeError as erro:
+        assert "link afiliado" in str(erro)
+
+    else:
+        raise AssertionError("Oferta AliExpress sem monetizacao " "nao deveria ser publicada.")
+
+    assert bot.bot.mensagens == []

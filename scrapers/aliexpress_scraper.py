@@ -99,7 +99,11 @@ class AliExpressScraper(BaseScraper):
         self.feed_service = feed_service if feed_service is not None else AwinProductFeedService()
 
         self.preco_service = (
-            preco_service if preco_service is not None else AliExpressPrecoCdpService()
+            preco_service
+            if preco_service is not None
+            else AliExpressPrecoCdpService(
+                arquivo_cooldown=(AliExpressPrecoCdpService.ARQUIVO_COOLDOWN_PADRAO)
+            )
         )
 
         self.classificador = classificador if classificador is not None else ClassificadorProduto()

@@ -589,3 +589,102 @@ def test_cooldown_impede_nova_navegacao():
     assert len(pagina.gotos) == quantidade_antes
 
     assert segundo[produto].motivo == service.MOTIVO_COOLDOWN
+
+
+def test_cooldown_persistente_sobrevive_nova_instancia(
+    tmp_path,
+):
+    desafio = "1005000000000100"
+    produto = "1005000000000101"
+
+    url_desafio = "https://pt.aliexpress.com/" f"item/{desafio}.html"
+
+    url_produto = "https://pt.aliexpress.com/" f"item/{produto}.html"
+
+    arquivo_cooldown = tmp_path / "aliexpress_cooldown.txt"
+
+    pagina_desafio = PaginaFake(
+        {
+            url_desafio: {
+                "html": ("<html><body>" "Human Verification" "</body></html>"),
+                "pdp": None,
+            },
+        }
+    )
+
+    primeira_instancia = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+        arquivo_cooldown=(arquivo_cooldown),
+    )
+
+    resultado_desafio = primeira_instancia.validar_produtos_com_pagina(
+        pagina=pagina_desafio,
+        produto_ids=[desafio],
+    )
+
+    assert resultado_desafio[desafio].motivo == primeira_instancia.MOTIVO_DESAFIO
+
+    assert arquivo_cooldown.is_file()
+
+    pagina_produto_valido = PaginaFake(
+        {
+            url_produto: pagina_produto(
+                produto,
+                "38.04",
+            ),
+        }
+    )
+
+    segunda_instancia = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+        arquivo_cooldown=(arquivo_cooldown),
+    )
+
+    resultado_cooldown = segunda_instancia.validar_produtos_com_pagina(
+        pagina=pagina_produto_valido,
+        produto_ids=[produto],
+    )
+
+    assert pagina_produto_valido.gotos == []
+
+    assert resultado_cooldown[produto].motivo == segunda_instancia.MOTIVO_COOLDOWN
+
+
+def test_cooldown_persistente_expirado_e_removido(
+    tmp_path,
+):
+    produto = "1005000000000200"
+
+    url_produto = "https://pt.aliexpress.com/" f"item/{produto}.html"
+
+    arquivo_cooldown = tmp_path / "aliexpress_cooldown.txt"
+
+    arquivo_cooldown.write_text(
+        "1",
+        encoding="utf-8",
+    )
+
+    pagina = PaginaFake(
+        {
+            url_produto: pagina_produto(
+                produto,
+                "38.04",
+            ),
+        }
+    )
+
+    service = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+        arquivo_cooldown=(arquivo_cooldown),
+    )
+
+    resultado = service.validar_produtos_com_pagina(
+        pagina=pagina,
+        produto_ids=[produto],
+    )
+
+    assert resultado[produto].valido is True
+
+    assert len(pagina.gotos) == 1
+
+    assert not arquivo_cooldown.exists()

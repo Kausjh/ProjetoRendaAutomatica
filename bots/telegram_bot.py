@@ -24,14 +24,26 @@ class TelegramBot:
         self.gerador_link_afiliado = gerador_link_afiliado
         self.ultima_mensagem_publicada_id: int | None = None
 
-    @staticmethod
-    def _eh_link_mercado_livre(link: str) -> bool:
+    DOMINIOS_AFILIACAO_OBRIGATORIA = (
+        "mercadolivre.com.br",
+        "shopee.com.br",
+        "aliexpress.com",
+    )
+
+    @classmethod
+    def _exige_link_afiliado(
+        cls,
+        link: str,
+    ) -> bool:
         dominio = (urlparse(link).hostname or "").lower()
 
         if dominio.startswith("www."):
             dominio = dominio[4:]
 
-        return dominio == "mercadolivre.com.br" or dominio.endswith(".mercadolivre.com.br")
+        return any(
+            dominio == dominio_base or dominio.endswith(f".{dominio_base}")
+            for dominio_base in cls.DOMINIOS_AFILIACAO_OBRIGATORIA
+        )
 
     async def enviar_mensagem(self, mensagem: str) -> None:
         await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
@@ -82,10 +94,12 @@ class TelegramBot:
         self.ultima_mensagem_publicada_id = None
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
 
-        if self._eh_link_mercado_livre(oferta.link) and not resultado_link.foi_transformado:
+        if self._exige_link_afiliado(oferta.link) and not resultado_link.foi_transformado:
             raise RuntimeError(
-                "Publicação do Mercado Livre bloqueada porque o link afiliado "
-                "não pôde ser gerado. A oferta permanecerá na fila para nova tentativa."
+                "Publicacao bloqueada porque "
+                "o link afiliado nao pode ser gerado. "
+                "A oferta permanecera na fila "
+                "para nova tentativa."
             )
 
         logger.info(
