@@ -291,6 +291,8 @@ class PoliticaMarketplace:
     RELEVANCIA_MINIMA_ALIEXPRESS = 60.0
     COLD_START_MINIMO_ALIEXPRESS = 84.0
 
+    MARKETPLACES_COLD_START_BLOQUEADO = frozenset({"kabum"})
+
     PONTUACAO_MINIMA_SECUNDARIO = 72.0
     QUEDA_MINIMA_SECUNDARIO_PERCENTUAL = 15.0
     REGISTROS_MINIMOS_SECUNDARIO = 3
@@ -349,6 +351,15 @@ class PoliticaMarketplace:
     @classmethod
     def eh_secundaria(cls, categoria: str | None) -> bool:
         return categoria in cls.CATEGORIAS_SECUNDARIAS
+
+    @classmethod
+    def bloqueia_cold_start(cls, marketplace: str | None) -> bool:
+        if marketplace is None:
+            return False
+
+        chave = str(marketplace).strip().casefold()
+
+        return chave in cls.MARKETPLACES_COLD_START_BLOQUEADO
 
     @classmethod
     def secundaria_tem_promocao_forte(cls, pontuacao: float, resultado_historico) -> bool:

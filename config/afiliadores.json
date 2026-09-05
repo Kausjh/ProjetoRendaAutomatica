@@ -31,6 +31,18 @@
             }
         },
         {
+            "nome": "KaBuM!",
+            "ativo": true,
+            "tipo": "awin",
+            "prioridade": 850,
+            "dominios": [
+                "kabum.com.br"
+            ],
+            "parametros": {
+                "advertiser_id": "17729"
+            }
+        },
+        {
             "nome": "AliExpress",
             "ativo": true,
             "tipo": "awin",

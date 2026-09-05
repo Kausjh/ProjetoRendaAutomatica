@@ -311,6 +311,19 @@ class ExecutorPipeline:
                 continue
 
             marketplace = self._chave_marketplace(oferta)
+
+            if (
+                resultado_historico is not None
+                and resultado_historico.primeiro_registro
+                and self.politica_marketplace.bloqueia_cold_start(marketplace)
+            ):
+                logger.debug(
+                    "Cold start de marketplace retido: %s | %s",
+                    marketplace,
+                    oferta.nome,
+                )
+                continue
+
             if (
                 marketplace == "aliexpress"
                 and resultado_historico is not None

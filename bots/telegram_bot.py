@@ -28,6 +28,7 @@ class TelegramBot:
         "mercadolivre.com.br",
         "shopee.com.br",
         "aliexpress.com",
+        "kabum.com.br",
     )
 
     @classmethod
