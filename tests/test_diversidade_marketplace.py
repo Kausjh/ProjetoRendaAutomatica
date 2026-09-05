@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 from models.oferta import Oferta
 from repositories.fila_publicacao_repository import (
@@ -98,6 +99,138 @@ def test_reserva_inclui_melhor_shopee_qualificada() -> None:
         "mercado_livre",
         "shopee",
     }
+
+
+def test_reserva_inclui_aliexpress_em_cold_start_qualificado() -> None:
+    ml = criar_oferta(
+        10,
+        "Mercado Livre",
+        "mercado_livre",
+        80.0,
+        "Processador",
+    )
+
+    aliexpress_base = criar_oferta(
+        11,
+        "AliExpress",
+        "aliexpress",
+        30.0,
+        "Armazenamento",
+    )
+
+    aliexpress_base[0].nota_tecnica = 30.0
+
+    aliexpress = (
+        aliexpress_base[0],
+        aliexpress_base[1],
+        SimpleNamespace(
+            primeiro_registro=True,
+        ),
+        aliexpress_base[3],
+    )
+
+    resultado, reservas = ExecutorPipeline._garantir_diversidade_marketplace(
+        selecionados=[ml],
+        candidatos_disponiveis=[
+            ml,
+            aliexpress,
+        ],
+        pontuacao_minima=45.0,
+        pontuacao_minima_cold_start=72.0,
+    )
+
+    marketplaces = {ExecutorPipeline._chave_marketplace(item[0]) for item in resultado}
+
+    assert reservas == 1
+    assert "aliexpress" in marketplaces
+
+
+def test_reserva_rejeita_cold_start_tecnico_fraco() -> None:
+    ml = criar_oferta(
+        20,
+        "Mercado Livre",
+        "mercado_livre",
+        80.0,
+        "Processador",
+    )
+
+    aliexpress_base = criar_oferta(
+        21,
+        "AliExpress",
+        "aliexpress",
+        28.0,
+        "Armazenamento",
+    )
+
+    aliexpress_base[0].nota_tecnica = 28.0
+
+    aliexpress = (
+        aliexpress_base[0],
+        aliexpress_base[1],
+        SimpleNamespace(
+            primeiro_registro=True,
+        ),
+        aliexpress_base[3],
+    )
+
+    resultado, reservas = ExecutorPipeline._garantir_diversidade_marketplace(
+        selecionados=[ml],
+        candidatos_disponiveis=[
+            ml,
+            aliexpress,
+        ],
+        pontuacao_minima=45.0,
+        pontuacao_minima_cold_start=72.0,
+    )
+
+    marketplaces = {ExecutorPipeline._chave_marketplace(item[0]) for item in resultado}
+
+    assert reservas == 0
+    assert "aliexpress" not in marketplaces
+
+
+def test_reserva_nao_trata_historico_existente_como_cold_start() -> None:
+    ml = criar_oferta(
+        30,
+        "Mercado Livre",
+        "mercado_livre",
+        80.0,
+        "Processador",
+    )
+
+    aliexpress_base = criar_oferta(
+        31,
+        "AliExpress",
+        "aliexpress",
+        40.0,
+        "Armazenamento",
+    )
+
+    aliexpress_base[0].nota_tecnica = 40.0
+
+    aliexpress = (
+        aliexpress_base[0],
+        aliexpress_base[1],
+        SimpleNamespace(
+            primeiro_registro=False,
+        ),
+        aliexpress_base[3],
+    )
+
+    resultado, reservas = ExecutorPipeline._garantir_diversidade_marketplace(
+        selecionados=[ml],
+        candidatos_disponiveis=[
+            ml,
+            aliexpress,
+        ],
+        pontuacao_minima=45.0,
+        pontuacao_minima_cold_start=72.0,
+    )
+
+    marketplaces = {ExecutorPipeline._chave_marketplace(item[0]) for item in resultado}
+
+    assert reservas == 0
+    assert "aliexpress" not in marketplaces
 
 
 def test_entrada_da_fila_preserva_os_dois_marketplaces() -> None:

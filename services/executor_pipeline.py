@@ -338,6 +338,7 @@ class ExecutorPipeline:
             selecionados=candidatos_fila,
             candidatos_disponiveis=ofertas_aprovadas,
             pontuacao_minima=self.pontuacao_minima_reposicao_fila,
+            pontuacao_minima_cold_start=self.pontuacao_minima_fila,
         )
 
         if quantidade_reserva_marketplace > 0:
@@ -653,12 +654,77 @@ class ExecutorPipeline:
         return chave.replace(" ", "_")
 
     @staticmethod
+    def _pontuacao_tecnica_cold_start_normalizada(
+        item,
+    ) -> float | None:
+        """Normaliza somente dimensoes observaveis no primeiro registro.
+
+        O score principal depende fortemente de historico. No primeiro
+        registro, queda real, novo menor preco e maturidade ainda nao existem.
+
+        Para a reserva de diversidade de marketplace, a qualidade tecnica
+        disponivel e normalizada para 0-100 sem alterar o score real da oferta.
+        """
+
+        if len(item) < 3:
+            return None
+
+        oferta = item[0]
+        resultado_historico = item[2]
+
+        if resultado_historico is None:
+            return None
+
+        if not getattr(
+            resultado_historico,
+            "primeiro_registro",
+            False,
+        ):
+            return None
+
+        teto_tecnico = (
+            PontuadorOferta.PONTOS_MAXIMOS_NICHO
+            + PontuadorOferta.PONTOS_MAXIMOS_DESCONTO_ANUNCIADO
+            + PontuadorOferta.PONTOS_MAXIMOS_CURADORIA
+        )
+
+        if teto_tecnico <= 0:
+            return None
+
+        nota_tecnica = float(
+            getattr(
+                oferta,
+                "nota_tecnica",
+                0.0,
+            )
+            or 0.0
+        )
+
+        normalizada = nota_tecnica / teto_tecnico * 100.0
+
+        return round(
+            min(
+                max(normalizada, 0.0),
+                100.0,
+            ),
+            2,
+        )
+
+    @staticmethod
     def _garantir_diversidade_marketplace(
         selecionados: list,
         candidatos_disponiveis: list,
         pontuacao_minima: float,
+        pontuacao_minima_cold_start: float = 72.0,
     ) -> tuple[list, int]:
-        """Reserva o melhor candidato qualificado de cada marketplace."""
+        """Reserva o melhor candidato qualificado de cada marketplace.
+
+        Candidatos com historico usam o score real normalmente.
+
+        No primeiro registro, quando os componentes historicos ainda nao
+        existem, aceita-se a qualidade tecnica normalizada como criterio
+        exclusivo para a reserva de diversidade.
+        """
 
         resultado = list(selecionados)
 
@@ -679,7 +745,14 @@ class ExecutorPipeline:
                 "anomalia_forte",
             }
 
-            if pontuacao < pontuacao_minima and not urgente:
+            pontuacao_cold_start = ExecutorPipeline._pontuacao_tecnica_cold_start_normalizada(item)
+
+            cold_start_qualificado = (
+                pontuacao_cold_start is not None
+                and pontuacao_cold_start >= pontuacao_minima_cold_start
+            )
+
+            if pontuacao < pontuacao_minima and not urgente and not cold_start_qualificado:
                 continue
 
             marketplace = ExecutorPipeline._chave_marketplace(oferta)
@@ -702,12 +775,27 @@ class ExecutorPipeline:
             oferta = item[0]
             pontuacao = float(item[1])
 
-            logger.info(
-                ("Reserva editorial de marketplace: %s | " "score=%.2f | %s"),
-                ExecutorPipeline._chave_marketplace(oferta),
-                pontuacao,
-                oferta.nome,
-            )
+            pontuacao_cold_start = ExecutorPipeline._pontuacao_tecnica_cold_start_normalizada(item)
+
+            if pontuacao_cold_start is None:
+                logger.info(
+                    ("Reserva editorial de marketplace: %s | " "score=%.2f | %s"),
+                    ExecutorPipeline._chave_marketplace(oferta),
+                    pontuacao,
+                    oferta.nome,
+                )
+            else:
+                logger.info(
+                    (
+                        "Reserva editorial de marketplace: %s | "
+                        "score=%.2f | "
+                        "cold_start_tecnico=%.2f/100 | %s"
+                    ),
+                    ExecutorPipeline._chave_marketplace(oferta),
+                    pontuacao,
+                    pontuacao_cold_start,
+                    oferta.nome,
+                )
 
         resultado.extend(reservas)
 

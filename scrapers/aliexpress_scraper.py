@@ -156,6 +156,45 @@ class AliExpressScraper(BaseScraper):
 
         resultados = self.preco_service.validar_produtos(ids)
 
+        motivos_rejeicao: dict[str, int] = {}
+
+        for resultado in resultados.values():
+            if resultado.valido:
+                continue
+
+            motivo = str(resultado.motivo).strip() if resultado.motivo else "motivo nao informado"
+
+            motivos_rejeicao[motivo] = motivos_rejeicao.get(motivo, 0) + 1
+
+        quantidade_validos = sum(1 for resultado in resultados.values() if resultado.valido)
+
+        logger.info(
+            "AliExpress: resumo validacao BRL | "
+            "candidatos=%s | resultados=%s | "
+            "validos=%s | rejeitados=%s.",
+            len(ids),
+            len(resultados),
+            quantidade_validos,
+            len(resultados) - quantidade_validos,
+        )
+
+        if motivos_rejeicao:
+            resumo_motivos = " | ".join(
+                f"{motivo}: {quantidade}"
+                for motivo, quantidade in sorted(
+                    motivos_rejeicao.items(),
+                    key=lambda item: (
+                        -item[1],
+                        item[0],
+                    ),
+                )
+            )
+
+            logger.info(
+                "AliExpress: motivos de rejeicao BRL | %s",
+                resumo_motivos,
+            )
+
         ofertas: list[Oferta] = []
 
         for candidato in candidatos:
