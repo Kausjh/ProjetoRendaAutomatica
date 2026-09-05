@@ -17,6 +17,7 @@ from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.historico_precos_service import HistoricoPrecosService, ResultadoHistoricoPreco
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
+from services.politica_marketplace import PoliticaMarketplace
 from services.pontuador_oferta import PontuadorOferta
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class ExecutorPipeline:
         queda_minima_republicacao_percentual: float = 5.0,
         cooldown_republicacao_sem_queda_minutos: float = 720.0,
         repositorio_admin: ControleAdministrativoRepository | None = None,
+        politica_marketplace: PoliticaMarketplace | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -79,6 +81,7 @@ class ExecutorPipeline:
         self.queda_minima_republicacao_percentual = queda_minima_republicacao_percentual
         self.cooldown_republicacao_sem_queda_minutos = cooldown_republicacao_sem_queda_minutos
         self.repositorio_admin = repositorio_admin
+        self.politica_marketplace = politica_marketplace or PoliticaMarketplace()
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -136,6 +139,20 @@ class ExecutorPipeline:
 
         for oferta in ofertas:
             resultado_historico: ResultadoHistoricoPreco | None = None
+
+            resultado_politica = self.politica_marketplace.analisar(oferta)
+            if not resultado_politica.permitido:
+                logger.debug(
+                    (
+                        "Oferta rejeitada pela politica do marketplace: %s | "
+                        "marketplace=%s | tier=%s | %s"
+                    ),
+                    oferta.nome,
+                    self._chave_marketplace(oferta),
+                    resultado_politica.tier,
+                    resultado_politica.motivo,
+                )
+                continue
 
             try:
                 resultado_historico = self.historico_precos_service.analisar_e_registrar(oferta)
@@ -278,6 +295,46 @@ class ExecutorPipeline:
                     continue
 
                 quantidade_anomalias_publicaveis += 1
+
+            if self.politica_marketplace.eh_secundaria(
+                oferta.categoria
+            ) and not self.politica_marketplace.secundaria_tem_promocao_forte(
+                pontuacao=pontuacao,
+                resultado_historico=resultado_historico,
+            ):
+                logger.debug(
+                    "Nicho secundario retido: %s | categoria=%s | score=%.2f",
+                    oferta.nome,
+                    oferta.categoria,
+                    pontuacao,
+                )
+                continue
+
+            marketplace = self._chave_marketplace(oferta)
+            if (
+                marketplace == "aliexpress"
+                and resultado_historico is not None
+                and resultado_historico.primeiro_registro
+                and oferta.tipo_oportunidade not in {"possivel_preco_bugado", "anomalia_forte"}
+            ):
+                cold_start_tecnico = self._pontuacao_tecnica_cold_start_normalizada(
+                    (oferta, pontuacao, resultado_historico)
+                )
+                if (
+                    cold_start_tecnico is None
+                    or cold_start_tecnico < PoliticaMarketplace.COLD_START_MINIMO_ALIEXPRESS
+                ):
+                    logger.debug(
+                        "Cold start AliExpress retido: %s | tecnico=%s | piso=%.2f",
+                        oferta.nome,
+                        (
+                            f"{cold_start_tecnico:.2f}"
+                            if cold_start_tecnico is not None
+                            else "indisponivel"
+                        ),
+                        PoliticaMarketplace.COLD_START_MINIMO_ALIEXPRESS,
+                    )
+                    continue
 
             ofertas_aprovadas.append(
                 (

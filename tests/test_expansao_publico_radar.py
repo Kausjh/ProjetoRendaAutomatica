@@ -122,7 +122,7 @@ def test_kit_de_energetico_e_normal() -> None:
 def test_fontes_possuem_cobertura_expandida() -> None:
     assert "Suplementos" in (MercadoLivreScraper.TERMOS_POR_CATEGORIA)
 
-    assert "Creatina monohidratada 300g" in (ShopeeScraper.TERMOS_PADRAO)
+    assert "Creatina monohidratada 300g" in ShopeeScraper.TERMOS_SECUNDARIOS
 
     assert "Power bank" in (KabumScraper.TERMOS_PADRAO)
 

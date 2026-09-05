@@ -17,11 +17,31 @@ def test_teclado_nao_fica_preso_a_redragon():
     assert len(termos) >= 10
 
 
-def test_toda_categoria_participa_de_cada_ciclo():
-    momento = datetime(2026, 8, 22, 9, 0)
+def test_nucleo_participa_de_cada_ciclo_e_secundario_rotaciona():
+    momento = datetime(
+        2026,
+        8,
+        22,
+        9,
+        0,
+    )
+
     selecionados = MercadoLivreScraper._obter_termos_padrao_rotativos(momento)
-    quantidade_minima = len(MercadoLivreScraper.TERMOS_POR_CATEGORIA)
-    assert len(selecionados) >= quantidade_minima
+
+    for categoria in MercadoLivreScraper.CATEGORIAS_PRIORITARIAS:
+        termos = MercadoLivreScraper.TERMOS_POR_CATEGORIA[categoria]
+
+        assert any(termo in selecionados for termo in termos)
+
+    termos_secundarios = {
+        termo
+        for categoria in MercadoLivreScraper.CATEGORIAS_SECUNDARIAS
+        for termo in MercadoLivreScraper.TERMOS_POR_CATEGORIA[categoria]
+    }
+
+    secundarios_selecionados = [termo for termo in selecionados if termo in termos_secundarios]
+
+    assert len(secundarios_selecionados) == 1
 
 
 def test_rotacao_muda_consultas_entre_janelas():

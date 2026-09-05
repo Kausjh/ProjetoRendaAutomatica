@@ -56,17 +56,12 @@ class AliExpressScraper(BaseScraper):
 
     URL_PRODUTO = "https://pt.aliexpress.com/" "item/{produto_id}.html"
 
-    # Feeds relevantes ao publico atual do Radar.
+    # Coleta padrao deliberadamente tech-first.
     FEEDS_PADRAO: tuple[str, ...] = (
         "47213",  # Communication & Equipment
         "47215",  # Computer_Office
         "47217",  # Consumer_Electronics
-        "47219",  # Electrical_Equipment_Supplies
-        "47221",  # Food
-        "47227",  # Home_Appliances
-        "47245",  # Mobile Phone Accessories & Parts
         "47247",  # Mobile Phones
-        "47253",  # Office & School Supplies
     )
 
     def __init__(

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -12,71 +13,77 @@ logger = logging.getLogger(__name__)
 
 
 class ShopeeScraper(BaseScraper):
-    TERMOS_PADRAO = [
-        # Processadores
+    TERMOS_PRINCIPAIS: tuple[str, ...] = (
         "Ryzen 5 5600",
         "Ryzen 7 5700X",
         "Ryzen 5 7600",
-        "Ryzen 7 7800X3D",
-        "Intel Core i5 12400F",
-        "Intel Core i5 13400F",
-        # Placas de video
         "RTX 4060 Ti",
-        "RTX 4070 Super",
         "RTX 5060",
         "RTX 5070",
-        "RX 6600",
         "RX 7600",
-        "RX 7800 XT",
-        # Memoria, armazenamento e placas-mae
-        "DDR4 16GB",
-        "DDR4 32GB",
-        "DDR5 16GB",
-        "DDR5 32GB",
         "SSD NVMe 1TB",
         "SSD NVMe 2TB",
+        "DDR4 32GB",
+        "DDR5 32GB",
         "B550",
         "B650",
-        # Setup e perifericos
         "Monitor gamer 180Hz",
         "Mouse Logitech G305",
+        "Attack Shark X11",
+        "Ajazz AJ139",
+        "Aula F75",
+        "Attack Shark X65",
         "Redragon Kumara",
         "Headset HyperX Cloud",
+        "QCY fone bluetooth",
+        "SoundPEATS",
         "Controle 8BitDo",
-        "Power bank 20000mah",
-        "Carregador GaN",
-        # Suplementos e performance
+        "Controle GameSir",
+        "Power bank Baseus 20000mah",
+        "Power bank Ugreen",
+        "Carregador GaN Baseus",
+        "Ugreen 65W",
+        "Samsung Galaxy",
+        "Poco smartphone",
+        "Redmi Note",
+        "Galaxy Tab",
+    )
+
+    TERMOS_SECUNDARIOS: tuple[str, ...] = (
         "Creatina monohidratada 300g",
         "Creatina monohidratada 500g",
         "Whey protein 900g",
-        "Pre treino",
-        "Beta alanina",
-        "Glutamina",
-        # Energia e bebidas
         "Monster Energy",
         "Red Bull",
-        "Energetico lata",
-        # Cafe
         "Cafe em graos 500g",
-        "Cafe moido 500g",
         "Cafe especial",
         "Capsula Nespresso",
-        "Capsula Dolce Gusto",
-        # Chocolate e snacks
         "Chocolate Lacta",
         "Chocolate Nestle",
-        "Chocolate Hersheys",
         "KitKat",
         "Oreo",
-        "Barra proteica",
-    ]
+    )
+
+    TERMOS_PADRAO = list(TERMOS_PRINCIPAIS)
+
+    @classmethod
+    def _obter_termos_padrao_rotativos(
+        cls,
+        momento: datetime | None = None,
+    ) -> list[str]:
+        agora = momento or datetime.now()
+        janela = agora.toordinal() * 48 + agora.hour * 2 + (1 if agora.minute >= 30 else 0)
+        termos = list(cls.TERMOS_PRINCIPAIS)
+        if cls.TERMOS_SECUNDARIOS:
+            termos.append(cls.TERMOS_SECUNDARIOS[janela % len(cls.TERMOS_SECUNDARIOS)])
+        return termos
 
     def __init__(
         self,
         termos_busca: list[str] | None = None,
         service: ShopeeApiService | None = None,
     ) -> None:
-        termos = termos_busca if termos_busca is not None else self.TERMOS_PADRAO
+        termos = termos_busca if termos_busca is not None else self._obter_termos_padrao_rotativos()
 
         self.termos_busca = [termo.strip() for termo in termos if termo and termo.strip()]
 

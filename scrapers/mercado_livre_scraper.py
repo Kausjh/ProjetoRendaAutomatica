@@ -511,8 +511,22 @@ class MercadoLivreScraper(BaseScraper):
             "Mouses",
             "Headsets e fones",
             "Notebooks",
+            "Controles",
+            "Consoles",
+            "Celulares",
         }
     )
+
+    CATEGORIAS_SECUNDARIAS: frozenset[str] = frozenset(
+        {
+            "Suplementos",
+            "Energéticos",
+            "Café",
+            "Chocolate e snacks",
+        }
+    )
+
+    CATEGORIAS_ADJACENTES_POR_CICLO = 8
 
     TERMOS_PADRAO = [termos[0] for termos in TERMOS_POR_CATEGORIA.values() if termos]
 
@@ -521,29 +535,44 @@ class MercadoLivreScraper(BaseScraper):
         cls,
         momento: datetime | None = None,
     ) -> list[str]:
-        """Seleciona cobertura ampla e balanceada para uma janela de 30 min.
-
-        Cada categoria participa do ciclo. O índice avança a cada meia hora,
-        então termos genéricos, especificações e marcas se alternam ao longo
-        do dia. Categorias centrais recebem dois termos distintos por ciclo.
-        """
-
         agora = momento or datetime.now()
-        janela_meia_hora = (agora.toordinal() * 48) + (agora.hour * 2)
-        janela_meia_hora += 1 if agora.minute >= 30 else 0
-
+        janela = agora.toordinal() * 48 + agora.hour * 2 + (1 if agora.minute >= 30 else 0)
         selecionados: list[str] = []
 
         for deslocamento, (categoria, termos) in enumerate(cls.TERMOS_POR_CATEGORIA.items()):
-            if not termos:
+            if categoria not in cls.CATEGORIAS_PRIORITARIAS or not termos:
                 continue
-
-            indice = (janela_meia_hora + deslocamento) % len(termos)
+            indice = (janela + deslocamento) % len(termos)
             selecionados.append(termos[indice])
+            if len(termos) > 1:
+                extra = (indice + max(1, len(termos) // 2)) % len(termos)
+                selecionados.append(termos[extra])
 
-            if categoria in cls.CATEGORIAS_PRIORITARIAS and len(termos) > 1:
-                indice_extra = (indice + max(1, len(termos) // 2)) % len(termos)
-                selecionados.append(termos[indice_extra])
+        adjacentes = [
+            (categoria, termos)
+            for categoria, termos in cls.TERMOS_POR_CATEGORIA.items()
+            if (
+                termos
+                and categoria not in cls.CATEGORIAS_PRIORITARIAS
+                and categoria not in cls.CATEGORIAS_SECUNDARIAS
+            )
+        ]
+        if adjacentes:
+            quantidade = min(cls.CATEGORIAS_ADJACENTES_POR_CICLO, len(adjacentes))
+            inicio = (janela * quantidade) % len(adjacentes)
+            for deslocamento in range(quantidade):
+                _, termos = adjacentes[(inicio + deslocamento) % len(adjacentes)]
+                selecionados.append(termos[(janela + deslocamento) % len(termos)])
+
+        secundarios = [
+            (categoria, cls.TERMOS_POR_CATEGORIA[categoria])
+            for categoria in cls.TERMOS_POR_CATEGORIA
+            if categoria in cls.CATEGORIAS_SECUNDARIAS and cls.TERMOS_POR_CATEGORIA[categoria]
+        ]
+        if secundarios:
+            _, termos = secundarios[janela % len(secundarios)]
+            indice_termo = (janela // len(secundarios)) % len(termos)
+            selecionados.append(termos[indice_termo])
 
         return list(dict.fromkeys(selecionados))
 
