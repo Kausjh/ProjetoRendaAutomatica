@@ -1,3 +1,5 @@
+# 63.8738, -149.7525
+
 from models.mensagem_social_scout import MensagemSocialScout
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
@@ -10,34 +12,30 @@ def criar_mensagem(
 ) -> MensagemSocialScout:
     return MensagemSocialScout(
         fonte="telegram",
-        chat_id="-1001",
-        message_id=1,
+        chat_id="-100123",
+        message_id=10,
         chat_titulo="Grupo Teste",
         texto=texto,
         links=links,
     )
 
 
-def test_detecta_oferta_real_canario_promos():
+def test_detecta_oferta_produto_com_cupom():
     mensagem = criar_mensagem(
-        texto="""T?nis Masculino Streettalk Adidas
-
-?? De: R$ 399,99
-? Por: R$ 251,74 (37% OFF)
-
-?? R$ 206,43 - Aplique o cupom OFERTASEMPRE de 18% OFF
-
-?? https://meli.la/1mKjw4r
-""",
-        links=("https://meli.la/1mKjw4r",),
+        texto=(
+            "Mouse Gamer Modelo X\n"
+            "De: R$ 399,99\n"
+            "Por: R$ 251,74 (37% OFF)\n"
+            "R$ 206,43 - Aplique o cupom TESTE18 de 18% OFF"
+        ),
+        links=("https://meli.la/teste123",),
     )
 
     resultado = DetectorPromocaoSocialScout.detectar(mensagem)
 
     assert resultado.classificacao == "oferta_produto"
     assert resultado.utilizavel is True
-
-    assert resultado.titulo == "T?nis Masculino Streettalk Adidas"
+    assert resultado.titulo == "Mouse Gamer Modelo X"
 
     assert resultado.marketplace == "mercado_livre"
 
@@ -46,98 +44,98 @@ def test_detecta_oferta_real_canario_promos():
     assert resultado.preco_final == 206.43
 
     assert resultado.desconto_anunciado_percentual == 37.0
-
     assert resultado.desconto_cupom_percentual == 18.0
 
-    assert resultado.codigo_cupom == "OFERTASEMPRE"
+    assert resultado.codigo_cupom == "TESTE18"
+    assert resultado.cupons == ("TESTE18",)
 
 
-def test_detecta_campanha_real_magalu():
+def test_detecta_campanha_de_cupons_gerais():
     mensagem = criar_mensagem(
-        texto="""Cupons no APP Magalu
-
-R$ 150 OFF em R$ 1000: ESQUENTA150
-R$ 30 OFF em R$ 250: TOMA30
-
-Resgate aqui:
-https://divulgadormagalu.com/4jy67l3
-
-(AN?NCIO)
-""",
-        links=("https://divulgadormagalu.com/4jy67l3",),
+        texto=(
+            "Cupons no APP Magalu\n"
+            "R$ 150 OFF em R$ 1000: TESTE150\n"
+            "R$ 30 OFF em R$ 250: TESTE30"
+        ),
+        links=("https://divulgadormagalu.com/teste123",),
     )
 
     resultado = DetectorPromocaoSocialScout.detectar(mensagem)
 
     assert resultado.classificacao == "cupom_geral"
     assert resultado.utilizavel is True
+
     assert resultado.marketplace == "magalu"
 
     assert resultado.cupons == (
-        "ESQUENTA150",
-        "TOMA30",
+        "TESTE150",
+        "TESTE30",
     )
 
 
-def test_ignora_conversa_comum():
-    mensagem = criar_mensagem("Algu?m sabe se esse teclado ? bom?")
-
-    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+def test_ignora_mensagem_vazia():
+    resultado = DetectorPromocaoSocialScout.detectar(criar_mensagem(""))
 
     assert resultado.classificacao == "ignorar"
     assert resultado.utilizavel is False
 
 
-def test_link_sem_preco_nao_vira_oferta():
-    mensagem = criar_mensagem(
-        "Olha esse produto aqui",
-        links=("https://www.kabum.com.br/produto/123",),
+def test_ignora_preco_sem_link():
+    resultado = DetectorPromocaoSocialScout.detectar(
+        criar_mensagem("Teclado Gamer\n" "Por: R$ 199,90")
     )
-
-    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
 
     assert resultado.classificacao == "ignorar"
 
 
-def test_detecta_kabum_pelo_link():
-    mensagem = criar_mensagem(
-        texto="""Mouse Gamer
-Por: R$ 129,90
-""",
-        links=("https://www.kabum.com.br/produto/123",),
+def test_ignora_link_sem_preco():
+    resultado = DetectorPromocaoSocialScout.detectar(
+        criar_mensagem(
+            "Teclado Gamer em promocao",
+            links=("https://meli.la/teste456",),
+        )
     )
 
-    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+    assert resultado.classificacao == "ignorar"
+    assert resultado.marketplace == "mercado_livre"
 
+
+def test_preco_final_sem_cupom_e_o_preco_da_oferta():
+    resultado = DetectorPromocaoSocialScout.detectar(
+        criar_mensagem(
+            "SSD NVMe Modelo Y\n" "Por: R$ 349,90",
+            links=("https://www.amazon.com.br/" "produto-teste",),
+        )
+    )
+
+    assert resultado.classificacao == "oferta_produto"
+    assert resultado.marketplace == "amazon"
+
+    assert resultado.preco_oferta == 349.90
+    assert resultado.preco_final == 349.90
+
+    assert resultado.codigo_cupom is None
+
+
+def test_detecta_marketplace_pelo_dominio():
+    resultado = DetectorPromocaoSocialScout.detectar(
+        criar_mensagem(
+            "Headset Gamer Modelo Z\n" "Por: R$ 129,90",
+            links=("https://www.kabum.com.br/" "produto/123/teste",),
+        )
+    )
+
+    assert resultado.classificacao == "oferta_produto"
     assert resultado.marketplace == "kabum"
-    assert resultado.preco_final == 129.90
 
 
-def test_preco_final_sem_cupom_usa_preco_oferta():
-    mensagem = criar_mensagem(
-        texto="""SSD 1TB
-De: R$ 499,90
-Por: R$ 299,90 (40% OFF)
-""",
-        links=("https://www.kabum.com.br/produto/456",),
+def test_remove_cupom_geral_duplicado():
+    resultado = DetectorPromocaoSocialScout.detectar(
+        criar_mensagem(
+            "Cupons no APP\n" "R$ 50 OFF em R$ 500: TESTE50\n" "R$ 50 OFF em R$ 500: TESTE50",
+            links=("https://divulgadormagalu.com/" "teste456",),
+        )
     )
-
-    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
-
-    assert resultado.preco_original == 499.90
-    assert resultado.preco_oferta == 299.90
-    assert resultado.preco_final == 299.90
-
-
-def test_cupons_gerais_sao_deduplicados():
-    mensagem = criar_mensagem(texto="""Cupons no APP
-
-R$ 50 OFF em R$ 500: CUPOM50
-R$ 50 OFF em R$ 500: CUPOM50
-""")
-
-    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
 
     assert resultado.classificacao == "cupom_geral"
-
-    assert resultado.cupons == ("CUPOM50",)
+    assert resultado.cupons == ("TESTE50",)

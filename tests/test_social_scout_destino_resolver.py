@@ -254,21 +254,21 @@ def test_resolve_card_destacado_de_pagina_social():
     link_curto = "https://meli.la/social123"
 
     mensagem = criar_mensagem(
-        texto=("T?nis Masculino Streettalk Adidas\n" "Por: R$ 251,74\n" f"{link_curto}"),
+        texto=("Mouse Gamer Modelo X\n" "Por: R$ 251,74\n" f"{link_curto}"),
         links=(link_curto,),
     )
 
     featured = link_featured(
-        item_id="MLB5997268868",
-        produto="tenis-masculino-streettalk-adidas",
-        user_product_id="MLBU3645135171",
+        item_id="MLB8765432109",
+        produto="mouse-gamer-modelo-x",
+        user_product_id="MLBU2468135790",
     )
 
     resposta = Mock()
-    resposta.url = "https://www.mercadolivre.com.br/" "social/canariopromos?tracking=abc"
+    resposta.url = "https://www.mercadolivre.com.br/" "social/perfilteste?tracking=abc"
     resposta.status_code = 200
     resposta.text = criar_html_social(
-        titulo=("T?nis Masculino Streettalk adidas " "Ftwwht Ftwwht Ftwwht Liso 38 Br"),
+        titulo=("Mouse Gamer Modelo X " "Preto RGB USB"),
         links=(featured,),
     )
 
@@ -280,13 +280,13 @@ def test_resolve_card_destacado_de_pagina_social():
 
     assert resultado.status == "resolvido"
     assert resultado.id_produto is None
-    assert resultado.id_anuncio == "MLB5997268868"
+    assert resultado.id_anuncio == "MLB8765432109"
 
     assert resultado.url_destino == (
         "https://www.mercadolivre.com.br/"
-        "tenis-masculino-streettalk-adidas/"
-        "up/MLBU3645135171"
-        "?pdp_filters=item_id%3AMLB5997268868"
+        "mouse-gamer-modelo-x/"
+        "up/MLBU2468135790"
+        "?pdp_filters=item_id%3AMLB8765432109"
     )
 
     assert resultado.motivo == "produto_social_mercado_livre_identificado"
@@ -296,7 +296,7 @@ def test_pagina_social_nao_escolhe_recomendacao():
     link_curto = "https://meli.la/social456"
 
     mensagem = criar_mensagem(
-        texto=("T?nis Masculino Streettalk Adidas\n" "Por: R$ 251,74\n" f"{link_curto}"),
+        texto=("Mouse Gamer Modelo X\n" "Por: R$ 251,74\n" f"{link_curto}"),
         links=(link_curto,),
     )
 
@@ -309,16 +309,16 @@ def test_pagina_social_nao_escolhe_recomendacao():
     )
 
     featured = link_featured(
-        item_id="MLB5997268868",
-        produto="tenis-masculino-streettalk-adidas",
-        user_product_id="MLBU3645135171",
+        item_id="MLB8765432109",
+        produto="mouse-gamer-modelo-x",
+        user_product_id="MLBU2468135790",
     )
 
     resposta = Mock()
-    resposta.url = "https://www.mercadolivre.com.br/" "social/canariopromos"
+    resposta.url = "https://www.mercadolivre.com.br/" "social/perfilteste"
     resposta.status_code = 200
     resposta.text = criar_html_social(
-        titulo=("T?nis Masculino Streettalk adidas " "Ftwwht Liso 38 Br"),
+        titulo=("Mouse Gamer Modelo X " "Preto RGB USB"),
         links=(
             recomendacao,
             featured,
@@ -332,7 +332,7 @@ def test_pagina_social_nao_escolhe_recomendacao():
         resultado = ResolvedorDestinoSocialScout().resolver(mensagem)
 
     assert resultado.status == "resolvido"
-    assert resultado.id_anuncio == "MLB5997268868"
+    assert resultado.id_anuncio == "MLB8765432109"
 
     assert "MLB5303396266" not in resultado.url_destino
 
@@ -346,16 +346,16 @@ def test_pagina_social_recusa_titulo_divergente():
     )
 
     featured = link_featured(
-        item_id="MLB5997268868",
-        produto="tenis-masculino-streettalk-adidas",
-        user_product_id="MLBU3645135171",
+        item_id="MLB8765432109",
+        produto="mouse-gamer-modelo-x",
+        user_product_id="MLBU2468135790",
     )
 
     resposta = Mock()
-    resposta.url = "https://www.mercadolivre.com.br/" "social/canariopromos"
+    resposta.url = "https://www.mercadolivre.com.br/" "social/perfilteste"
     resposta.status_code = 200
     resposta.text = criar_html_social(
-        titulo=("T?nis Masculino Streettalk adidas " "Branco Liso 38 Br"),
+        titulo=("Mouse Gamer Modelo X " "Preto RGB USB"),
         links=(featured,),
     )
 
@@ -374,29 +374,29 @@ def test_pagina_social_aceita_links_duplicados_do_mesmo_featured():
     link_curto = "https://meli.la/socialduplicado"
 
     mensagem = criar_mensagem(
-        texto=("T?nis Masculino Streettalk Adidas\n" "Por: R$ 251,74\n" f"{link_curto}"),
+        texto=("Mouse Gamer Modelo X\n" "Por: R$ 251,74\n" f"{link_curto}"),
         links=(link_curto,),
     )
 
     featured_1 = link_featured(
-        item_id="MLB5997268868",
-        produto="tenis-masculino-streettalk-adidas",
-        user_product_id="MLBU3645135171",
+        item_id="MLB8765432109",
+        produto="mouse-gamer-modelo-x",
+        user_product_id="MLBU2468135790",
         c_uid="aaa",
     )
 
     featured_2 = link_featured(
-        item_id="MLB5997268868",
-        produto="tenis-masculino-streettalk-adidas",
-        user_product_id="MLBU3645135171",
+        item_id="MLB8765432109",
+        produto="mouse-gamer-modelo-x",
+        user_product_id="MLBU2468135790",
         c_uid="bbb",
     )
 
     resposta = Mock()
-    resposta.url = "https://www.mercadolivre.com.br/" "social/canariopromos"
+    resposta.url = "https://www.mercadolivre.com.br/" "social/perfilteste"
     resposta.status_code = 200
     resposta.text = criar_html_social(
-        titulo=("T?nis Masculino Streettalk adidas " "Ftwwht Liso 38 Br"),
+        titulo=("Mouse Gamer Modelo X " "Preto RGB USB"),
         links=(
             featured_1,
             featured_2,
@@ -410,4 +410,4 @@ def test_pagina_social_aceita_links_duplicados_do_mesmo_featured():
         resultado = ResolvedorDestinoSocialScout().resolver(mensagem)
 
     assert resultado.status == "resolvido"
-    assert resultado.id_anuncio == "MLB5997268868"
+    assert resultado.id_anuncio == "MLB8765432109"

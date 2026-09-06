@@ -10,15 +10,15 @@ from services.scout.validador_preco_ml_social_scout import (
     ValidadorPrecoMercadoLivreSocialScout,
 )
 
-URL = "https://www.mercadolivre.com.br/" "produto-teste/p/MLB62593832"
+URL = "https://www.mercadolivre.com.br/" "produto-teste/p/MLB12345678"
 
 
 def deteccao(
     *,
-    preco_original: float | None = 569.82,
-    preco_oferta: float | None = 309.88,
-    preco_final: float | None = 278.89,
-    cupom: str | None = "CUSTAPOUCO",
+    preco_original: float | None = 500.00,
+    preco_oferta: float | None = 300.00,
+    preco_final: float | None = 270.00,
+    cupom: str | None = "TESTE10",
     desconto_cupom: float | None = 10.0,
 ):
     return ResultadoDeteccaoSocialScout(
@@ -49,15 +49,15 @@ def resolucao(
         tipo_destino="produto",
         url_original="https://meli.la/teste",
         url_destino=URL,
-        id_produto="MLB62593832",
+        id_produto="MLB12345678",
         motivo="teste",
     )
 
 
 def snapshot(
     *,
-    preco_oficial: float | None = 309.88,
-    preco_original: float | None = 569.82,
+    preco_oficial: float | None = 300.00,
+    preco_original: float | None = 500.00,
     disponivel: bool | None = True,
 ):
     return {
@@ -65,9 +65,9 @@ def snapshot(
         "preco_oficial": preco_oficial,
         "preco_original": preco_original,
         "tipo_preco": "pix",
-        "preco_parcelado": 326.19,
+        "preco_parcelado": 320.00,
         "parcelas": 8,
-        "valor_parcela": 40.77,
+        "valor_parcela": 40.00,
         "disponivel": disponivel,
         "preco_valido_ate": "2026-09-09",
     }
@@ -92,17 +92,17 @@ def test_valida_preco_base_e_preco_original():
     )
 
     assert resultado.status == "validado"
-    assert resultado.preco_oficial == 309.88
-    assert resultado.preco_original_oficial == 569.82
+    assert resultado.preco_oficial == 300.00
+    assert resultado.preco_original_oficial == 500.00
 
     assert resultado.preco_base_confere is True
     assert resultado.preco_original_confere is True
 
     assert resultado.tipo_preco_oficial == "pix"
 
-    assert resultado.preco_parcelado_oficial == 326.19
+    assert resultado.preco_parcelado_oficial == 320.00
     assert resultado.parcelas == 8
-    assert resultado.valor_parcela == 40.77
+    assert resultado.valor_parcela == 40.00
 
 
 def test_cupom_coerente_nao_e_marcado_como_validado():
