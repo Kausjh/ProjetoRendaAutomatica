@@ -120,19 +120,25 @@ class SocialScoutScraper(BaseScraper):
         if not mensagens:
             return []
 
-        mensagens_recentes = list(reversed(mensagens))[: self.max_mensagens_por_execucao]
+        # O repository entrega as mensagens em ordem crescente.
+        #
+        # Percorremos TODO o backlog do mais novo para o mais
+        # antigo. O limite de execucao sera aplicado somente
+        # depois de pular estados terminais ja conhecidos.
+        mensagens_ordenadas = list(reversed(mensagens))
 
         ofertas: list[Oferta] = []
         chaves_vistas: set[str] = set()
 
         ignoradas_processadas = 0
+        mensagens_tentadas = 0
         erros_transitorios = 0
 
         candidatas_sombra = 0
         nicho_sombra = 0
         fora_nicho_sombra = 0
 
-        for mensagem in mensagens_recentes:
+        for mensagem in mensagens_ordenadas:
             if self.modo_sombra:
                 if candidatas_sombra >= limite:
                     break
@@ -142,6 +148,10 @@ class SocialScoutScraper(BaseScraper):
 
             fingerprint = self._fingerprint_mensagem(mensagem)
 
+            # Importante:
+            #
+            # Mensagem ja terminal e atravessada SEM consumir
+            # a cota max_mensagens_por_execucao.
             if self.processamentos_repository.esta_processada(
                 mensagem,
                 self.VERSAO_PROCESSADOR,
@@ -149,6 +159,12 @@ class SocialScoutScraper(BaseScraper):
             ):
                 ignoradas_processadas += 1
                 continue
+
+            # A cota vale somente para mensagens NOVAS.
+            if mensagens_tentadas >= self.max_mensagens_por_execucao:
+                break
+
+            mensagens_tentadas += 1
 
             try:
                 deteccao = self.detector.detectar(mensagem)
@@ -160,6 +176,7 @@ class SocialScoutScraper(BaseScraper):
                         status="ignorada",
                         motivo=(deteccao.motivo or deteccao.classificacao),
                     )
+
                     continue
 
                 if deteccao.marketplace != "mercado_livre":
@@ -169,6 +186,7 @@ class SocialScoutScraper(BaseScraper):
                         status="nao_suportada",
                         motivo=("marketplace_nao_suportado:" f"{deteccao.marketplace}"),
                     )
+
                     continue
 
                 resolucao = self.resolvedor.resolver(
@@ -187,6 +205,7 @@ class SocialScoutScraper(BaseScraper):
                         status="nao_resolvida",
                         motivo=resolucao.motivo,
                     )
+
                     continue
 
                 validacao = self.validador_preco.validar(
@@ -205,6 +224,7 @@ class SocialScoutScraper(BaseScraper):
                         status="preco_rejeitado",
                         motivo=validacao.motivo,
                     )
+
                     continue
 
                 construcao = self.construtor.construir(
@@ -223,6 +243,7 @@ class SocialScoutScraper(BaseScraper):
                         status="construcao_rejeitada",
                         motivo=construcao.motivo,
                     )
+
                     continue
 
                 oferta = construcao.oferta
@@ -236,6 +257,7 @@ class SocialScoutScraper(BaseScraper):
                         status="duplicada",
                         motivo=("produto_duplicado_na_mesma_execucao"),
                     )
+
                     continue
 
                 chaves_vistas.add(chave)
@@ -280,10 +302,12 @@ class SocialScoutScraper(BaseScraper):
         if self.modo_sombra:
             logger.info(
                 "SocialScoutScraper MODO SOMBRA | "
-                "candidatas=%s | nicho=%s | "
-                "fora_nicho=%s | ja_processadas=%s | "
+                "tentadas=%s | candidatas=%s | "
+                "nicho=%s | fora_nicho=%s | "
+                "ja_processadas=%s | "
                 "erros_transitorios=%s | "
                 "ofertas_emitidas=0.",
+                mensagens_tentadas,
                 candidatas_sombra,
                 nicho_sombra,
                 fora_nicho_sombra,
@@ -294,10 +318,11 @@ class SocialScoutScraper(BaseScraper):
         else:
             logger.info(
                 "SocialScoutScraper converteu %s oferta(s) "
-                "a partir de ate %s mensagem(ns) recente(s). "
-                "Ja processadas=%s | erros transitorios=%s.",
+                "a partir de %s mensagem(ns) nova(s) "
+                "tentada(s). Ja processadas=%s | "
+                "erros transitorios=%s.",
                 len(ofertas),
-                len(mensagens_recentes),
+                mensagens_tentadas,
                 ignoradas_processadas,
                 erros_transitorios,
             )

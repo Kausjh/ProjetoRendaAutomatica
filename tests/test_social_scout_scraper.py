@@ -654,3 +654,60 @@ def test_mensagem_consumida_em_sombra_nao_reaparece_ao_ir_para_normal():
     assert detector_sombra.ids_processados == [1]
 
     assert detector_normal.ids_processados == []
+
+
+def test_limite_de_execucao_nao_bloqueia_backlog_atras_de_processadas():
+    mensagens = [
+        mensagem(1),
+        mensagem(2),
+        mensagem(3),
+        mensagem(4),
+    ]
+
+    processamentos = ProcessamentosFake()
+
+    detector_primeira = DetectorFake()
+
+    primeira = SocialScoutScraper(
+        repository=RepositoryFake(mensagens),
+        processamentos_repository=processamentos,
+        detector=detector_primeira,
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=2,
+        modo_sombra=False,
+    )
+
+    ofertas_primeira = primeira.buscar_ofertas(limite=10)
+
+    assert len(ofertas_primeira) == 2
+
+    assert detector_primeira.ids_processados == [
+        4,
+        3,
+    ]
+
+    detector_segunda = DetectorFake()
+
+    segunda = SocialScoutScraper(
+        repository=RepositoryFake(mensagens),
+        processamentos_repository=processamentos,
+        detector=detector_segunda,
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=2,
+        modo_sombra=False,
+    )
+
+    ofertas_segunda = segunda.buscar_ofertas(limite=10)
+
+    assert len(ofertas_segunda) == 2
+
+    # As duas mais novas ja estavam terminais.
+    # Elas nao podem consumir a cota do segundo ciclo.
+    assert detector_segunda.ids_processados == [
+        2,
+        1,
+    ]
