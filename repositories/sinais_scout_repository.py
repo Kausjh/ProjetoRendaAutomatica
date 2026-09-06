@@ -136,6 +136,69 @@ class SinaisScoutRepository:
 
         return "atualizado"
 
+    def listar(
+        self,
+        limite: int | None = None,
+    ) -> list[SinalScout]:
+        consulta = """
+            SELECT payload_json
+            FROM sinais_scout
+            ORDER BY
+                criado_em ASC,
+                fonte ASC,
+                id_externo ASC
+        """
+
+        parametros: tuple = ()
+
+        if limite is not None:
+            limite = int(limite)
+
+            if limite <= 0:
+                return []
+
+            consulta += " LIMIT ?"
+
+            parametros = (limite,)
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                consulta,
+                parametros,
+            ).fetchall()
+
+        sinais: list[SinalScout] = []
+
+        for linha in linhas:
+            dados = json.loads(str(linha["payload_json"]))
+
+            if not isinstance(
+                dados,
+                dict,
+            ):
+                raise ValueError("Payload Scout " "invalido no banco.")
+
+            regioes = dados.get(
+                "regioes",
+                [],
+            )
+
+            if isinstance(
+                regioes,
+                list,
+            ):
+                dados["regioes"] = tuple(regioes)
+
+            elif not isinstance(
+                regioes,
+                tuple,
+            ):
+                dados["regioes"] = ()
+
+            sinais.append(SinalScout(**dados))
+
+        return sinais
+
     def quantidade(
         self,
     ) -> int:
