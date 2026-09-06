@@ -14,6 +14,7 @@ python-telegram-bot==22.8
 requests==2.34.2
 six==1.17.0
 soupsieve==2.8.4
+telethon==1.44.0
 typing_extensions==4.16.0
 tzdata==2026.3
 urllib3==2.7.0

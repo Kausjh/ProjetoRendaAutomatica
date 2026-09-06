@@ -113,3 +113,10 @@ execucao_em_andamento.lock
 # Artefatos locais de etapas de desenvolvimento
 /LEIA-ME-ETAPA-*.txt
 database/radar_editorial.json
+
+# Social Scout / Telegram user session
+database/social_scout.sqlite3
+database/social_scout.sqlite3-shm
+database/social_scout.sqlite3-wal
+*.session
+*.session-journal
