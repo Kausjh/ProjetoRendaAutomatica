@@ -16,6 +16,9 @@ class OfertaFormatter:
         oferta: Oferta,
         resultado_historico: ResultadoHistoricoPreco | None = None,
     ) -> str:
+        if OfertaFormatter._eh_amazon(oferta):
+            return OfertaFormatter._formatar_amazon(oferta)
+
         partes: list[str] = [
             "━━━━━━━━━━━━━━━━━━",
             "",
@@ -67,6 +70,44 @@ class OfertaFormatter:
                 "━━━━━━━━━━━━━━━━━━",
             ]
         )
+
+        return "\n".join(partes)
+
+    @staticmethod
+    def _eh_amazon(
+        oferta: Oferta,
+    ) -> bool:
+        marketplace = str(oferta.marketplace or oferta.loja or "").strip().casefold()
+
+        return "amazon" in marketplace
+
+    @staticmethod
+    def _formatar_amazon(
+        oferta: Oferta,
+    ) -> str:
+        partes = [
+            "\u2501" * 18,
+            "",
+            "\U0001f6d2 ACHADO AMAZON",
+            "",
+            ("\U0001f4e6 " + limpar_titulo(oferta.nome)),
+            "",
+            "\U0001f3ea Loja: Amazon",
+            "",
+            (
+                "\U0001f50e Confira o preco, "
+                "a disponibilidade e as "
+                "condicoes diretamente "
+                "na Amazon."
+            ),
+            "",
+            "#pub",
+            ("\U0001f517 " + oferta.link),
+            "",
+            ("Como associado da Amazon, " "eu ganho com compras qualificadas."),
+            "",
+            "\u2501" * 18,
+        ]
 
         return "\n".join(partes)
 

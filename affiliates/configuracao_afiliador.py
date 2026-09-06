@@ -38,6 +38,7 @@ class ConfiguracaoAfiliador:
             "parametros",
             "shopee",
             "awin",
+            "amazon",
         }
 
         if tipo_normalizado not in tipos_suportados:

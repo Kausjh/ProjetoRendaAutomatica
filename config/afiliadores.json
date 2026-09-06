@@ -53,6 +53,15 @@
             "parametros": {
                 "advertiser_id": "18879"
             }
+        },
+        {
+            "nome": "Amazon",
+            "ativo": true,
+            "tipo": "amazon",
+            "prioridade": 750,
+            "dominios": [
+                "amazon.com.br"
+            ]
         }
     ]
 }

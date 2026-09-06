@@ -1,5 +1,6 @@
 import logging
 
+from affiliates.afiliador_amazon import AfiliadorAmazon
 from affiliates.afiliador_awin import AfiliadorAwin
 from affiliates.afiliador_generico import AfiliadorGenerico
 from affiliates.afiliador_mercado_livre import (
@@ -90,6 +91,12 @@ def _criar_afiliador(
 
     if configuracao.tipo == "shopee":
         return AfiliadorShopee(
+            nome=configuracao.nome,
+            dominios=configuracao.dominios,
+        )
+
+    if configuracao.tipo == "amazon":
+        return AfiliadorAmazon(
             nome=configuracao.nome,
             dominios=configuracao.dominios,
         )
