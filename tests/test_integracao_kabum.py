@@ -11,6 +11,8 @@ from services.politica_marketplace import PoliticaMarketplace
 
 
 def test_kabum_esta_no_registro_de_scrapers(monkeypatch):
+    monkeypatch.setenv("SOCIAL_SCOUT_PIPELINE_ATIVO", "false")
+
     monkeypatch.setattr(
         registro_scrapers,
         "MercadoLivreScraper",
