@@ -1,3 +1,5 @@
+﻿from unittest.mock import Mock, patch
+
 import pytest
 
 from affiliates.afiliador_amazon import AfiliadorAmazon
@@ -25,10 +27,15 @@ def test_repository_reutiliza_link_por_asin(
 
     original = "https://www.amazon.com.br/" "produto/dp/B0ABCDEF12"
 
-    repository.registrar(
-        original,
-        "https://amzn.to/abc123",
-    )
+    with patch.object(
+        LinksAfiliadosAmazonRepository,
+        "_validar_redirecionamento",
+        return_value=True,
+    ):
+        repository.registrar(
+            original,
+            "https://amzn.to/abc123",
+        )
 
     outra_url_mesmo_produto = "https://www.amazon.com.br/" "gp/product/B0ABCDEF12" "?ref_=qualquer"
 
@@ -64,6 +71,79 @@ def test_repository_rejeita_link_nao_amazon(
         )
 
 
+def test_repository_aceita_link_amazon_validado(
+    tmp_path,
+):
+    repository = criar_repository(tmp_path)
+
+    original = "https://www.amazon.com.br/" "dp/B0ABCDEF12"
+
+    with patch.object(
+        LinksAfiliadosAmazonRepository,
+        "_validar_redirecionamento",
+        return_value=True,
+    ) as validar:
+        repository.registrar(
+            original,
+            "https://link.amazon/abc123",
+        )
+
+    validar.assert_called_once_with("https://link.amazon/abc123")
+
+    assert repository.obter_link_afiliado(original) == "https://link.amazon/abc123"
+
+
+def test_repository_rejeita_link_amazon_sem_afiliacao_validada(
+    tmp_path,
+):
+    repository = criar_repository(tmp_path)
+
+    with patch.object(
+        LinksAfiliadosAmazonRepository,
+        "_validar_redirecionamento",
+        return_value=False,
+    ):
+        with pytest.raises(ValueError):
+            repository.registrar(
+                ("https://www.amazon.com.br/" "dp/B0ABCDEF12"),
+                "https://link.amazon/abc123",
+            )
+
+
+def test_validacao_real_do_redirecionamento_exige_tag():
+    resposta = Mock()
+
+    resposta.url = (
+        "https://www.amazon.com.br/" "dp/B0ABCDEF12" "?tag=exemplo-20" "&linkCode=ll1" "&linkId=abc"
+    )
+
+    resposta.close = Mock()
+
+    with patch(
+        "repositories." "links_afiliados_amazon_repository." "requests.get",
+        return_value=resposta,
+    ):
+        assert LinksAfiliadosAmazonRepository._validar_redirecionamento(
+            "https://link.amazon/abc123"
+        )
+
+
+def test_validacao_real_do_redirecionamento_rejeita_sem_tag():
+    resposta = Mock()
+
+    resposta.url = "https://www.amazon.com.br/" "dp/B0ABCDEF12" "?ref_=teste"
+
+    resposta.close = Mock()
+
+    with patch(
+        "repositories." "links_afiliados_amazon_repository." "requests.get",
+        return_value=resposta,
+    ):
+        assert not (
+            LinksAfiliadosAmazonRepository._validar_redirecionamento("https://link.amazon/abc123")
+        )
+
+
 def test_afiliador_usa_sitestripe_cadastrado(
     tmp_path,
 ):
@@ -71,10 +151,15 @@ def test_afiliador_usa_sitestripe_cadastrado(
 
     original = "https://www.amazon.com.br/" "dp/B0ABCDEF12"
 
-    repository.registrar(
-        original,
-        "https://amzn.to/abc123",
-    )
+    with patch.object(
+        LinksAfiliadosAmazonRepository,
+        "_validar_redirecionamento",
+        return_value=True,
+    ):
+        repository.registrar(
+            original,
+            "https://link.amazon/abc123",
+        )
 
     afiliador = AfiliadorAmazon(
         nome="Amazon",
@@ -84,7 +169,7 @@ def test_afiliador_usa_sitestripe_cadastrado(
         repository=repository,
     )
 
-    assert afiliador.gerar_link(original) == "https://amzn.to/abc123"
+    assert afiliador.gerar_link(original) == "https://link.amazon/abc123"
 
 
 def test_afiliador_sem_sitestripe_nao_transforma(
@@ -125,6 +210,8 @@ def test_telegram_exige_afiliacao_amazon():
 
     assert TelegramBot._exige_link_afiliado("https://amzn.to/abc123")
 
+    assert TelegramBot._exige_link_afiliado("https://link.amazon/abc123")
+
 
 def test_formatter_amazon_oculta_precos():
     oferta = Oferta(
@@ -132,7 +219,7 @@ def test_formatter_amazon_oculta_precos():
         loja="Amazon",
         preco=999.99,
         preco_antigo=1299.99,
-        link="https://amzn.to/abc123",
+        link="https://link.amazon/abc123",
         imagem=None,
         marketplace="amazon",
     )

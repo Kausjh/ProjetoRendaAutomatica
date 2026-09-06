@@ -31,6 +31,7 @@ class TelegramBot:
         "kabum.com.br",
         "amazon.com.br",
         "amzn.to",
+        "link.amazon",
     )
 
     @classmethod

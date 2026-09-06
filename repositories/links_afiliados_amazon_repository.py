@@ -7,9 +7,16 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import requests
+
 
 class LinksAfiliadosAmazonRepository:
-    """Mapeia p?ginas Amazon para links oficiais gerados pelo SiteStripe."""
+    """Mapeia paginas Amazon para links oficiais gerados pelo SiteStripe."""
+
+    HOSTS_CURTOS_AMAZON = {
+        "amzn.to",
+        "link.amazon",
+    }
 
     PADROES_ASIN = (
         re.compile(
@@ -31,31 +38,24 @@ class LinksAfiliadosAmazonRepository:
         caminho_arquivo: str | Path = ("database/links_afiliados_amazon.sqlite3"),
     ) -> None:
         self.caminho_arquivo = Path(caminho_arquivo)
-
         self.caminho_arquivo.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
-
         self._criar_estrutura()
 
-    def _conectar(
-        self,
-    ) -> sqlite3.Connection:
+    def _conectar(self) -> sqlite3.Connection:
         conexao = sqlite3.connect(
             self.caminho_arquivo,
             timeout=15,
         )
 
         conexao.execute("PRAGMA journal_mode=WAL")
-
         conexao.execute("PRAGMA synchronous=NORMAL")
 
         return conexao
 
-    def _criar_estrutura(
-        self,
-    ) -> None:
+    def _criar_estrutura(self) -> None:
         with self._conectar() as conexao:
             conexao.execute("""
                 CREATE TABLE IF NOT EXISTS links_amazon (
@@ -76,8 +76,10 @@ class LinksAfiliadosAmazonRepository:
     ) -> None:
         chave = self.criar_chave(link_original)
 
-        if not self.link_afiliado_valido(link_afiliado):
-            raise ValueError("O link afiliado Amazon precisa " "ser um link oficial do SiteStripe.")
+        link_afiliado = str(link_afiliado).strip()
+
+        if not self._validar_para_registro(link_afiliado):
+            raise ValueError("O link afiliado Amazon nao foi " "validado como SiteStripe.")
 
         with self._conectar() as conexao:
             conexao.execute(
@@ -96,7 +98,7 @@ class LinksAfiliadosAmazonRepository:
                 (
                     chave,
                     link_original.strip(),
-                    link_afiliado.strip(),
+                    link_afiliado,
                 ),
             )
 
@@ -125,6 +127,66 @@ class LinksAfiliadosAmazonRepository:
             return None
 
         return link
+
+    def _validar_para_registro(
+        self,
+        link: str,
+    ) -> bool:
+        if not self.link_afiliado_valido(link):
+            return False
+
+        parsed = urlparse(link)
+
+        host = self._normalizar_host(parsed.hostname)
+
+        # Link longo Amazon com tag pode ser
+        # validado localmente.
+        if host not in self.HOSTS_CURTOS_AMAZON:
+            return True
+
+        # Link curto precisa ser resolvido para
+        # provar que realmente carrega afiliacao.
+        return self._validar_redirecionamento(link)
+
+    @classmethod
+    def _validar_redirecionamento(
+        cls,
+        link: str,
+    ) -> bool:
+        try:
+            resposta = requests.get(
+                link,
+                allow_redirects=True,
+                stream=True,
+                timeout=30,
+                headers={"User-Agent": ("Mozilla/5.0 " "(Windows NT 10.0; Win64; x64)")},
+            )
+
+        except requests.RequestException:
+            return False
+
+        try:
+            final = str(resposta.url).strip()
+
+        finally:
+            resposta.close()
+
+        parsed = urlparse(final)
+
+        if parsed.scheme.lower() != "https":
+            return False
+
+        host = cls._normalizar_host(parsed.hostname)
+
+        if not cls._eh_amazon(host):
+            return False
+
+        parametros = parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        )
+
+        return bool(parametros.get("tag"))
 
     @classmethod
     def criar_chave(
@@ -162,30 +224,27 @@ class LinksAfiliadosAmazonRepository:
         cls,
         link: str,
     ) -> bool:
-        if not isinstance(
-            link,
-            str,
-        ):
+        if not isinstance(link, str):
             return False
 
         parsed = urlparse(link.strip())
 
-        if parsed.scheme != "https":
+        if parsed.scheme.lower() != "https":
             return False
 
         host = cls._normalizar_host(parsed.hostname)
 
-        # Encurtador oficial usado pelo SiteStripe.
-        if host == "amzn.to":
+        if host in cls.HOSTS_CURTOS_AMAZON:
             return bool(parsed.path.strip("/"))
 
         if not cls._eh_amazon(host):
             return False
 
-        parametros = parse_qs(parsed.query)
+        parametros = parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        )
 
-        # Links longos do SiteStripe carregam a tag
-        # de associado/rastreamento.
         return bool(parametros.get("tag"))
 
     @staticmethod
