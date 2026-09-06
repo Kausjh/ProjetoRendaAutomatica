@@ -1,3 +1,5 @@
+import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # 63.8738, -149.7525
@@ -175,3 +177,335 @@ def test_arquivo_sqlite_e_liberado_imediatamente(
     Path(str(caminho) + "-wal").unlink(missing_ok=True)
 
     Path(str(caminho) + "-shm").unlink(missing_ok=True)
+
+
+def _forcar_tempos(
+    repo,
+    msg,
+    *,
+    criado_em: datetime,
+    atualizado_em: datetime,
+):
+    formato = "%Y-%m-%d %H:%M:%S"
+
+    with sqlite3.connect(repo.caminho_arquivo) as conexao:
+        conexao.execute(
+            """
+            UPDATE processamentos_social_scout
+            SET criado_em = ?,
+                atualizado_em = ?
+            WHERE fonte = ?
+              AND chat_id = ?
+              AND message_id = ?
+              AND versao_processador = ?
+            """,
+            (
+                criado_em.astimezone(UTC).strftime(formato),
+                atualizado_em.astimezone(UTC).strftime(formato),
+                msg.fonte,
+                msg.chat_id,
+                msg.message_id,
+                "1",
+            ),
+        )
+
+
+def test_status_permanente_continua_terminal_mesmo_antigo(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "ignorada",
+        "fora_do_escopo",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(agora - timedelta(days=30)),
+        atualizado_em=(agora - timedelta(days=30)),
+    )
+
+    assert repo.esta_processada(
+        msg,
+        "1",
+        "abc",
+        agora_utc=agora,
+    )
+
+
+def test_preco_rejeitado_respeita_cooldown(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "preco_rejeitado",
+        "produto_oficial_indisponivel",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(agora - timedelta(hours=1)),
+        atualizado_em=(agora - timedelta(minutes=10)),
+    )
+
+    assert repo.esta_processada(
+        msg,
+        "1",
+        "abc",
+        agora_utc=agora,
+    )
+
+
+def test_preco_rejeitado_entra_em_retry_apos_ttl(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "preco_rejeitado",
+        "preco_divergente",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(agora - timedelta(hours=1)),
+        atualizado_em=(agora - timedelta(minutes=16)),
+    )
+
+    assert (
+        repo.esta_processada(
+            msg,
+            "1",
+            "abc",
+            agora_utc=agora,
+        )
+        is False
+    )
+
+
+def test_preco_rejeitado_para_apos_janela_maxima(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "preco_rejeitado",
+        "preco_divergente",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(
+            agora
+            - timedelta(
+                hours=6,
+                minutes=1,
+            )
+        ),
+        atualizado_em=(agora - timedelta(minutes=20)),
+    )
+
+    assert repo.esta_processada(
+        msg,
+        "1",
+        "abc",
+        agora_utc=agora,
+    )
+
+
+def test_nao_resolvida_entra_em_retry_apos_30_minutos(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "nao_resolvida",
+        "destino_nao_resolvido",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(agora - timedelta(hours=2)),
+        atualizado_em=(agora - timedelta(minutes=31)),
+    )
+
+    assert (
+        repo.esta_processada(
+            msg,
+            "1",
+            "abc",
+            agora_utc=agora,
+        )
+        is False
+    )
+
+
+def test_nao_resolvida_para_apos_12_horas(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "nao_resolvida",
+        "destino_nao_resolvido",
+    )
+
+    agora = datetime(
+        2026,
+        9,
+        6,
+        20,
+        0,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=(
+            agora
+            - timedelta(
+                hours=12,
+                minutes=1,
+            )
+        ),
+        atualizado_em=(agora - timedelta(hours=1)),
+    )
+
+    assert repo.esta_processada(
+        msg,
+        "1",
+        "abc",
+        agora_utc=agora,
+    )
+
+
+def test_fingerprint_novo_reinicia_janela_retry(
+    tmp_path,
+):
+    repo = ProcessamentosSocialScoutRepository(tmp_path / "social.sqlite3")
+
+    msg = mensagem()
+
+    repo.salvar(
+        msg,
+        "1",
+        "abc",
+        "preco_rejeitado",
+        "preco_divergente",
+    )
+
+    antigo = datetime(
+        2020,
+        1,
+        1,
+        tzinfo=UTC,
+    )
+
+    _forcar_tempos(
+        repo,
+        msg,
+        criado_em=antigo,
+        atualizado_em=antigo,
+    )
+
+    repo.salvar(
+        msg,
+        "1",
+        "def",
+        "preco_rejeitado",
+        "preco_divergente",
+    )
+
+    estado = repo.obter(
+        msg,
+        "1",
+    )
+
+    assert estado is not None
+
+    assert estado["fingerprint"] == "def"
+
+    assert not estado["criado_em"].startswith("2020-01-01")
