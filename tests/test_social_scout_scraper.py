@@ -416,7 +416,7 @@ def test_respeita_maximo_de_mensagens_por_execucao():
     ]
 
 
-def test_nao_reprocessa_mesma_mensagem():
+def test_sem_ack_reemite_mesma_mensagem():
     processamentos = ProcessamentosFake()
     detector = DetectorFake()
     resolvedor = ResolvedorFake()
@@ -428,16 +428,80 @@ def test_nao_reprocessa_mesma_mensagem():
         resolvedor=resolvedor,
     )
 
-    primeiro = scraper.buscar_ofertas()
-    segundo = scraper.buscar_ofertas()
+    primeira = scraper.buscar_ofertas()
+    segunda = scraper.buscar_ofertas()
 
-    assert len(primeiro) == 1
-    assert segundo == []
+    assert len(primeira) == 1
+    assert len(segunda) == 1
+
+    assert detector.ids_processados == [
+        1,
+        1,
+    ]
+
+    assert resolvedor.chamadas == 2
+
+    assert processamentos.quantidade() == 0
+
+
+def test_ack_terminal_impede_reprocessamento():
+    processamentos = ProcessamentosFake()
+    detector = DetectorFake()
+
+    scraper = criar_scraper(
+        [mensagem(1)],
+        processamentos=processamentos,
+        detector=detector,
+    )
+
+    ofertas = scraper.buscar_ofertas()
+
+    assert len(ofertas) == 1
+
+    assert scraper.confirmar_handoff(
+        ofertas[0],
+        status="pipeline_processada",
+        motivo="teste",
+    )
+
+    assert scraper.buscar_ofertas() == []
 
     assert detector.ids_processados == [1]
-    assert resolvedor.chamadas == 1
 
-    assert processamentos.quantidade() == 1
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "pipeline_processada"
+
+
+def test_reemissao_substitui_handoff_antigo():
+    processamentos = ProcessamentosFake()
+
+    scraper = criar_scraper(
+        [mensagem(1)],
+        processamentos=processamentos,
+    )
+
+    primeira = scraper.buscar_ofertas()
+    segunda = scraper.buscar_ofertas()
+
+    assert len(primeira) == 1
+    assert len(segunda) == 1
+
+    assert not scraper.confirmar_handoff(
+        primeira[0],
+        status="pipeline_processada",
+        motivo="handoff_antigo",
+    )
+
+    assert scraper.confirmar_handoff(
+        segunda[0],
+        status="pipeline_processada",
+        motivo="handoff_atual",
+    )
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["motivo"] == "handoff_atual"
 
 
 def test_mensagem_editada_e_reprocessada():
@@ -453,6 +517,12 @@ def test_mensagem_editada_e_reprocessada():
     primeiro = scraper.buscar_ofertas()
 
     assert len(primeiro) == 1
+
+    assert scraper.confirmar_handoff(
+        primeiro[0],
+        status="pipeline_processada",
+        motivo="teste",
+    )
 
     scraper.repository.mensagens = [
         mensagem(
@@ -497,7 +567,7 @@ def test_erro_transitorio_nao_bloqueia_tentativa_futura():
 
     assert len(segundo) == 1
     assert resolvedor.chamadas == 2
-    assert processamentos.quantidade() == 1
+    assert processamentos.quantidade() == 0
 
 
 def test_modo_sombra_classifica_nicho_mas_nao_emite():
@@ -562,11 +632,15 @@ def test_modo_sombra_classifica_fora_do_nicho_sem_emitir():
     assert estado["status"] == "sombra_fora_nicho"
 
 
-def test_modo_normal_continua_emitindo_oferta():
+def test_modo_normal_emite_sem_terminal_ate_ack():
     processamentos = ProcessamentosFake()
 
     scraper = SocialScoutScraper(
-        repository=RepositoryFake([mensagem(1)]),
+        repository=RepositoryFake(
+            [
+                mensagem(1),
+            ]
+        ),
         processamentos_repository=processamentos,
         detector=DetectorFake(),
         resolvedor=ResolvedorFake(),
@@ -579,10 +653,17 @@ def test_modo_normal_continua_emitindo_oferta():
     ofertas = scraper.buscar_ofertas(limite=5)
 
     assert len(ofertas) == 1
+    assert processamentos.quantidade() == 0
+
+    assert scraper.confirmar_handoff(
+        ofertas[0],
+        status="pipeline_processada",
+        motivo="teste",
+    )
 
     estado = next(iter(processamentos.estados.values()))
 
-    assert estado["status"] == "emitida"
+    assert estado["status"] == "pipeline_processada"
 
 
 def test_modo_sombra_respeita_limite_de_candidatas():
@@ -687,6 +768,13 @@ def test_limite_de_execucao_nao_bloqueia_backlog_atras_de_processadas():
         4,
         3,
     ]
+
+    for oferta in ofertas_primeira:
+        assert primeira.confirmar_handoff(
+            oferta,
+            status="pipeline_processada",
+            motivo="teste",
+        )
 
     detector_segunda = DetectorFake()
 

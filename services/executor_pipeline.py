@@ -606,6 +606,34 @@ class ExecutorPipeline:
 
         self.relatorios_repository.salvar(relatorio)
 
+        confirmar_handoffs = getattr(
+            self.coletor,
+            "confirmar_handoffs",
+            None,
+        )
+
+        if callable(confirmar_handoffs):
+            try:
+                handoffs_confirmados = confirmar_handoffs(
+                    ofertas,
+                    status="pipeline_processada",
+                    motivo=("ciclo_pipeline_" "concluido_com_sucesso"),
+                )
+
+            except Exception:
+                logger.exception(
+                    "Falha ao confirmar handoffs do "
+                    "Social Scout; as mensagens "
+                    "permanecerao elegiveis para retry."
+                )
+
+            else:
+                if handoffs_confirmados:
+                    logger.info(
+                        "Social Scout: %s handoff(s) " "confirmado(s) apos conclusao " "do ciclo.",
+                        handoffs_confirmados,
+                    )
+
         logger.info("Execução finalizada.")
 
         logger.info("=" * 60)

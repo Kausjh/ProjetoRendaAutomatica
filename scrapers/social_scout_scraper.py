@@ -94,6 +94,21 @@ class SocialScoutScraper(BaseScraper):
 
         self.modo_sombra = bool(modo_sombra)
 
+        self._handoffs_pendentes: dict[
+            int,
+            tuple[
+                Oferta,
+                MensagemSocialScout,
+                str,
+                tuple[str, str, int, str],
+            ],
+        ] = {}
+
+        self._handoff_por_mensagem: dict[
+            tuple[str, str, int, str],
+            int,
+        ] = {}
+
         if classificador_sombra is not None:
             self.classificador_sombra = classificador_sombra
 
@@ -281,11 +296,10 @@ class SocialScoutScraper(BaseScraper):
                     # nenhuma Oferta em sombra sai do scraper.
                     continue
 
-                self._marcar_terminal(
+                self._registrar_handoff_pendente(
                     mensagem=mensagem,
                     fingerprint=fingerprint,
-                    status="emitida",
-                    motivo=("oferta_validada_emitida_para_coletor"),
+                    oferta=oferta,
                 )
 
                 ofertas.append(oferta)
@@ -328,6 +342,96 @@ class SocialScoutScraper(BaseScraper):
             )
 
         return ofertas
+
+    def confirmar_handoff(
+        self,
+        oferta: Oferta,
+        *,
+        status: str,
+        motivo: str,
+    ) -> bool:
+        """
+        Confirma que o downstream assumiu definitivamente a Oferta.
+
+        Antes deste ACK nenhum estado terminal e persistido.
+        Se o processo morrer, a mensagem raw continua disponivel
+        e podera ser processada novamente no proximo ciclo.
+        """
+        chave_oferta = id(oferta)
+
+        registro = self._handoffs_pendentes.get(chave_oferta)
+
+        if registro is None:
+            return False
+
+        (
+            oferta_pendente,
+            mensagem,
+            fingerprint,
+            chave_mensagem,
+        ) = registro
+
+        if oferta_pendente is not oferta:
+            return False
+
+        self._marcar_terminal(
+            mensagem=mensagem,
+            fingerprint=fingerprint,
+            status=(str(status).strip() or "pipeline_processada"),
+            motivo=str(motivo or ""),
+        )
+
+        self._handoffs_pendentes.pop(
+            chave_oferta,
+            None,
+        )
+
+        if self._handoff_por_mensagem.get(chave_mensagem) == chave_oferta:
+            self._handoff_por_mensagem.pop(
+                chave_mensagem,
+                None,
+            )
+
+        return True
+
+    def _registrar_handoff_pendente(
+        self,
+        *,
+        mensagem: MensagemSocialScout,
+        fingerprint: str,
+        oferta: Oferta,
+    ) -> None:
+        """
+        Mantem apenas o handoff mais recente de cada mensagem.
+
+        A durabilidade nao depende deste dicionario:
+        a fonte duravel continua sendo a mensagem raw no SQLite.
+        """
+        chave_mensagem = (
+            str(mensagem.fonte),
+            str(mensagem.chat_id),
+            int(mensagem.message_id),
+            self.VERSAO_PROCESSADOR,
+        )
+
+        chave_anterior = self._handoff_por_mensagem.get(chave_mensagem)
+
+        if chave_anterior is not None:
+            self._handoffs_pendentes.pop(
+                chave_anterior,
+                None,
+            )
+
+        chave_oferta = id(oferta)
+
+        self._handoffs_pendentes[chave_oferta] = (
+            oferta,
+            mensagem,
+            fingerprint,
+            chave_mensagem,
+        )
+
+        self._handoff_por_mensagem[chave_mensagem] = chave_oferta
 
     def _processar_sombra(
         self,

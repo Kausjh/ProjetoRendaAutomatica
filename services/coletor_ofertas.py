@@ -42,6 +42,63 @@ class ColetorOfertas:
 
         return ofertas
 
+    def _confirmar_handoff(
+        self,
+        oferta: Oferta,
+        *,
+        status: str,
+        motivo: str,
+    ) -> bool:
+        for scraper in self.scrapers:
+            confirmar = getattr(
+                scraper,
+                "confirmar_handoff",
+                None,
+            )
+
+            if not callable(confirmar):
+                continue
+
+            try:
+                confirmado = confirmar(
+                    oferta,
+                    status=status,
+                    motivo=motivo,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Erro ao confirmar handoff da oferta " "'%s' no scraper '%s'.",
+                    oferta.nome,
+                    type(scraper).__name__,
+                )
+
+                continue
+
+            if confirmado:
+                return True
+
+        return False
+
+    def confirmar_handoffs(
+        self,
+        ofertas: list[Oferta],
+        *,
+        status: str,
+        motivo: str,
+    ) -> int:
+        confirmados = 0
+
+        for oferta in ofertas:
+            if self._confirmar_handoff(
+                oferta,
+                status=status,
+                motivo=motivo,
+            ):
+                confirmados += 1
+
+        return confirmados
+
     def _remover_duplicadas(self, ofertas: list[Oferta]) -> list[Oferta]:
 
         ofertas_unicas: list[Oferta] = []
@@ -49,7 +106,17 @@ class ColetorOfertas:
 
         for oferta in ofertas:
             if oferta.link in links:
-                logger.debug("Oferta duplicada removida: %s", oferta.nome)
+                logger.debug(
+                    "Oferta duplicada removida: %s",
+                    oferta.nome,
+                )
+
+                self._confirmar_handoff(
+                    oferta,
+                    status="coletor_duplicada",
+                    motivo="link_duplicado_no_coletor",
+                )
+
                 continue
 
             links.add(oferta.link)
@@ -83,6 +150,13 @@ class ColetorOfertas:
                     oferta.nome,
                     "; ".join(oferta.motivos_validacao),
                 )
+
+                self._confirmar_handoff(
+                    oferta,
+                    status="coletor_rejeitada_validacao",
+                    motivo=("; ".join(oferta.motivos_validacao) or "oferta_invalida_no_coletor"),
+                )
+
                 continue
 
             classificacao = self.classificador.aplicar_classificacao(oferta)
@@ -93,6 +167,13 @@ class ColetorOfertas:
                     oferta.nome,
                     classificacao.motivo,
                 )
+
+                self._confirmar_handoff(
+                    oferta,
+                    status="coletor_fora_nicho",
+                    motivo=(classificacao.motivo or "fora_do_nicho"),
+                )
+
                 continue
 
             logger.debug(
