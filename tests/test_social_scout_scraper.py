@@ -498,3 +498,159 @@ def test_erro_transitorio_nao_bloqueia_tentativa_futura():
     assert len(segundo) == 1
     assert resolvedor.chamadas == 2
     assert processamentos.quantidade() == 1
+
+
+def test_modo_sombra_classifica_nicho_mas_nao_emite():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    1,
+                    texto="Mouse Gamer RGB Modelo Teste",
+                )
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=5,
+        modo_sombra=True,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert ofertas == []
+
+    assert processamentos.quantidade() == 1
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "sombra_nicho"
+
+
+def test_modo_sombra_classifica_fora_do_nicho_sem_emitir():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    1,
+                    texto="Camiseta Gamer Modelo Teste",
+                )
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=5,
+        modo_sombra=True,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert ofertas == []
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "sombra_fora_nicho"
+
+
+def test_modo_normal_continua_emitindo_oferta():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake([mensagem(1)]),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=5,
+        modo_sombra=False,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert len(ofertas) == 1
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "emitida"
+
+
+def test_modo_sombra_respeita_limite_de_candidatas():
+    processamentos = ProcessamentosFake()
+    detector = DetectorFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(1),
+                mensagem(2),
+                mensagem(3),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=detector,
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=10,
+        modo_sombra=True,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=1)
+
+    assert ofertas == []
+
+    assert detector.ids_processados == [3]
+
+    assert processamentos.quantidade() == 1
+
+
+def test_mensagem_consumida_em_sombra_nao_reaparece_ao_ir_para_normal():
+    processamentos = ProcessamentosFake()
+
+    msg = mensagem(
+        1,
+        texto="Mouse Gamer RGB Modelo Teste",
+    )
+
+    detector_sombra = DetectorFake()
+
+    sombra = SocialScoutScraper(
+        repository=RepositoryFake([msg]),
+        processamentos_repository=processamentos,
+        detector=detector_sombra,
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=True,
+    )
+
+    assert sombra.buscar_ofertas() == []
+
+    detector_normal = DetectorFake()
+
+    normal = SocialScoutScraper(
+        repository=RepositoryFake([msg]),
+        processamentos_repository=processamentos,
+        detector=detector_normal,
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=False,
+    )
+
+    assert normal.buscar_ofertas() == []
+
+    assert detector_sombra.ids_processados == [1]
+
+    assert detector_normal.ids_processados == []

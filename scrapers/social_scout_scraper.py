@@ -18,6 +18,9 @@ from repositories.processamentos_social_scout_repository import (
     ProcessamentosSocialScoutRepository,
 )
 from scrapers.base_scraper import BaseScraper
+from services.classificador_produto import (
+    ClassificadorProduto,
+)
 from services.scout.construtor_oferta_social_scout import (
     ConstrutorOfertaSocialScout,
 )
@@ -39,15 +42,21 @@ class SocialScoutScraper(BaseScraper):
     Adapta mensagens capturadas pelo Social Scout para o
     contrato normal de scraper do ProjetoRendaAutomatica.
 
+    Modo normal:
+        ofertas validadas sao devolvidas ao ColetorOfertas.
+
+    Modo sombra:
+        a mensagem percorre deteccao, resolucao, validacao,
+        construcao e classificacao, mas nenhuma Oferta sai
+        deste scraper.
+
     Mensagens que chegaram a um estado terminal nao sao
-    reabertas a cada ciclo.
+    reabertas em cada ciclo.
 
-    Uma edicao da mensagem muda seu fingerprint e libera
-    novo processamento.
+    Uma edicao muda o fingerprint e permite novo processamento.
 
-    Mudancas futuras importantes na logica podem incrementar
-    VERSAO_PROCESSADOR para permitir uma nova avaliacao das
-    mensagens antigas sem apagar o banco.
+    Mudancas futuras importantes podem incrementar
+    VERSAO_PROCESSADOR.
     """
 
     VERSAO_PROCESSADOR = "1"
@@ -55,12 +64,14 @@ class SocialScoutScraper(BaseScraper):
     def __init__(
         self,
         repository: MensagensSocialScoutRepository | None = None,
-        processamentos_repository=None,
+        processamentos_repository: ProcessamentosSocialScoutRepository | None = None,
         detector=None,
         resolvedor=None,
         validador_preco=None,
         construtor=None,
         max_mensagens_por_execucao: int = 30,
+        modo_sombra: bool = False,
+        classificador_sombra: ClassificadorProduto | None = None,
     ) -> None:
         self.repository = repository or MensagensSocialScoutRepository()
 
@@ -80,6 +91,17 @@ class SocialScoutScraper(BaseScraper):
             int(max_mensagens_por_execucao),
             1,
         )
+
+        self.modo_sombra = bool(modo_sombra)
+
+        if classificador_sombra is not None:
+            self.classificador_sombra = classificador_sombra
+
+        elif self.modo_sombra:
+            self.classificador_sombra = ClassificadorProduto()
+
+        else:
+            self.classificador_sombra = None
 
     def buscar_ofertas(
         self,
@@ -106,8 +128,16 @@ class SocialScoutScraper(BaseScraper):
         ignoradas_processadas = 0
         erros_transitorios = 0
 
+        candidatas_sombra = 0
+        nicho_sombra = 0
+        fora_nicho_sombra = 0
+
         for mensagem in mensagens_recentes:
-            if len(ofertas) >= limite:
+            if self.modo_sombra:
+                if candidatas_sombra >= limite:
+                    break
+
+            elif len(ofertas) >= limite:
                 break
 
             fingerprint = self._fingerprint_mensagem(mensagem)
@@ -210,6 +240,25 @@ class SocialScoutScraper(BaseScraper):
 
                 chaves_vistas.add(chave)
 
+                if self.modo_sombra:
+                    candidatas_sombra += 1
+
+                    status_sombra = self._processar_sombra(
+                        mensagem=mensagem,
+                        fingerprint=fingerprint,
+                        oferta=oferta,
+                    )
+
+                    if status_sombra == "sombra_nicho":
+                        nicho_sombra += 1
+
+                    else:
+                        fora_nicho_sombra += 1
+
+                    # Trava central:
+                    # nenhuma Oferta em sombra sai do scraper.
+                    continue
+
                 self._marcar_terminal(
                     mensagem=mensagem,
                     fingerprint=fingerprint,
@@ -228,17 +277,83 @@ class SocialScoutScraper(BaseScraper):
                     mensagem.message_id,
                 )
 
-        logger.info(
-            "SocialScoutScraper converteu %s oferta(s) "
-            "a partir de ate %s mensagem(ns) recente(s). "
-            "Ja processadas=%s | erros transitorios=%s.",
-            len(ofertas),
-            len(mensagens_recentes),
-            ignoradas_processadas,
-            erros_transitorios,
-        )
+        if self.modo_sombra:
+            logger.info(
+                "SocialScoutScraper MODO SOMBRA | "
+                "candidatas=%s | nicho=%s | "
+                "fora_nicho=%s | ja_processadas=%s | "
+                "erros_transitorios=%s | "
+                "ofertas_emitidas=0.",
+                candidatas_sombra,
+                nicho_sombra,
+                fora_nicho_sombra,
+                ignoradas_processadas,
+                erros_transitorios,
+            )
+
+        else:
+            logger.info(
+                "SocialScoutScraper converteu %s oferta(s) "
+                "a partir de ate %s mensagem(ns) recente(s). "
+                "Ja processadas=%s | erros transitorios=%s.",
+                len(ofertas),
+                len(mensagens_recentes),
+                ignoradas_processadas,
+                erros_transitorios,
+            )
 
         return ofertas
+
+    def _processar_sombra(
+        self,
+        *,
+        mensagem: MensagemSocialScout,
+        fingerprint: str,
+        oferta: Oferta,
+    ) -> str:
+        classificador = self.classificador_sombra
+
+        if classificador is None:
+            classificador = ClassificadorProduto()
+
+            self.classificador_sombra = classificador
+
+        classificacao = classificador.aplicar_classificacao(oferta)
+
+        if classificacao.eh_nicho:
+            status = "sombra_nicho"
+
+        else:
+            status = "sombra_fora_nicho"
+
+        motivo = (
+            "modo_sombra|"
+            f"categoria={classificacao.categoria or ''}|"
+            f"relevancia={classificacao.relevancia:.2f}|"
+            f"{classificacao.motivo}"
+        )
+
+        self._marcar_terminal(
+            mensagem=mensagem,
+            fingerprint=fingerprint,
+            status=status,
+            motivo=motivo,
+        )
+
+        logger.info(
+            "Social Scout SOMBRA | "
+            "status=%s | categoria=%s | "
+            "relevancia=%.2f | preco=%.2f | "
+            "produto=%s | nome=%s",
+            status,
+            classificacao.categoria,
+            classificacao.relevancia,
+            oferta.preco,
+            (oferta.id_anuncio or oferta.id_produto or "sem_id"),
+            oferta.nome,
+        )
+
+        return status
 
     def _marcar_terminal(
         self,

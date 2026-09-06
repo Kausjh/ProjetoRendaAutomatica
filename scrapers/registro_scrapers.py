@@ -39,8 +39,6 @@ def _variavel_ativa(
     }:
         return False
 
-    # Falha fechada:
-    # valor desconhecido jamais ativa o Social Scout.
     return valor_padrao
 
 
@@ -58,6 +56,15 @@ def criar_scrapers() -> list[BaseScraper]:
         "SOCIAL_SCOUT_PIPELINE_ATIVO",
         valor_padrao=False,
     ):
-        scrapers.append(SocialScoutScraper())
+        modo_sombra = _variavel_ativa(
+            "SOCIAL_SCOUT_MODO_SOMBRA",
+            valor_padrao=True,
+        )
+
+        scrapers.append(
+            SocialScoutScraper(
+                modo_sombra=modo_sombra,
+            )
+        )
 
     return scrapers

@@ -37,7 +37,7 @@ def preparar_construtores(
     monkeypatch.setattr(
         registro_scrapers,
         "SocialScoutScraper",
-        lambda: "social",
+        lambda **_: "social",
     )
 
 
@@ -128,3 +128,118 @@ def test_env_example_documenta_flag_desativada():
     )
 
     assert "SOCIAL_SCOUT_PIPELINE_ATIVO=false" in texto
+
+
+def test_social_scout_entra_em_sombra_por_padrao(
+    monkeypatch,
+):
+    preparar_construtores(monkeypatch)
+
+    capturado = {}
+
+    def criar_social(
+        **kwargs,
+    ):
+        capturado.update(kwargs)
+
+        return "social"
+
+    monkeypatch.setattr(
+        registro_scrapers,
+        "SocialScoutScraper",
+        criar_social,
+    )
+
+    monkeypatch.setenv(
+        "SOCIAL_SCOUT_PIPELINE_ATIVO",
+        "true",
+    )
+
+    monkeypatch.delenv(
+        "SOCIAL_SCOUT_MODO_SOMBRA",
+        raising=False,
+    )
+
+    scrapers = registro_scrapers.criar_scrapers()
+
+    assert scrapers[-1] == "social"
+
+    assert capturado["modo_sombra"] is True
+
+
+def test_social_scout_pode_sair_da_sombra_explicitamente(
+    monkeypatch,
+):
+    preparar_construtores(monkeypatch)
+
+    capturado = {}
+
+    def criar_social(
+        **kwargs,
+    ):
+        capturado.update(kwargs)
+
+        return "social"
+
+    monkeypatch.setattr(
+        registro_scrapers,
+        "SocialScoutScraper",
+        criar_social,
+    )
+
+    monkeypatch.setenv(
+        "SOCIAL_SCOUT_PIPELINE_ATIVO",
+        "true",
+    )
+
+    monkeypatch.setenv(
+        "SOCIAL_SCOUT_MODO_SOMBRA",
+        "false",
+    )
+
+    registro_scrapers.criar_scrapers()
+
+    assert capturado["modo_sombra"] is False
+
+
+def test_valor_invalido_de_sombra_falha_para_sombra(
+    monkeypatch,
+):
+    preparar_construtores(monkeypatch)
+
+    capturado = {}
+
+    def criar_social(
+        **kwargs,
+    ):
+        capturado.update(kwargs)
+
+        return "social"
+
+    monkeypatch.setattr(
+        registro_scrapers,
+        "SocialScoutScraper",
+        criar_social,
+    )
+
+    monkeypatch.setenv(
+        "SOCIAL_SCOUT_PIPELINE_ATIVO",
+        "true",
+    )
+
+    monkeypatch.setenv(
+        "SOCIAL_SCOUT_MODO_SOMBRA",
+        "valor-invalido",
+    )
+
+    registro_scrapers.criar_scrapers()
+
+    assert capturado["modo_sombra"] is True
+
+
+def test_env_example_documenta_modo_sombra_seguro():
+    texto = Path(".env.example").read_text(
+        encoding="utf-8",
+    )
+
+    assert "SOCIAL_SCOUT_MODO_SOMBRA=true" in texto
