@@ -933,3 +933,60 @@ def test_v3_normal_preserva_handoff_de_hardware():
     )
 
     assert processamentos.quantidade() == 1
+
+
+def test_preco_nao_verificavel_vira_terminal_sem_retry():
+    class ValidadorNaoVerificavelFake:
+        def __init__(self):
+            self.chamadas = 0
+
+        def validar(
+            self,
+            deteccao,
+            resolucao,
+        ):
+            self.chamadas += 1
+
+            return ResultadoValidacaoPrecoSocialScout(
+                status="nao_verificavel",
+                marketplace="mercado_livre",
+                url=resolucao.url_destino,
+                titulo_oficial=deteccao.titulo,
+                motivo=("mensagem_social_sem_preco_base"),
+            )
+
+    processamentos = ProcessamentosFake()
+
+    validador = ValidadorNaoVerificavelFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9101,
+                    texto=("RTX 5060 Ti R$ 3799 " "- CUPOM: TESTE10"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=validador,
+        construtor=ConstrutorFake(),
+        max_mensagens_por_execucao=5,
+        modo_sombra=True,
+    )
+
+    assert scraper.buscar_ofertas(limite=5) == []
+
+    assert validador.chamadas == 1
+    assert processamentos.quantidade() == 1
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "preco_nao_verificavel"
+
+    assert scraper.buscar_ofertas(limite=5) == []
+
+    assert validador.chamadas == 1
+    assert processamentos.quantidade() == 1

@@ -244,6 +244,16 @@ class SocialScoutScraper(BaseScraper):
                     erros_transitorios += 1
                     continue
 
+                if validacao.status == "nao_verificavel":
+                    self._marcar_terminal(
+                        mensagem=mensagem,
+                        fingerprint=fingerprint,
+                        status="preco_nao_verificavel",
+                        motivo=validacao.motivo,
+                    )
+
+                    continue
+
                 if validacao.status != "validado":
                     self._marcar_terminal(
                         mensagem=mensagem,

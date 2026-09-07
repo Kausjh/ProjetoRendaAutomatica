@@ -199,3 +199,22 @@ def test_erro_quando_preco_oficial_nao_e_encontrado():
     assert resultado.status == "erro"
 
     assert resultado.motivo == "preco_oficial_nao_encontrado"
+
+
+def test_preco_condicional_sem_base_vira_nao_verificavel():
+    validador = criar_validador(snapshot())
+
+    resultado = validador.validar(
+        deteccao(
+            preco_original=None,
+            preco_oferta=None,
+            preco_final=278.89,
+            cupom="TESTE10",
+            desconto_cupom=None,
+        ),
+        resolucao(),
+    )
+
+    assert resultado.status == "nao_verificavel"
+
+    assert resultado.motivo == "mensagem_social_sem_preco_base"

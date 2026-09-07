@@ -48,6 +48,7 @@ class ValidadorPrecoMercadoLivreSocialScout:
     STATUS_INDISPONIVEL = "indisponivel"
     STATUS_NAO_SUPORTADO = "nao_suportado"
     STATUS_ERRO = "erro"
+    STATUS_NAO_VERIFICAVEL = "nao_verificavel"
 
     def __init__(
         self,
@@ -204,7 +205,7 @@ class ValidadorPrecoMercadoLivreSocialScout:
 
         if preco_grupo is None:
             return self._resultado(
-                status=self.STATUS_ERRO,
+                status=self.STATUS_NAO_VERIFICAVEL,
                 deteccao=deteccao,
                 resolucao=resolucao,
                 titulo_oficial=titulo_oficial,
