@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import unicodedata
 from dataclasses import asdict
 
 from models.mensagem_social_scout import (
@@ -62,17 +63,41 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "5"
+    VERSAO_PROCESSADOR = "6"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
     #
-    # O Social Scout aplica uma politica adicional e conservadora
-    # para impedir que ele transforme eletrodomesticos genericos
-    # em candidatas publicaveis.
-    CATEGORIAS_FORA_ESCOPO_SOCIAL = frozenset(
+    # O classificador global cobre categorias bem mais amplas
+    # que o nicho deste projeto.
+    #
+    # O Social Scout usa uma allowlist conservadora e fail-closed.
+    CATEGORIAS_PERMITIDAS_SOCIAL = frozenset(
         {
-            "Climatiza\u00e7\u00e3o e conforto",
+            "Armazenamento",
+            "Computador e Mini PC",
+            "Console",
+            "Controle",
+            "Fonte e energia",
+            "Gabinete",
+            "Ilumina\u00e7\u00e3o de setup",
+            "Kit upgrade",
+            "Mem\u00f3ria RAM",
+            "Microfone",
+            "Monitor",
+            "Mouse e mousepad",
+            "Notebook",
+            "Placa de v\u00eddeo",
+            "Placa-m\u00e3e",
+            "Processador",
+            "Realidade virtual",
+            "Rede",
+            "Refrigera\u00e7\u00e3o de PC",
+            "Simula\u00e7\u00e3o",
+            "Streaming e captura",
+            "Suportes e conectividade",
+            "Teclado",
+            "\u00c1udio",
         }
     )
 
@@ -504,7 +529,26 @@ class SocialScoutScraper(BaseScraper):
         cls,
         categoria: str | None,
     ) -> bool:
-        return str(categoria or "").strip() in cls.CATEGORIAS_FORA_ESCOPO_SOCIAL
+        categoria_normalizada = (
+            unicodedata.normalize(
+                "NFC",
+                str(categoria or ""),
+            )
+            .strip()
+            .casefold()
+        )
+
+        categorias_permitidas = {
+            unicodedata.normalize(
+                "NFC",
+                item,
+            )
+            .strip()
+            .casefold()
+            for item in cls.CATEGORIAS_PERMITIDAS_SOCIAL
+        }
+
+        return categoria_normalizada not in categorias_permitidas
 
     def _processar_sombra(
         self,
