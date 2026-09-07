@@ -59,7 +59,19 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "2"
+    VERSAO_PROCESSADOR = "3"
+
+    # O ClassificadorProduto e compartilhado pelo projeto inteiro
+    # e possui um universo deliberadamente mais amplo.
+    #
+    # O Social Scout aplica uma politica adicional e conservadora
+    # para impedir que ele transforme eletrodomesticos genericos
+    # em candidatas publicaveis.
+    CATEGORIAS_FORA_ESCOPO_SOCIAL = frozenset(
+        {
+            "Climatiza\u00e7\u00e3o e conforto",
+        }
+    )
 
     def __init__(
         self,
@@ -296,6 +308,21 @@ class SocialScoutScraper(BaseScraper):
                     # nenhuma Oferta em sombra sai do scraper.
                     continue
 
+                classificacao_escopo = self._obter_classificacao_escopo_social(oferta)
+
+                if self._categoria_fora_escopo_social(classificacao_escopo.categoria):
+                    self._marcar_terminal(
+                        mensagem=mensagem,
+                        fingerprint=fingerprint,
+                        status="fora_escopo",
+                        motivo=(
+                            "categoria_fora_escopo_social_scout:"
+                            f"{classificacao_escopo.categoria}"
+                        ),
+                    )
+
+                    continue
+
                 self._registrar_handoff_pendente(
                     mensagem=mensagem,
                     fingerprint=fingerprint,
@@ -433,6 +460,25 @@ class SocialScoutScraper(BaseScraper):
 
         self._handoff_por_mensagem[chave_mensagem] = chave_oferta
 
+    def _obter_classificacao_escopo_social(
+        self,
+        oferta: Oferta,
+    ):
+        classificador = self.classificador_sombra
+
+        if classificador is None:
+            classificador = ClassificadorProduto()
+            self.classificador_sombra = classificador
+
+        return classificador.aplicar_classificacao(oferta)
+
+    @classmethod
+    def _categoria_fora_escopo_social(
+        cls,
+        categoria: str | None,
+    ) -> bool:
+        return str(categoria or "").strip() in cls.CATEGORIAS_FORA_ESCOPO_SOCIAL
+
     def _processar_sombra(
         self,
         *,
@@ -440,23 +486,21 @@ class SocialScoutScraper(BaseScraper):
         fingerprint: str,
         oferta: Oferta,
     ) -> str:
-        classificador = self.classificador_sombra
+        classificacao = self._obter_classificacao_escopo_social(oferta)
 
-        if classificador is None:
-            classificador = ClassificadorProduto()
+        fora_escopo_social = self._categoria_fora_escopo_social(classificacao.categoria)
 
-            self.classificador_sombra = classificador
-
-        classificacao = classificador.aplicar_classificacao(oferta)
-
-        if classificacao.eh_nicho:
+        if classificacao.eh_nicho and not fora_escopo_social:
             status = "sombra_nicho"
 
         else:
             status = "sombra_fora_nicho"
 
+        prefixo_escopo = "fora_escopo_social_scout|" if fora_escopo_social else ""
+
         motivo = (
             "modo_sombra|"
+            f"{prefixo_escopo}"
             f"categoria={classificacao.categoria or ''}|"
             f"relevancia={classificacao.relevancia:.2f}|"
             f"{classificacao.motivo}"

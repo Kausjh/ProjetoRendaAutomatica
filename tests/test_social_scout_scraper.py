@@ -799,3 +799,137 @@ def test_limite_de_execucao_nao_bloqueia_backlog_atras_de_processadas():
         2,
         1,
     ]
+
+
+def test_v3_shadow_rejeita_climatizacao_fora_escopo_social():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9001,
+                    texto=("Ventilador de Torre WAP " "Air Silence"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=True,
+    )
+
+    assert scraper.buscar_ofertas(limite=5) == []
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "sombra_fora_nicho"
+
+    assert "fora_escopo_social_scout" in estado["motivo"]
+
+    assert "Climatiza\u00e7\u00e3o e conforto" in estado["motivo"]
+
+
+def test_v3_shadow_preserva_hardware_real():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9002,
+                    texto=("Processador AMD " "Ryzen 7 5700X"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=True,
+    )
+
+    assert scraper.buscar_ofertas(limite=5) == []
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "sombra_nicho"
+
+    assert "Processador" in estado["motivo"]
+
+    assert "fora_escopo_social_scout" not in estado["motivo"]
+
+
+def test_v3_normal_nao_emite_climatizacao():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9003,
+                    texto=("Ventilador de Torre WAP " "Air Silence"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=False,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert ofertas == []
+
+    assert processamentos.quantidade() == 1
+
+    estado = next(iter(processamentos.estados.values()))
+
+    assert estado["status"] == "fora_escopo"
+
+    assert estado["motivo"] == (
+        "categoria_fora_escopo_social_scout:" "Climatiza\u00e7\u00e3o e conforto"
+    )
+
+
+def test_v3_normal_preserva_handoff_de_hardware():
+    processamentos = ProcessamentosFake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9004,
+                    texto=("SSD NVMe Kingston " "1TB PCIe"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(),
+        resolvedor=ResolvedorFake(),
+        validador_preco=ValidadorFake(),
+        construtor=ConstrutorFake(),
+        modo_sombra=False,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert len(ofertas) == 1
+
+    # Durable handoff:
+    # nenhum estado terminal antes do ACK.
+    assert processamentos.quantidade() == 0
+
+    assert scraper.confirmar_handoff(
+        ofertas[0],
+        status="pipeline_processada",
+        motivo="teste_v3",
+    )
+
+    assert processamentos.quantidade() == 1
