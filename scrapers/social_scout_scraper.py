@@ -59,7 +59,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "1"
+    VERSAO_PROCESSADOR = "2"
 
     def __init__(
         self,

@@ -139,3 +139,107 @@ def test_remove_cupom_geral_duplicado():
 
     assert resultado.classificacao == "cupom_geral"
     assert resultado.cupons == ("TESTE50",)
+
+
+def test_detecta_preco_generico_inteiro_com_cupom():
+    mensagem = criar_mensagem(
+        texto="""Fonte Gamer Teste 750W
+R$ 258 Cupom: TESTE10
+""",
+        links=("https://meli.la/teste-generico",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "oferta_produto"
+    assert resultado.utilizavel is True
+    assert resultado.preco_oferta == 258.0
+    assert resultado.preco_final == 258.0
+    assert resultado.codigo_cupom == "TESTE10"
+
+
+def test_detecta_preco_generico_com_milhar_sem_centavos():
+    mensagem = criar_mensagem(
+        texto="""Eletronico Teste
+R$ 3.911 em ate 12x
+""",
+        links=("https://meli.la/teste-milhar",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "oferta_produto"
+    assert resultado.preco_final == 3911.0
+
+
+def test_detecta_preco_generico_decimal():
+    mensagem = criar_mensagem(
+        texto="""Cooler Gamer Teste
+R$ 133,32
+""",
+        links=("https://meli.la/teste-decimal",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "oferta_produto"
+    assert resultado.preco_final == 133.32
+
+
+def test_campanha_com_emoji_e_novos_cupons_nao_vira_produto():
+    mensagem = criar_mensagem(
+        texto="""?? NOVOS CUPONS MERCADO LIVRE ??
+20% OFF: Compra minima de R$ 89
+""",
+        links=("https://meli.la/teste-cupom",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "cupom_geral"
+
+
+def test_campanha_com_emoji_e_cupom_no_titulo():
+    mensagem = criar_mensagem(
+        texto="""?? CUPOM SHOPEE LIBERADO ??
+R$ 50 OFF em R$ 249
+""",
+        links=("https://shopee.com.br/teste",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "cupom_geral"
+
+
+def test_produto_com_rodape_resgate_cupons_continua_produto():
+    mensagem = criar_mensagem(
+        texto="""Mouse Gamer Teste
+De: R$ 299,90
+Por: R$ 199,90
+Resgate seus cupons aqui:
+https://meli.la/teste-cupons
+""",
+        links=(
+            "https://meli.la/teste-produto",
+            "https://meli.la/teste-cupons",
+        ),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "oferta_produto"
+    assert resultado.preco_final == 199.90
+
+
+def test_apenas_de_sem_preco_de_oferta_continua_ignorado():
+    mensagem = criar_mensagem(
+        texto="""Produto Teste
+De: R$ 499,90
+""",
+        links=("https://meli.la/teste-apenas-de",),
+    )
+
+    resultado = DetectorPromocaoSocialScout.detectar(mensagem)
+
+    assert resultado.classificacao == "ignorar"

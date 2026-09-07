@@ -16,7 +16,12 @@ class DetectorPromocaoSocialScout:
     CUPOM_GERAL = "cupom_geral"
     IGNORAR = "ignorar"
 
-    _PADRAO_MOEDA = r"R\$\s*([\d.]+,\d{2})"
+    _PADRAO_MOEDA = r"R\$\s*([\d.]+(?:,\d{2})?)"
+
+    _PADRAO_PRECO_GENERICO = re.compile(
+        _PADRAO_MOEDA,
+        flags=re.IGNORECASE,
+    )
 
     _PADRAO_PRECO_ORIGINAL = re.compile(
         rf"\bDe\s*:\s*{_PADRAO_MOEDA}",
@@ -44,7 +49,7 @@ class DetectorPromocaoSocialScout:
     )
 
     _PADRAO_CUPOM_ESPECIFICO = re.compile(
-        r"\bcupom\s+([A-Z0-9][A-Z0-9_-]{2,})",
+        r"\bcupom\s*:?\s*([A-Z0-9][A-Z0-9_-]{2,})",
         flags=re.IGNORECASE,
     )
 
@@ -114,6 +119,12 @@ class DetectorPromocaoSocialScout:
             texto,
         )
 
+        if preco_oferta is None and preco_com_cupom is None and preco_original is None:
+            preco_oferta = cls._extrair_moeda(
+                cls._PADRAO_PRECO_GENERICO,
+                texto,
+            )
+
         codigo_cupom = cls._extrair_primeiro(
             cls._PADRAO_CUPOM_ESPECIFICO,
             texto,
@@ -167,22 +178,22 @@ class DetectorPromocaoSocialScout:
         texto: str,
         cupons: tuple[str, ...],
     ) -> bool:
-        titulo_normalizado = titulo.casefold()
+        titulo_normalizado = re.sub(
+            r"^[^\w]+",
+            "",
+            titulo.casefold(),
+        ).strip()
 
-        if titulo_normalizado.startswith(
-            (
-                "cupom ",
-                "cupons ",
-                "cupom no ",
-                "cupons no ",
-            )
+        if re.match(
+            r"^(?:(?:novo|novos)\s+)?" r"(?:cupom|cupons)\b",
+            titulo_normalizado,
         ):
             return True
 
         if len(cupons) >= 1:
             return True
 
-        return "cupons" in texto.casefold() and "resgate" in texto.casefold()
+        return False
 
     @classmethod
     def _extrair_cupons_gerais(
