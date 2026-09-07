@@ -167,3 +167,71 @@ def test_rejeita_erro_graphql(monkeypatch) -> None:
         assert "11001" in str(erro)
     else:
         raise AssertionError("Era esperado RuntimeError para erro GraphQL.")
+
+
+def test_busca_produto_por_id_exato(
+    monkeypatch,
+) -> None:
+    requisicao_capturada = {}
+
+    def urlopen_fake(
+        requisicao,
+        timeout,
+    ):
+        requisicao_capturada["requisicao"] = requisicao
+
+        requisicao_capturada["timeout"] = timeout
+
+        return RespostaFake(
+            {
+                "data": {
+                    "productOfferV2": {
+                        "nodes": [
+                            {
+                                "itemId": 123,
+                                "shopId": 10,
+                                "productName": ("SSD NVMe 1TB"),
+                                "productLink": ("https://shopee.com.br/" "product/10/123"),
+                                "priceMin": "299.90",
+                                "priceMax": "299.90",
+                            }
+                        ],
+                        "pageInfo": {
+                            "page": 1,
+                            "limit": 10,
+                            "hasNextPage": False,
+                        },
+                    }
+                }
+            }
+        )
+
+    monkeypatch.setattr(
+        ("services.shopee_api_service." "urllib.request.urlopen"),
+        urlopen_fake,
+    )
+
+    service = ShopeeApiService(
+        app_id="app-teste",
+        secret="segredo-teste",
+    )
+
+    resultado = service.buscar_produto_por_id(
+        item_id=123,
+        shop_id=10,
+    )
+
+    assert resultado is not None
+    assert resultado["itemId"] == 123
+    assert resultado["shopId"] == 10
+
+    requisicao = requisicao_capturada["requisicao"]
+
+    corpo = json.loads(requisicao.data.decode("utf-8"))
+
+    query = corpo["query"]
+
+    assert "productOfferV2" in query
+    assert "itemId: 123" in query
+    assert "shopId: 10" in query
+    assert "keyword:" not in query

@@ -36,6 +36,12 @@ class ConstrutorOfertaSocialScout:
     STATUS_REJEITADA = "rejeitada"
 
     MARKETPLACE_MERCADO_LIVRE = "mercado_livre"
+    MARKETPLACE_SHOPEE = "shopee"
+
+    LOJAS_POR_MARKETPLACE = {
+        MARKETPLACE_MERCADO_LIVRE: "Mercado Livre",
+        MARKETPLACE_SHOPEE: "Shopee",
+    }
 
     def construir(
         self,
@@ -52,7 +58,8 @@ class ConstrutorOfertaSocialScout:
 
         if (
             resolucao.status != "resolvido"
-            or resolucao.marketplace != self.MARKETPLACE_MERCADO_LIVRE
+            or resolucao.marketplace != deteccao.marketplace
+            or resolucao.marketplace not in self.LOJAS_POR_MARKETPLACE
         ):
             return self._rejeitar(
                 deteccao=deteccao,
@@ -62,7 +69,8 @@ class ConstrutorOfertaSocialScout:
 
         if (
             validacao.status != "validado"
-            or validacao.marketplace != self.MARKETPLACE_MERCADO_LIVRE
+            or validacao.marketplace != deteccao.marketplace
+            or validacao.marketplace not in self.LOJAS_POR_MARKETPLACE
         ):
             return self._rejeitar(
                 deteccao=deteccao,
@@ -111,13 +119,13 @@ class ConstrutorOfertaSocialScout:
 
         oferta = Oferta(
             nome=nome,
-            loja="Mercado Livre",
+            loja=self.LOJAS_POR_MARKETPLACE[deteccao.marketplace],
             preco=preco,
             preco_antigo=preco_antigo,
             link=link,
             imagem=None,
             moeda="R$",
-            marketplace=(self.MARKETPLACE_MERCADO_LIVRE),
+            marketplace=deteccao.marketplace,
             id_produto=resolucao.id_produto,
             id_anuncio=resolucao.id_anuncio,
         )

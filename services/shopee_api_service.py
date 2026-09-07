@@ -104,6 +104,126 @@ class ShopeeApiService:
 
         return [produto for produto in produtos if isinstance(produto, dict)]
 
+    def buscar_produto_por_id(
+        self,
+        item_id: int | str,
+        shop_id: int | str | None = None,
+    ) -> dict[str, Any] | None:
+        try:
+            item_id_int = int(item_id)
+        except (TypeError, ValueError) as erro:
+            raise ValueError("O itemId da Shopee precisa ser numerico.") from erro
+
+        if item_id_int <= 0:
+            raise ValueError("O itemId da Shopee precisa ser positivo.")
+
+        shop_id_int = None
+
+        if shop_id is not None:
+            try:
+                shop_id_int = int(shop_id)
+            except (TypeError, ValueError) as erro:
+                raise ValueError("O shopId da Shopee precisa ser numerico.") from erro
+
+            if shop_id_int <= 0:
+                raise ValueError("O shopId da Shopee precisa ser positivo.")
+
+        argumentos = [
+            f"itemId: {item_id_int}",
+        ]
+
+        if shop_id_int is not None:
+            argumentos.append(f"shopId: {shop_id_int}")
+
+        argumentos.extend(
+            [
+                "sortType: 1",
+                "page: 1",
+                "limit: 10",
+            ]
+        )
+
+        argumentos_graphql = "\n".join(f"    {argumento}" for argumento in argumentos)
+
+        query = (
+            "{\n"
+            "  productOfferV2(\n"
+            f"{argumentos_graphql}\n"
+            "  ) {\n"
+            "    nodes {\n"
+            "      itemId\n"
+            "      productName\n"
+            "      productLink\n"
+            "      offerLink\n"
+            "      imageUrl\n"
+            "      priceMin\n"
+            "      priceMax\n"
+            "      priceDiscountRate\n"
+            "      sales\n"
+            "      ratingStar\n"
+            "      commissionRate\n"
+            "      shopId\n"
+            "      shopName\n"
+            "    }\n"
+            "    pageInfo {\n"
+            "      page\n"
+            "      limit\n"
+            "      hasNextPage\n"
+            "    }\n"
+            "  }\n"
+            "}\n"
+        )
+
+        resposta = self._executar_graphql(query)
+
+        dados = resposta.get("data")
+
+        if not isinstance(dados, dict):
+            raise RuntimeError("A Shopee nao retornou o campo " "'data' esperado.")
+
+        oferta = dados.get("productOfferV2")
+
+        if not isinstance(oferta, dict):
+            raise RuntimeError("A Shopee nao retornou " "'productOfferV2' corretamente.")
+
+        produtos = oferta.get("nodes")
+
+        if not isinstance(produtos, list):
+            raise RuntimeError("A Shopee retornou uma lista " "de produtos invalida.")
+
+        exatos = []
+
+        for produto in produtos:
+            if not isinstance(
+                produto,
+                dict,
+            ):
+                continue
+
+            if str(produto.get("itemId")).strip() != str(item_id_int):
+                continue
+
+            if shop_id_int is not None and str(produto.get("shopId")).strip() != str(shop_id_int):
+                continue
+
+            exatos.append(produto)
+
+        if not exatos:
+            return None
+
+        identidades = {
+            (
+                str(produto.get("shopId") or "").strip(),
+                str(produto.get("itemId") or "").strip(),
+            )
+            for produto in exatos
+        }
+
+        if len(identidades) != 1:
+            raise RuntimeError("A Shopee retornou mais de uma " "identidade para o mesmo produto.")
+
+        return exatos[0]
+
     def gerar_shortlink(self, link_original: str) -> str:
         link_normalizado = link_original.strip()
 

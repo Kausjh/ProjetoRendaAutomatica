@@ -990,3 +990,84 @@ def test_preco_nao_verificavel_vira_terminal_sem_retry():
 
     assert validador.chamadas == 1
     assert processamentos.quantidade() == 1
+
+
+class ProcessadorShopeeV4Fake:
+    def __init__(self):
+        self.resolucoes = 0
+        self.validacoes = 0
+
+    def resolver(
+        self,
+        msg,
+        deteccao,
+    ):
+        self.resolucoes += 1
+
+        return ResultadoResolucaoSocialScout(
+            fonte=msg.fonte,
+            id_externo=(f"{msg.chat_id}:" f"{msg.message_id}"),
+            status="resolvido",
+            marketplace="shopee",
+            tipo_destino="produto",
+            url_original=msg.links[0],
+            url_destino=("https://shopee.com.br/" "product/10/123"),
+            id_produto="123",
+            id_anuncio="123",
+            motivo="teste_v4",
+        )
+
+    def validar(
+        self,
+        deteccao,
+        resolucao,
+    ):
+        self.validacoes += 1
+
+        return ResultadoValidacaoPrecoSocialScout(
+            status="validado",
+            marketplace="shopee",
+            url=resolucao.url_destino,
+            titulo_oficial=deteccao.titulo,
+            preco_oficial=100.00,
+            preco_original_oficial=200.00,
+            preco_oferta_grupo=100.00,
+            preco_base_confere=True,
+            motivo="teste_v4",
+        )
+
+
+def test_v4_rota_shopee_para_processador_especifico():
+    processamentos = ProcessamentosFake()
+    resolvedor_ml = ResolvedorFake()
+    processador_shopee = ProcessadorShopeeV4Fake()
+
+    scraper = SocialScoutScraper(
+        repository=RepositoryFake(
+            [
+                mensagem(
+                    9401,
+                    texto=("Mouse Gamer Logitech G305"),
+                ),
+            ]
+        ),
+        processamentos_repository=processamentos,
+        detector=DetectorFake(marketplace="shopee"),
+        resolvedor=resolvedor_ml,
+        validador_preco=ValidadorFake(),
+        processador_shopee=(processador_shopee),
+        construtor=ConstrutorFake(),
+        modo_sombra=False,
+    )
+
+    ofertas = scraper.buscar_ofertas(limite=5)
+
+    assert len(ofertas) == 1
+
+    assert processador_shopee.resolucoes == 1
+
+    assert processador_shopee.validacoes == 1
+
+    assert resolvedor_ml.chamadas == 0
+
+    assert SocialScoutScraper.VERSAO_PROCESSADOR == "5"

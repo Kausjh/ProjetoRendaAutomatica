@@ -27,6 +27,9 @@ from services.scout.construtor_oferta_social_scout import (
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
 )
+from services.scout.processador_shopee_social_scout import (
+    ProcessadorShopeeSocialScout,
+)
 from services.scout.social_scout_destino_resolver import (
     ResolvedorDestinoSocialScout,
 )
@@ -59,7 +62,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "3"
+    VERSAO_PROCESSADOR = "5"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -80,6 +83,7 @@ class SocialScoutScraper(BaseScraper):
         detector=None,
         resolvedor=None,
         validador_preco=None,
+        processador_shopee=None,
         construtor=None,
         max_mensagens_por_execucao: int = 30,
         modo_sombra: bool = False,
@@ -96,6 +100,8 @@ class SocialScoutScraper(BaseScraper):
         self.resolvedor = resolvedor or ResolvedorDestinoSocialScout()
 
         self.validador_preco = validador_preco or ValidadorPrecoMercadoLivreSocialScout()
+
+        self.processador_shopee = processador_shopee or ProcessadorShopeeSocialScout()
 
         self.construtor = construtor or ConstrutorOfertaSocialScout()
 
@@ -206,7 +212,10 @@ class SocialScoutScraper(BaseScraper):
 
                     continue
 
-                if deteccao.marketplace != "mercado_livre":
+                if deteccao.marketplace not in {
+                    "mercado_livre",
+                    "shopee",
+                }:
                     self._marcar_terminal(
                         mensagem=mensagem,
                         fingerprint=fingerprint,
@@ -216,7 +225,15 @@ class SocialScoutScraper(BaseScraper):
 
                     continue
 
-                resolucao = self.resolvedor.resolver(
+                if deteccao.marketplace == "shopee":
+                    resolvedor_atual = self.processador_shopee
+                    validador_atual = self.processador_shopee
+
+                else:
+                    resolvedor_atual = self.resolvedor
+                    validador_atual = self.validador_preco
+
+                resolucao = resolvedor_atual.resolver(
                     mensagem,
                     deteccao,
                 )
@@ -235,7 +252,7 @@ class SocialScoutScraper(BaseScraper):
 
                     continue
 
-                validacao = self.validador_preco.validar(
+                validacao = validador_atual.validar(
                     deteccao,
                     resolucao,
                 )
