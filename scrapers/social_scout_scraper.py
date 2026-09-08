@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import unicodedata
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from models.mensagem_social_scout import (
     MensagemSocialScout,
@@ -30,6 +30,9 @@ from services.scout.detector_promocao_social_scout import (
 )
 from services.scout.processador_aliexpress_social_scout import (
     ProcessadorAliExpressSocialScout,
+)
+from services.scout.processador_kabum_social_scout import (
+    ProcessadorKabumSocialScout,
 )
 from services.scout.processador_shopee_social_scout import (
     ProcessadorShopeeSocialScout,
@@ -66,7 +69,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "9"
+    VERSAO_PROCESSADOR = "10"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -113,6 +116,7 @@ class SocialScoutScraper(BaseScraper):
         validador_preco=None,
         processador_shopee=None,
         processador_aliexpress=None,
+        processador_kabum=None,
         construtor=None,
         max_mensagens_por_execucao: int = 30,
         modo_sombra: bool = False,
@@ -133,6 +137,8 @@ class SocialScoutScraper(BaseScraper):
         self.processador_shopee = processador_shopee or ProcessadorShopeeSocialScout()
 
         self.processador_aliexpress = processador_aliexpress or ProcessadorAliExpressSocialScout()
+
+        self.processador_kabum = processador_kabum or ProcessadorKabumSocialScout()
 
         self.construtor = construtor or ConstrutorOfertaSocialScout()
 
@@ -243,10 +249,49 @@ class SocialScoutScraper(BaseScraper):
 
                     continue
 
+                resolucao_previa = None
+
+                if deteccao.marketplace is None and self.processador_kabum.tem_link_tiddly(
+                    mensagem,
+                    deteccao,
+                ):
+                    resolucao_previa = self.processador_kabum.resolver(
+                        mensagem,
+                        deteccao,
+                    )
+
+                    if resolucao_previa.status == "erro":
+                        erros_transitorios += 1
+                        continue
+
+                    if resolucao_previa.status != "resolvido":
+                        self._marcar_terminal(
+                            mensagem=mensagem,
+                            fingerprint=fingerprint,
+                            status="nao_suportada",
+                            motivo=resolucao_previa.motivo,
+                        )
+                        continue
+
+                    if resolucao_previa.marketplace != "kabum":
+                        self._marcar_terminal(
+                            mensagem=mensagem,
+                            fingerprint=fingerprint,
+                            status="nao_suportada",
+                            motivo="tiddly_destino_nao_kabum",
+                        )
+                        continue
+
+                    deteccao = replace(
+                        deteccao,
+                        marketplace="kabum",
+                    )
+
                 if deteccao.marketplace not in {
                     "mercado_livre",
                     "shopee",
                     "aliexpress",
+                    "kabum",
                 }:
                     self._marcar_terminal(
                         mensagem=mensagem,
@@ -265,14 +310,21 @@ class SocialScoutScraper(BaseScraper):
                     resolvedor_atual = self.processador_aliexpress
                     validador_atual = self.processador_aliexpress
 
+                elif deteccao.marketplace == "kabum":
+                    resolvedor_atual = self.processador_kabum
+                    validador_atual = self.processador_kabum
+
                 else:
                     resolvedor_atual = self.resolvedor
                     validador_atual = self.validador_preco
 
-                resolucao = resolvedor_atual.resolver(
-                    mensagem,
-                    deteccao,
-                )
+                resolucao = resolucao_previa
+
+                if resolucao is None:
+                    resolucao = resolvedor_atual.resolver(
+                        mensagem,
+                        deteccao,
+                    )
 
                 if resolucao.status == "erro":
                     erros_transitorios += 1

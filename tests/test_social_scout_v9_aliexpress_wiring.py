@@ -21,7 +21,7 @@ def test_v9_registra_aliexpress():
         construtor=object(),
     )
 
-    assert scraper.VERSAO_PROCESSADOR == "9"
+    assert scraper.VERSAO_PROCESSADOR == "10"
     assert scraper.processador_aliexpress is fake
 
 

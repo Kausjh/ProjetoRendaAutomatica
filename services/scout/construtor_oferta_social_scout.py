@@ -38,11 +38,13 @@ class ConstrutorOfertaSocialScout:
     MARKETPLACE_MERCADO_LIVRE = "mercado_livre"
     MARKETPLACE_SHOPEE = "shopee"
     MARKETPLACE_ALIEXPRESS = "aliexpress"
+    MARKETPLACE_KABUM = "kabum"
 
     LOJAS_POR_MARKETPLACE = {
         MARKETPLACE_MERCADO_LIVRE: "Mercado Livre",
         MARKETPLACE_SHOPEE: "Shopee",
         MARKETPLACE_ALIEXPRESS: "AliExpress",
+        MARKETPLACE_KABUM: "KaBuM!",
     }
 
     def construir(
