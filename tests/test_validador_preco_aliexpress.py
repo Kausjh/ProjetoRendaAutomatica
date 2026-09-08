@@ -286,3 +286,69 @@ def test_preserva_atributo_do_sku_selecionado():
     assert resultado.sku_id == "12000057594601401"
 
     assert resultado.sku_atributo_selecionado == "14:10#PL 128GB"
+
+
+def test_reconhece_item_indisponivel_no_pais_regiao():
+    html = """
+    <html>
+      <body>
+        <main>
+          Item indispon?vel no seu pa?s/regi?o.
+          Voc? tamb?m vai gostar
+        </main>
+      </body>
+    </html>
+    """
+
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html,
+        exigir_pdp=True,
+    )
+
+    assert resultado.valido is False
+    assert resultado.preco is None
+
+    assert resultado.motivo == (ValidadorPrecoAliExpress.MOTIVO_INDISPONIVEL_REGIAO)
+
+
+def test_reconhece_indisponibilidade_regional_sem_acentos():
+    html = """
+    <html>
+      <body>
+        Item indisponivel no seu pais/regiao.
+      </body>
+    </html>
+    """
+
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html,
+        exigir_pdp=True,
+    )
+
+    assert resultado.valido is False
+    assert resultado.motivo == ("item indisponivel no pais/regiao")
+
+
+def test_sem_mensagem_regional_preserva_rejeicao_jsonld():
+    html = """
+    <html>
+      <body>
+        Produto AliExpress normal sem pre?o estruturado.
+      </body>
+    </html>
+    """
+
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html,
+        exigir_pdp=True,
+    )
+
+    assert resultado.valido is False
+
+    assert resultado.motivo == ("preco BRL confiavel nao encontrado no JSON-LD")

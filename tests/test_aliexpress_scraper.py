@@ -737,3 +737,180 @@ def test_cpu_cooler_nao_vira_processador():
     resultado = ClassificadorProduto().classificar(oferta)
 
     assert resultado.categoria == "Refrigera??o de PC"
+
+
+# 63.8738, -149.7525
+def test_bloqueio_regional_persiste_e_libera_vaga_no_feed(
+    tmp_path,
+):
+    arquivo_cache = tmp_path / "aliexpress_regional.json"
+
+    bloqueado = produto(
+        "9501",
+        "SSD NVMe 4TB PCIe 4.0",
+    )
+
+    resultado_bloqueado = ResultadoPrecoAliExpress(
+        produto_id="9501",
+        preco_brl=None,
+        moeda=None,
+        url_produto=None,
+        valido=False,
+        motivo=("item indisponivel no pais/regiao"),
+    )
+
+    primeiro = AliExpressScraper(
+        feed_service=FeedServiceFake(
+            {
+                "47215": [
+                    bloqueado,
+                ],
+            }
+        ),
+        preco_service=PrecoServiceFake(
+            {
+                "9501": resultado_bloqueado,
+            }
+        ),
+        feed_ids=("47215",),
+        itens_por_feed=30,
+        candidatos_por_feed=1,
+        max_validacoes=1,
+        deslocamento_feed=0,
+        arquivo_indisponibilidade_regiao=(arquivo_cache),
+    )
+
+    ofertas_primeiro = primeiro.buscar_ofertas(limite=1)
+
+    assert ofertas_primeiro == []
+    assert arquivo_cache.is_file()
+
+    reposicao = produto(
+        "9502",
+        "SSD NVMe 1TB PCIe 4.0",
+    )
+
+    preco_segundo = PrecoServiceFake(
+        {
+            "9502": preco_valido(
+                "9502",
+                principal=299.90,
+            ),
+        }
+    )
+
+    segundo = AliExpressScraper(
+        feed_service=FeedServiceFake(
+            {
+                "47215": [
+                    bloqueado,
+                    reposicao,
+                ],
+            }
+        ),
+        preco_service=preco_segundo,
+        feed_ids=("47215",),
+        itens_por_feed=30,
+        candidatos_por_feed=1,
+        max_validacoes=1,
+        deslocamento_feed=0,
+        arquivo_indisponibilidade_regiao=(arquivo_cache),
+    )
+
+    ofertas_segundo = segundo.buscar_ofertas(limite=1)
+
+    assert preco_segundo.ids_recebidos == ["9502"]
+
+    assert len(ofertas_segundo) == 1
+
+    assert ofertas_segundo[0].id_produto == "9502"
+
+
+def test_bloqueio_regional_expira_e_produto_volta_a_ser_validado(
+    tmp_path,
+    monkeypatch,
+):
+    arquivo_cache = tmp_path / "aliexpress_regional.json"
+
+    item = produto(
+        "9601",
+        "SSD NVMe 2TB PCIe 4.0",
+    )
+
+    resultado_bloqueado = ResultadoPrecoAliExpress(
+        produto_id="9601",
+        preco_brl=None,
+        moeda=None,
+        url_produto=None,
+        valido=False,
+        motivo=("item indisponivel no pais/regiao"),
+    )
+
+    monkeypatch.setattr(
+        "scrapers.aliexpress_scraper.time.time",
+        lambda: 1_000.0,
+    )
+
+    primeiro = AliExpressScraper(
+        feed_service=FeedServiceFake(
+            {
+                "47215": [
+                    item,
+                ],
+            }
+        ),
+        preco_service=PrecoServiceFake(
+            {
+                "9601": resultado_bloqueado,
+            }
+        ),
+        feed_ids=("47215",),
+        itens_por_feed=30,
+        candidatos_por_feed=1,
+        max_validacoes=1,
+        deslocamento_feed=0,
+        arquivo_indisponibilidade_regiao=(arquivo_cache),
+        ttl_indisponibilidade_regiao_segundos=60,
+    )
+
+    assert primeiro.buscar_ofertas(limite=1) == []
+
+    monkeypatch.setattr(
+        "scrapers.aliexpress_scraper.time.time",
+        lambda: 1_061.0,
+    )
+
+    preco_segundo = PrecoServiceFake(
+        {
+            "9601": preco_valido(
+                "9601",
+                principal=399.90,
+            ),
+        }
+    )
+
+    segundo = AliExpressScraper(
+        feed_service=FeedServiceFake(
+            {
+                "47215": [
+                    item,
+                ],
+            }
+        ),
+        preco_service=preco_segundo,
+        feed_ids=("47215",),
+        itens_por_feed=30,
+        candidatos_por_feed=1,
+        max_validacoes=1,
+        deslocamento_feed=0,
+        arquivo_indisponibilidade_regiao=(arquivo_cache),
+        ttl_indisponibilidade_regiao_segundos=60,
+    )
+
+    ofertas = segundo.buscar_ofertas(limite=1)
+
+    assert preco_segundo.ids_recebidos == ["9601"]
+
+    assert len(ofertas) == 1
+
+    assert ofertas[0].id_produto == "9601"

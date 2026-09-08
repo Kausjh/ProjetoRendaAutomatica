@@ -688,3 +688,121 @@ def test_cooldown_persistente_expirado_e_removido(
     assert len(pagina.gotos) == 1
 
     assert not arquivo_cooldown.exists()
+
+
+# 63.8738, -149.7525
+def test_endpoint_pdp_principal_nao_aceita_rotas_de_punicao():
+    principal = (
+        "https://acs.aliexpress.com/"
+        "h5/mtop.aliexpress.pdp.pc.query/1.0/"
+        "?api=mtop.aliexpress.pdp.pc.query"
+    )
+
+    punish = (
+        "https://acs.aliexpress.com/"
+        "h5/mtop.aliexpress.pdp.pc.query/1.0/"
+        "_____tmd_____/punish"
+        "?action=captcharecaptcha"
+    )
+
+    telemetria = (
+        "https://gm.mmstat.com/fsp.1.1"
+        "?page=https%3A%2F%2Facs.aliexpress.com"
+        "%2Fh5%2Fmtop.aliexpress.pdp.pc.query%2F1.0"
+    )
+
+    assert AliExpressPrecoCdpService._eh_resposta_pdp_principal(principal) is True
+
+    assert AliExpressPrecoCdpService._eh_resposta_pdp_principal(punish) is False
+
+    assert AliExpressPrecoCdpService._eh_resposta_pdp_principal(telemetria) is False
+
+
+def test_pdp_detecta_fail_sys_user_validate():
+    desafio = (
+        "mtopjsonp1({"
+        '"ret":['
+        '"FAIL_SYS_USER_VALIDATE",'
+        '"RGV587_ERROR::SM"'
+        "],"
+        '"data":{'
+        '"dialogSize":"middle"'
+        "}"
+        "})"
+    )
+
+    assert AliExpressPrecoCdpService._pdp_indica_desafio_humano(desafio) is True
+
+    assert (
+        AliExpressPrecoCdpService._pdp_indica_desafio_humano(
+            criar_pdp(
+                "1005000000000999",
+                sale="38.04",
+            )
+        )
+        is False
+    )
+
+
+def test_desafio_na_resposta_pdp_interrompe_lote(
+    tmp_path,
+):
+    primeiro = "1005000000000300"
+    segundo = "1005000000000301"
+
+    url_primeiro = "https://pt.aliexpress.com/" f"item/{primeiro}.html"
+
+    url_segundo = "https://pt.aliexpress.com/" f"item/{segundo}.html"
+
+    primeiro_dados = pagina_produto(
+        primeiro,
+        "38.04",
+    )
+
+    primeiro_dados["pdp"] = (
+        "mtopjsonp1({"
+        '"ret":['
+        '"FAIL_SYS_USER_VALIDATE",'
+        '"RGV587_ERROR::SM"'
+        "],"
+        '"data":{'
+        '"url":"https://acs.aliexpress.com/'
+        "h5/mtop.aliexpress.pdp.pc.query/1.0/"
+        "_____tmd_____/punish"
+        '?action=captcharecaptcha"'
+        "}"
+        "})"
+    )
+
+    pagina = PaginaFake(
+        {
+            url_primeiro: primeiro_dados,
+            url_segundo: pagina_produto(
+                segundo,
+                "75.08",
+            ),
+        }
+    )
+
+    arquivo_cooldown = tmp_path / "aliexpress_cooldown.txt"
+
+    service = AliExpressPrecoCdpService(
+        espera_pos_carga_ms=0,
+        arquivo_cooldown=(arquivo_cooldown),
+    )
+
+    resultados = service.validar_produtos_com_pagina(
+        pagina=pagina,
+        produto_ids=[
+            primeiro,
+            segundo,
+        ],
+    )
+
+    assert len(pagina.gotos) == 1
+
+    assert resultados[primeiro].motivo == service.MOTIVO_DESAFIO
+
+    assert resultados[segundo].motivo == service.MOTIVO_COOLDOWN
+
+    assert arquivo_cooldown.is_file()

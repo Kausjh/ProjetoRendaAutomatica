@@ -8,6 +8,7 @@ import time
 import unicodedata
 from collections.abc import Iterable
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from playwright.sync_api import (
     Error as PlaywrightError,
@@ -227,6 +228,38 @@ class AliExpressPrecoCdpService:
 
         return resultados
 
+    # 63.8738, -149.7525
+    @classmethod
+    def _eh_resposta_pdp_principal(
+        cls,
+        url: str,
+    ) -> bool:
+        try:
+            partes = urlsplit(str(url or ""))
+        except ValueError:
+            return False
+
+        host = (partes.hostname or "").casefold()
+
+        caminho = partes.path.rstrip("/").casefold()
+
+        caminho_esperado = f"/h5/{cls.ENDPOINT_PDP}/1.0".casefold()
+
+        return host == "acs.aliexpress.com" and caminho == caminho_esperado
+
+    @staticmethod
+    def _pdp_indica_desafio_humano(
+        texto: str | None,
+    ) -> bool:
+        normalizado = str(texto or "").casefold()
+
+        marcadores = (
+            "fail_sys_user_validate",
+            "rgv587_error",
+        )
+
+        return any(marcador in normalizado for marcador in marcadores)
+
     def _validar_produto_na_pagina(
         self,
         pagina: Page,
@@ -236,21 +269,31 @@ class AliExpressPrecoCdpService:
 
         estado: dict[
             str,
-            str | None,
+            str | bool | None,
         ] = {
             "pdp": None,
+            "pdp_desafio": False,
         }
 
         def capturar_pdp(
             resposta,
         ) -> None:
-            if self.ENDPOINT_PDP not in resposta.url:
+            if not self._eh_resposta_pdp_principal(resposta.url):
                 return
 
             try:
-                estado["pdp"] = resposta.text()
+                texto_pdp = resposta.text()
             except Exception:
                 return
+
+            if self._pdp_indica_desafio_humano(texto_pdp):
+                estado["pdp_desafio"] = True
+                estado["pdp"] = None
+
+                return
+
+            if estado["pdp_desafio"] is not True:
+                estado["pdp"] = texto_pdp
 
         pagina.on(
             "response",
@@ -300,6 +343,21 @@ class AliExpressPrecoCdpService:
                     "Verificacao humana detectada "
                     "no AliExpress. Produto: %s. "
                     "Entrando em cooldown.",
+                    produto_id,
+                )
+
+                return self._rejeitar(
+                    produto_id,
+                    self.MOTIVO_DESAFIO,
+                )
+
+            if estado["pdp_desafio"] is True:
+                self._ativar_cooldown_desafio()
+
+                logger.warning(
+                    "Verificacao humana detectada "
+                    "na resposta PDP do AliExpress. "
+                    "Produto: %s. Entrando em cooldown.",
                     produto_id,
                 )
 

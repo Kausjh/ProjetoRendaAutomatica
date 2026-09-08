@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
 import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 
 from models.oferta import Oferta
 from scrapers.base_scraper import BaseScraper
@@ -23,6 +25,7 @@ from services.classificador_produto import (
 )
 from services.validador_preco_aliexpress import (
     ResultadoPrecoAliExpress,
+    ValidadorPrecoAliExpress,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,6 +57,13 @@ class AliExpressScraper(BaseScraper):
     MARKETPLACE = "aliexpress"
     LOJA = "AliExpress"
 
+    # 63.8738, -149.7525
+    ARQUIVO_INDISPONIBILIDADE_REGIAO_PADRAO = (
+        Path.home() / ".radar_de_ofertas" / "aliexpress_indisponiveis_regiao.json"
+    )
+
+    TTL_INDISPONIBILIDADE_REGIAO_SEGUNDOS = 86_400
+
     URL_PRODUTO = "https://pt.aliexpress.com/" "item/{produto_id}.html"
 
     # Coleta padrao deliberadamente tech-first.
@@ -74,6 +84,8 @@ class AliExpressScraper(BaseScraper):
         candidatos_por_feed: int = 5,
         max_validacoes: int = 18,
         deslocamento_feed: int | None = None,
+        arquivo_indisponibilidade_regiao: str | Path | None = None,
+        ttl_indisponibilidade_regiao_segundos: int = 86_400,
     ) -> None:
         if itens_por_feed <= 0:
             raise ValueError("itens_por_feed precisa ser maior que zero.")
@@ -83,6 +95,9 @@ class AliExpressScraper(BaseScraper):
 
         if max_validacoes <= 0:
             raise ValueError("max_validacoes precisa ser maior que zero.")
+
+        if ttl_indisponibilidade_regiao_segundos <= 0:
+            raise ValueError("ttl_indisponibilidade_regiao_segundos " "precisa ser maior que zero.")
 
         feeds = feed_ids if feed_ids is not None else self.FEEDS_PADRAO
 
@@ -113,6 +128,14 @@ class AliExpressScraper(BaseScraper):
             raise ValueError("deslocamento_feed nao pode ser negativo.")
 
         self.deslocamento_feed = deslocamento_feed
+
+        self.ttl_indisponibilidade_regiao_segundos = int(ttl_indisponibilidade_regiao_segundos)
+
+        self.arquivo_indisponibilidade_regiao = (
+            Path(arquivo_indisponibilidade_regiao).expanduser()
+            if arquivo_indisponibilidade_regiao is not None
+            else self.ARQUIVO_INDISPONIBILIDADE_REGIAO_PADRAO
+        )
 
     def buscar_ofertas(
         self,
@@ -150,6 +173,8 @@ class AliExpressScraper(BaseScraper):
         )
 
         resultados = self.preco_service.validar_produtos(ids)
+
+        self._registrar_indisponibilidades_regionais(resultados)
 
         motivos_rejeicao: dict[str, int] = {}
 
@@ -238,10 +263,159 @@ class AliExpressScraper(BaseScraper):
 
         return ofertas
 
+    def _carregar_indisponibilidades_regionais(
+        self,
+    ) -> dict[str, float]:
+        arquivo = self.arquivo_indisponibilidade_regiao
+
+        if not arquivo.is_file():
+            return {}
+
+        try:
+            bruto = json.loads(arquivo.read_text(encoding="utf-8"))
+
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+        ) as erro:
+            logger.warning(
+                "AliExpress: falha ao ler cache " "de indisponibilidade regional: %s.",
+                erro,
+            )
+
+            return {}
+
+        if not isinstance(
+            bruto,
+            dict,
+        ):
+            return {}
+
+        agora = float(time.time())
+
+        ativos: dict[
+            str,
+            float,
+        ] = {}
+
+        for produto_id, registrado_em in bruto.items():
+            produto_id = str(produto_id).strip()
+
+            if not produto_id.isdigit():
+                continue
+
+            try:
+                instante = float(registrado_em)
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+                continue
+
+            if instante <= 0:
+                continue
+
+            idade = agora - instante
+
+            if idade < self.ttl_indisponibilidade_regiao_segundos:
+                ativos[produto_id] = instante
+
+        return ativos
+
+    def _salvar_indisponibilidades_regionais(
+        self,
+        itens: dict[str, float],
+    ) -> bool:
+        arquivo = self.arquivo_indisponibilidade_regiao
+
+        try:
+            arquivo.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            temporario = arquivo.with_name(arquivo.name + ".tmp")
+
+            temporario.write_text(
+                json.dumps(
+                    itens,
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+
+            temporario.replace(arquivo)
+
+        except OSError as erro:
+            logger.warning(
+                "AliExpress: falha ao persistir " "cache de indisponibilidade regional: %s.",
+                erro,
+            )
+
+            return False
+
+        return True
+
+    def _ids_indisponiveis_regiao_ativos(
+        self,
+    ) -> set[str]:
+        return set(self._carregar_indisponibilidades_regionais())
+
+    def _registrar_indisponibilidades_regionais(
+        self,
+        resultados: dict[
+            str,
+            ResultadoPrecoAliExpress,
+        ],
+    ) -> int:
+        ids = {
+            str(produto_id).strip()
+            for produto_id, resultado in resultados.items()
+            if (
+                str(produto_id).strip().isdigit()
+                and not resultado.valido
+                and resultado.motivo == (ValidadorPrecoAliExpress.MOTIVO_INDISPONIVEL_REGIAO)
+            )
+        }
+
+        if not ids:
+            return 0
+
+        cache = self._carregar_indisponibilidades_regionais()
+
+        agora = float(time.time())
+
+        novos = sum(1 for produto_id in ids if produto_id not in cache)
+
+        for produto_id in ids:
+            cache[produto_id] = agora
+
+        if not self._salvar_indisponibilidades_regionais(cache):
+            return 0
+
+        logger.info(
+            "AliExpress: %s produto(s) "
+            "marcado(s) como indisponivel(is) "
+            "para o Brasil; cache regional ativa "
+            "por %.1f hora(s).",
+            len(ids),
+            (self.ttl_indisponibilidade_regiao_segundos / 3600),
+        )
+
+        return novos
+
     def _buscar_candidatos(
         self,
     ) -> list[_CandidatoAliExpress]:
         candidatos: list[_CandidatoAliExpress] = []
+
+        ids_indisponiveis_regiao = self._ids_indisponiveis_regiao_ativos()
+
+        ignorados_regiao = 0
 
         deslocamento = self._obter_deslocamento_feed()
 
@@ -258,6 +432,13 @@ class AliExpressScraper(BaseScraper):
 
                 for indice, produto in enumerate(produtos):
                     if indice < deslocamento:
+                        continue
+
+                    produto_id = str(produto.merchant_product_id).strip()
+
+                    if produto_id in ids_indisponiveis_regiao:
+                        ignorados_regiao += 1
+
                         continue
 
                     candidato = self._pre_classificar(produto)
@@ -304,6 +485,15 @@ class AliExpressScraper(BaseScraper):
         )
 
         resultado = self._remover_quase_duplicados(resultado)
+
+        if ignorados_regiao:
+            logger.info(
+                "AliExpress: %s produto(s) "
+                "pulado(s) antes da selecao "
+                "por indisponibilidade regional "
+                "ainda em cache.",
+                ignorados_regiao,
+            )
 
         return self._priorizar_diversidade(resultado)
 

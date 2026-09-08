@@ -55,6 +55,25 @@ class ResultadoPrecoAliExpress:
 
 
 class ValidadorPrecoAliExpress:
+    MOTIVO_INDISPONIVEL_REGIAO = "item indisponivel no pais/regiao"
+
+    @classmethod
+    def _pagina_indisponivel_regiao(
+        cls,
+        html: str,
+    ) -> bool:
+        texto = str(html or "").casefold()
+
+        indicadores = (
+            "item indispon?vel no seu pa?s/regi?o",
+            "item indisponivel no seu pais/regiao",
+            "item unavailable in your country/region",
+            "item is unavailable in your country/region",
+            "item not available in your country/region",
+        )
+
+        return any(indicador in texto for indicador in indicadores)
+
     def validar_html(
         self,
         produto_id: str,
@@ -90,6 +109,12 @@ class ValidadorPrecoAliExpress:
             return self._rejeitar(
                 produto_id,
                 ("produto_id diverge da " "pagina final"),
+            )
+
+        if self._pagina_indisponivel_regiao(html):
+            return self._rejeitar(
+                produto_id,
+                self.MOTIVO_INDISPONIVEL_REGIAO,
             )
 
         oferta_json_ld = _extrair_oferta_json_ld(
