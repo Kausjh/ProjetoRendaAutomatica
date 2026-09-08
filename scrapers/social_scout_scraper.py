@@ -28,6 +28,9 @@ from services.scout.construtor_oferta_social_scout import (
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
 )
+from services.scout.processador_aliexpress_social_scout import (
+    ProcessadorAliExpressSocialScout,
+)
 from services.scout.processador_shopee_social_scout import (
     ProcessadorShopeeSocialScout,
 )
@@ -63,7 +66,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "8"
+    VERSAO_PROCESSADOR = "9"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -109,6 +112,7 @@ class SocialScoutScraper(BaseScraper):
         resolvedor=None,
         validador_preco=None,
         processador_shopee=None,
+        processador_aliexpress=None,
         construtor=None,
         max_mensagens_por_execucao: int = 30,
         modo_sombra: bool = False,
@@ -127,6 +131,8 @@ class SocialScoutScraper(BaseScraper):
         self.validador_preco = validador_preco or ValidadorPrecoMercadoLivreSocialScout()
 
         self.processador_shopee = processador_shopee or ProcessadorShopeeSocialScout()
+
+        self.processador_aliexpress = processador_aliexpress or ProcessadorAliExpressSocialScout()
 
         self.construtor = construtor or ConstrutorOfertaSocialScout()
 
@@ -240,6 +246,7 @@ class SocialScoutScraper(BaseScraper):
                 if deteccao.marketplace not in {
                     "mercado_livre",
                     "shopee",
+                    "aliexpress",
                 }:
                     self._marcar_terminal(
                         mensagem=mensagem,
@@ -253,6 +260,10 @@ class SocialScoutScraper(BaseScraper):
                 if deteccao.marketplace == "shopee":
                     resolvedor_atual = self.processador_shopee
                     validador_atual = self.processador_shopee
+
+                elif deteccao.marketplace == "aliexpress":
+                    resolvedor_atual = self.processador_aliexpress
+                    validador_atual = self.processador_aliexpress
 
                 else:
                     resolvedor_atual = self.resolvedor

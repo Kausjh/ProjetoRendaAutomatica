@@ -80,4 +80,4 @@ def test_allowlist_normaliza_unicode_case_espaco():
 
 
 def test_social_scout_usa_v6():
-    assert SocialScoutScraper.VERSAO_PROCESSADOR == "8"
+    assert SocialScoutScraper.VERSAO_PROCESSADOR == "9"
