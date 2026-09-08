@@ -85,4 +85,4 @@ def test_social_scout_aceita_processador_com_evidencia_de_cpu(
 
 
 def test_social_scout_v7():
-    assert SocialScoutScraper.VERSAO_PROCESSADOR == "7"
+    assert SocialScoutScraper.VERSAO_PROCESSADOR == "8"

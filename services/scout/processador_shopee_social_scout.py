@@ -77,25 +77,32 @@ class ProcessadorShopeeSocialScout:
                 motivo="mensagem_shopee_sem_link",
             )
 
-        try:
-            identidade, motivo_identidade = self._resolver_identidade_link(links[0])
+        (
+            identidade,
+            link_identidade,
+            motivo_identidade,
+        ) = self._resolver_identidade_links(links)
 
-        except requests.RequestException:
+        if identidade is None:
+            status = (
+                "erro" if motivo_identidade == "falha_resolucao_link_shopee" else "nao_suportado"
+            )
+
+            return ResultadoResolucaoSocialScout(
+                fonte=mensagem.fonte,
+                id_externo=id_externo,
+                status=status,
+                marketplace=self.MARKETPLACE,
+                motivo=motivo_identidade,
+            )
+
+        if link_identidade is None:
             return ResultadoResolucaoSocialScout(
                 fonte=mensagem.fonte,
                 id_externo=id_externo,
                 status="erro",
                 marketplace=self.MARKETPLACE,
-                motivo="falha_resolucao_link_shopee",
-            )
-
-        if identidade is None:
-            return ResultadoResolucaoSocialScout(
-                fonte=mensagem.fonte,
-                id_externo=id_externo,
-                status="nao_suportado",
-                marketplace=self.MARKETPLACE,
-                motivo=motivo_identidade,
+                motivo="identidade_shopee_sem_link_origem",
             )
 
         shop_id, item_id = identidade
@@ -156,7 +163,7 @@ class ProcessadorShopeeSocialScout:
             status="resolvido",
             marketplace=self.MARKETPLACE,
             tipo_destino="produto",
-            url_original=links[0],
+            url_original=link_identidade,
             url_destino=link_oficial,
             id_produto=item_id,
             id_anuncio=item_id,
@@ -323,6 +330,70 @@ class ProcessadorShopeeSocialScout:
             preco_final_coerente_com_desconto=None,
             cupom_validado=False,
             motivo=motivo,
+        )
+
+    def _resolver_identidade_links(
+        self,
+        links: list[str],
+    ) -> tuple[
+        tuple[str, str] | None,
+        str | None,
+        str,
+    ]:
+        identidades: dict[
+            tuple[str, str],
+            str,
+        ] = {}
+
+        houve_erro = False
+        houve_ambiguidade = False
+
+        for link in links:
+            try:
+                identidade, motivo = self._resolver_identidade_link(link)
+
+            except requests.RequestException:
+                houve_erro = True
+                continue
+
+            if identidade is None:
+                if motivo == "shopee_identidade_ambigua":
+                    houve_ambiguidade = True
+
+                continue
+
+            identidades.setdefault(
+                identidade,
+                link,
+            )
+
+        if houve_ambiguidade or len(identidades) > 1:
+            return (
+                None,
+                None,
+                "shopee_identidade_ambigua",
+            )
+
+        if houve_erro:
+            return (
+                None,
+                None,
+                "falha_resolucao_link_shopee",
+            )
+
+        if len(identidades) == 1:
+            identidade, link = next(iter(identidades.items()))
+
+            return (
+                identidade,
+                link,
+                "identidade_shopee_link_mensagem",
+            )
+
+        return (
+            None,
+            None,
+            "shopee_identidade_nao_resolvida",
         )
 
     def _resolver_identidade_link(
