@@ -1070,4 +1070,4 @@ def test_v4_rota_shopee_para_processador_especifico():
 
     assert resolvedor_ml.chamadas == 0
 
-    assert SocialScoutScraper.VERSAO_PROCESSADOR == "6"
+    assert SocialScoutScraper.VERSAO_PROCESSADOR == "7"

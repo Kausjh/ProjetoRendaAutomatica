@@ -63,7 +63,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "6"
+    VERSAO_PROCESSADOR = "7"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -362,7 +362,10 @@ class SocialScoutScraper(BaseScraper):
 
                 classificacao_escopo = self._obter_classificacao_escopo_social(oferta)
 
-                if self._categoria_fora_escopo_social(classificacao_escopo.categoria):
+                if self._oferta_fora_escopo_social(
+                    oferta,
+                    classificacao_escopo,
+                ):
                     self._marcar_terminal(
                         mensagem=mensagem,
                         fingerprint=fingerprint,
@@ -512,6 +515,63 @@ class SocialScoutScraper(BaseScraper):
 
         self._handoff_por_mensagem[chave_mensagem] = chave_oferta
 
+    @classmethod
+    def _oferta_fora_escopo_social(
+        cls,
+        oferta: Oferta,
+        classificacao,
+    ) -> bool:
+        if cls._categoria_fora_escopo_social(classificacao.categoria):
+            return True
+
+        categoria_normalizada = (
+            unicodedata.normalize(
+                "NFC",
+                str(classificacao.categoria or ""),
+            )
+            .strip()
+            .casefold()
+        )
+
+        if categoria_normalizada != "processador":
+            return False
+
+        nome_normalizado = ClassificadorProduto._normalizar_texto(oferta.nome)
+
+        marcadores_cpu = (
+            "amd",
+            "intel",
+            "ryzen",
+            "threadripper",
+            "xeon",
+            "athlon",
+            "pentium",
+            "celeron",
+            "core i3",
+            "core i5",
+            "core i7",
+            "core i9",
+            "core ultra",
+            "am4",
+            "am5",
+            "lga 1200",
+            "lga1200",
+            "lga 1700",
+            "lga1700",
+            "lga 1851",
+            "lga1851",
+        )
+
+        tem_evidencia_cpu = any(
+            ClassificadorProduto._contem_termo(
+                nome_normalizado,
+                termo,
+            )
+            for termo in marcadores_cpu
+        )
+
+        return not tem_evidencia_cpu
+
     def _obter_classificacao_escopo_social(
         self,
         oferta: Oferta,
@@ -559,7 +619,10 @@ class SocialScoutScraper(BaseScraper):
     ) -> str:
         classificacao = self._obter_classificacao_escopo_social(oferta)
 
-        fora_escopo_social = self._categoria_fora_escopo_social(classificacao.categoria)
+        fora_escopo_social = self._oferta_fora_escopo_social(
+            oferta,
+            classificacao,
+        )
 
         if classificacao.eh_nicho and not fora_escopo_social:
             status = "sombra_nicho"
