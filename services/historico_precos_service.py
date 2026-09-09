@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from statistics import median
 
 from models.oferta import Oferta
 from repositories.historico_precos_repository import HistoricoPrecosRepository
@@ -16,6 +17,8 @@ class ResultadoHistoricoPreco:
     preco_subiu: bool
     novo_preco_registrado: bool
     quantidade_registros: int
+    preco_mediano_anterior: float | None = None
+    quantidade_registros_baseline: int = 0
 
 
 class HistoricoPrecosService:
@@ -41,6 +44,10 @@ class HistoricoPrecosService:
         preco_anterior = self._obter_preco_anterior(historico_anterior)
 
         menor_preco_anterior = self._obter_menor_preco(historico_anterior)
+
+        preco_mediano_anterior = self._obter_mediana_preco(historico_anterior)
+
+        quantidade_registros_baseline = self._quantidade_precos_validos(historico_anterior)
 
         variacao_percentual = self._calcular_variacao_percentual(
             preco_anterior=preco_anterior, preco_atual=oferta.preco
@@ -90,6 +97,8 @@ class HistoricoPrecosService:
             preco_subiu=preco_subiu,
             novo_preco_registrado=(novo_preco_registrado),
             quantidade_registros=(quantidade_registros),
+            preco_mediano_anterior=preco_mediano_anterior,
+            quantidade_registros_baseline=quantidade_registros_baseline,
         )
 
     def salvar_pendentes(self) -> None:
@@ -127,22 +136,69 @@ class HistoricoPrecosService:
 
         return float(preco)
 
-    def _obter_menor_preco(self, historico: list[dict]) -> float | None:
-        precos_validos: list[float] = []
-
-        for registro in historico:
-            preco = registro.get("preco")
-
-            if isinstance(preco, bool):
-                continue
-
-            if isinstance(preco, (int, float)):
-                precos_validos.append(float(preco))
+    def _obter_menor_preco(
+        self,
+        historico: list[dict],
+    ) -> float | None:
+        precos_validos = self._obter_precos_validos(historico)
 
         if not precos_validos:
             return None
 
         return min(precos_validos)
+
+    def _obter_mediana_preco(
+        self,
+        historico: list[dict],
+    ) -> float | None:
+        precos_validos = self._obter_precos_validos(historico)
+
+        if not precos_validos:
+            return None
+
+        return round(
+            float(median(precos_validos)),
+            2,
+        )
+
+    def _quantidade_precos_validos(
+        self,
+        historico: list[dict],
+    ) -> int:
+        return len(self._obter_precos_validos(historico))
+
+    @staticmethod
+    def _obter_precos_validos(
+        historico: list[dict],
+    ) -> list[float]:
+        precos: list[float] = []
+
+        for registro in historico:
+            preco = registro.get("preco")
+
+            if isinstance(
+                preco,
+                bool,
+            ):
+                continue
+
+            if not isinstance(
+                preco,
+                (
+                    int,
+                    float,
+                ),
+            ):
+                continue
+
+            preco = float(preco)
+
+            if preco <= 0:
+                continue
+
+            precos.append(preco)
+
+        return precos
 
     def _verificar_menor_preco_historico(
         self, preco_atual: float, menor_preco_anterior: float | None

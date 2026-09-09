@@ -271,12 +271,30 @@ class CuradoriaPublicacao:
 
         piso = self.PRECO_MINIMO_PLAUSIVEL.get(oferta.categoria or "")
 
+        anomalia_historica_validada = bool(
+            oferta.anomalia_preco
+            and oferta.anomalia_publicavel
+            and oferta.tipo_oportunidade
+            in {
+                "possivel_preco_bugado",
+                "anomalia_forte",
+            }
+        )
+
         if piso is not None and 0 < oferta.preco < piso:
-            bloqueios.append(
-                f"Preço de {oferta.moeda} {oferta.preco:.2f} é incompatível "
-                f"com o piso conservador de {oferta.moeda} {piso:.2f} "
-                f"para {oferta.categoria}."
-            )
+            if anomalia_historica_validada:
+                motivos.append(
+                    "Pre\u00e7o abaixo do piso conservador "
+                    "preservado por anomalia hist\u00f3rica validada."
+                )
+            else:
+                bloqueios.append(
+                    f"Pre\u00e7o de {oferta.moeda} "
+                    f"{oferta.preco:.2f} \u00e9 incompat\u00edvel "
+                    f"com o piso conservador de "
+                    f"{oferta.moeda} {piso:.2f} "
+                    f"para {oferta.categoria}."
+                )
 
         if oferta.eh_nicho:
             nota += 8.0

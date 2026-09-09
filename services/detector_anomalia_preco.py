@@ -30,11 +30,16 @@ class ResultadoAnomaliaPreco:
 
 
 class DetectorAnomaliaPreco:
-    DOMINIOS_CONFIAVEIS = {
-        "mercadolivre.com.br",
-        "www.mercadolivre.com.br",
-        "produto.mercadolivre.com.br",
-    }
+    DOMINIOS_CONFIAVEIS = frozenset(
+        {
+            "mercadolivre.com.br",
+            "meli.la",
+            "shopee.com.br",
+            "kabum.com.br",
+            "aliexpress.com",
+            "amazon.com.br",
+        }
+    )
 
     TERMOS_DE_RISCO = {
         "usado",
@@ -97,7 +102,21 @@ class DetectorAnomaliaPreco:
         motivos: list[str] = []
         confianca = 0.0
 
-        registros = resultado_historico.quantidade_registros
+        registros_baseline = getattr(
+            resultado_historico,
+            "quantidade_registros_baseline",
+            0,
+        )
+
+        registros = (
+            int(registros_baseline)
+            if isinstance(
+                registros_baseline,
+                int,
+            )
+            and registros_baseline > 0
+            else int(resultado_historico.quantidade_registros)
+        )
 
         if registros >= self.registros_minimos:
             confianca += 25.0
@@ -113,11 +132,13 @@ class DetectorAnomaliaPreco:
 
         host = (urlparse(oferta.link).hostname or "").lower()
 
-        if host in self.DOMINIOS_CONFIAVEIS:
+        dominio_confiavel = self._dominio_confiavel(host)
+
+        if dominio_confiavel:
             confianca += 15.0
-            motivos.append("Link aponta para domínio oficial do Mercado Livre.")
+            motivos.append("Link aponta para dom\u00ednio oficial reconhecido.")
         else:
-            motivos.append("Domínio da oferta não está na lista confiável.")
+            motivos.append("Dom\u00ednio da oferta n\u00e3o est\u00e1 " "na lista confi\u00e1vel.")
 
         if resultado_historico.preco_caiu and resultado_historico.menor_preco_historico:
             confianca += 15.0
@@ -125,6 +146,17 @@ class DetectorAnomaliaPreco:
         elif resultado_historico.preco_caiu:
             confianca += 8.0
             motivos.append("Preço caiu em relação à última verificação.")
+
+        queda_vs_mediana = self._calcular_queda_vs_mediana(
+            oferta=oferta,
+            resultado_historico=resultado_historico,
+        )
+
+        if queda_vs_mediana >= self.queda_minima_anomalia:
+            confianca += 10.0
+            motivos.append(
+                f"Pre\u00e7o est\u00e1 {queda_vs_mediana:.1f}% " "abaixo da mediana hist\u00f3rica."
+            )
 
         if oferta.preco > 10:
             confianca += 10.0
@@ -187,7 +219,7 @@ class DetectorAnomaliaPreco:
                 motivos=motivos + ["Anomalia retida por falta de identificador do produto."],
             )
 
-        if host not in self.DOMINIOS_CONFIAVEIS:
+        if not dominio_confiavel:
             return self._aplicar_resultado(
                 oferta=oferta,
                 publicavel=False,
@@ -246,10 +278,64 @@ class DetectorAnomaliaPreco:
             queda_vs_menor = ((menor_anterior - oferta.preco) / menor_anterior) * 100
             quedas.append(queda_vs_menor)
 
+        queda_vs_mediana = self._calcular_queda_vs_mediana(
+            oferta=oferta,
+            resultado_historico=resultado_historico,
+        )
+
+        if queda_vs_mediana > 0:
+            quedas.append(queda_vs_mediana)
+
         if not quedas:
             return 0.0
 
         return round(max(quedas), 2)
+
+    @staticmethod
+    def _calcular_queda_vs_mediana(
+        oferta: Oferta,
+        resultado_historico: ResultadoHistoricoPreco,
+    ) -> float:
+        preco_mediano = getattr(
+            resultado_historico,
+            "preco_mediano_anterior",
+            None,
+        )
+
+        if not isinstance(
+            preco_mediano,
+            (
+                int,
+                float,
+            ),
+        ):
+            return 0.0
+
+        preco_mediano = float(preco_mediano)
+
+        if preco_mediano <= 0 or oferta.preco >= preco_mediano:
+            return 0.0
+
+        queda = (preco_mediano - oferta.preco) / preco_mediano * 100
+
+        return round(
+            queda,
+            2,
+        )
+
+    @classmethod
+    def _dominio_confiavel(
+        cls,
+        host: str,
+    ) -> bool:
+        host = host.strip().casefold().rstrip(".")
+
+        if not host:
+            return False
+
+        return any(
+            host == dominio or host.endswith("." + dominio) for dominio in cls.DOMINIOS_CONFIAVEIS
+        )
 
     def _encontrar_termos_de_risco(self, titulo: str) -> list[str]:
         texto = titulo.casefold()

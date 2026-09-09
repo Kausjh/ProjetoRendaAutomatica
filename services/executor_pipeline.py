@@ -212,6 +212,38 @@ class ExecutorPipeline:
                 resultado_normalizacao.confianca,
             )
 
+            resultado_anomalia = self.detector_anomalia.avaliar(
+                oferta=oferta,
+                resultado_historico=resultado_historico,
+            )
+
+            if resultado_anomalia.detectada:
+                quantidade_anomalias_detectadas += 1
+
+                logger.warning(
+                    (
+                        "Anomalia de preço detectada: %s | tipo=%s | "
+                        "queda=%.1f%% | confiança=%.0f/100 | publicável=%s"
+                    ),
+                    oferta.nome,
+                    resultado_anomalia.tipo,
+                    resultado_anomalia.queda_percentual,
+                    resultado_anomalia.confianca,
+                    resultado_anomalia.publicavel,
+                )
+
+                if not resultado_anomalia.publicavel:
+                    quantidade_anomalias_retidas += 1
+
+                    logger.warning(
+                        "Anomalia retida para não publicar automaticamente: %s | %s",
+                        oferta.nome,
+                        " | ".join(resultado_anomalia.motivos),
+                    )
+                    continue
+
+                quantidade_anomalias_publicaveis += 1
+
             resultado_curadoria = self.curadoria_publicacao.analisar(oferta)
 
             if not resultado_curadoria.publicavel:
@@ -263,38 +295,6 @@ class ExecutorPipeline:
             pontuacao = self.pontuador.calcular(
                 oferta=oferta, resultado_historico=resultado_historico
             )
-
-            resultado_anomalia = self.detector_anomalia.avaliar(
-                oferta=oferta,
-                resultado_historico=resultado_historico,
-            )
-
-            if resultado_anomalia.detectada:
-                quantidade_anomalias_detectadas += 1
-
-                logger.warning(
-                    (
-                        "Anomalia de preço detectada: %s | tipo=%s | "
-                        "queda=%.1f%% | confiança=%.0f/100 | publicável=%s"
-                    ),
-                    oferta.nome,
-                    resultado_anomalia.tipo,
-                    resultado_anomalia.queda_percentual,
-                    resultado_anomalia.confianca,
-                    resultado_anomalia.publicavel,
-                )
-
-                if not resultado_anomalia.publicavel:
-                    quantidade_anomalias_retidas += 1
-
-                    logger.warning(
-                        "Anomalia retida para não publicar automaticamente: %s | %s",
-                        oferta.nome,
-                        " | ".join(resultado_anomalia.motivos),
-                    )
-                    continue
-
-                quantidade_anomalias_publicaveis += 1
 
             if self.politica_marketplace.eh_secundaria(
                 oferta.categoria
