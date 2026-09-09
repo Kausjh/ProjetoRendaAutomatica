@@ -144,6 +144,22 @@ class ConstrutorOfertaSocialScout:
 
         oferta.cupom_validado_descoberta = bool(validacao.cupom_validado)
 
+        # Promotion Intelligence:
+        # somente transporte de evidencia.
+        oferta.status_promocao_marketplace = validacao.status_promocao_marketplace
+        oferta.promocao_marketplace_confirmada = validacao.promocao_marketplace_confirmada
+        oferta.tipo_promocao_marketplace = validacao.tipo_promocao_marketplace
+        oferta.preco_promocional_marketplace = validacao.preco_promocional_marketplace
+        oferta.valor_desconto_promocional_marketplace = (
+            validacao.valor_desconto_promocional_marketplace
+        )
+        oferta.desconto_promocional_marketplace_percentual = (
+            validacao.desconto_promocional_marketplace_percentual
+        )
+        oferta.preco_grupo_confere_promocao = validacao.preco_grupo_confere_promocao
+        oferta.fonte_promocao_marketplace = validacao.fonte_promocao_marketplace
+        oferta.motivo_promocao_marketplace = validacao.motivo_promocao_marketplace
+
         return ResultadoConstrucaoOfertaSocialScout(
             status=self.STATUS_CRIADA,
             oferta=oferta,

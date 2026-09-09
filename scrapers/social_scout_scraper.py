@@ -28,6 +28,9 @@ from services.scout.construtor_oferta_social_scout import (
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
 )
+from services.scout.enriquecedor_promocao_social_scout import (
+    EnriquecedorPromocaoSocialScout,
+)
 from services.scout.politica_preco_social_scout import (
     PoliticaPrecoSocialScout,
 )
@@ -146,6 +149,8 @@ class SocialScoutScraper(BaseScraper):
         self.construtor = construtor or ConstrutorOfertaSocialScout()
 
         self.politica_preco_social = PoliticaPrecoSocialScout()
+
+        self.enriquecedor_promocao = EnriquecedorPromocaoSocialScout()
 
         self.max_mensagens_por_execucao = max(
             int(max_mensagens_por_execucao),
@@ -360,6 +365,12 @@ class SocialScoutScraper(BaseScraper):
                 )
 
                 validacao = self.politica_preco_social.aplicar(
+                    deteccao=deteccao,
+                    resolucao=resolucao,
+                    validacao=validacao,
+                )
+
+                validacao = self.enriquecedor_promocao.aplicar(
                     deteccao=deteccao,
                     resolucao=resolucao,
                     validacao=validacao,

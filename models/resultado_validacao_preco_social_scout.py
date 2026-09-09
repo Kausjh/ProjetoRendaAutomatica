@@ -39,4 +39,20 @@ class ResultadoValidacaoPrecoSocialScout:
     # esteja ativo ou aplicavel na conta do comprador.
     cupom_validado: bool = False
 
+    # Promotion Intelligence oficial do marketplace.
+    #
+    # Evidencia promocional != codigo de cupom validado.
+    status_promocao_marketplace: str = "nao_consultada"
+    promocao_marketplace_confirmada: bool = False
+    tipo_promocao_marketplace: str | None = None
+
+    preco_promocional_marketplace: float | None = None
+    valor_desconto_promocional_marketplace: float | None = None
+    desconto_promocional_marketplace_percentual: float | None = None
+
+    preco_grupo_confere_promocao: bool | None = None
+
+    fonte_promocao_marketplace: str | None = None
+    motivo_promocao_marketplace: str = ""
+
     motivo: str = ""
