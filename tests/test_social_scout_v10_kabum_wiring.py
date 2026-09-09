@@ -25,7 +25,7 @@ def test_v10_registra_processador_kabum():
         construtor=object(),
     )
 
-    assert scraper.VERSAO_PROCESSADOR == "10"
+    assert int(scraper.VERSAO_PROCESSADOR) >= 10
 
     assert scraper.processador_kabum is fake
 

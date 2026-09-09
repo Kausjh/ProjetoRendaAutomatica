@@ -262,62 +262,104 @@ class DetectorPromocaoSocialScout:
         texto: str,
         links: tuple[str, ...],
     ) -> str | None:
-        for link in links:
-            dominio = (urlparse(link).hostname or "").lower()
+        """Detecta a loja sem deixar links auxiliares contaminarem a oferta.
 
-            if dominio.startswith("www."):
-                dominio = dominio[4:]
+        Links de marketplaces suportados pelo Social Scout têm prioridade
+        sobre links auxiliares de marketplaces ainda não suportados, como
+        rodapés de Amazon Prime.
+
+        Quando um encurtador não revela a loja, marcadores explícitos no
+        texto podem identificar um marketplace suportado.
+        """
+
+        marketplaces_links: list[str] = []
+
+        for link in links:
+            try:
+                dominio = (urlparse(str(link)).hostname or "").casefold()
+
+            except ValueError:
+                continue
+
+            marketplace = None
 
             if (
                 dominio == "meli.la"
-                or dominio.endswith(".mercadolivre.com.br")
+                or dominio.endswith(".meli.la")
                 or dominio == "mercadolivre.com.br"
+                or dominio.endswith(".mercadolivre.com.br")
             ):
-                return "mercado_livre"
+                marketplace = "mercado_livre"
 
-            if (
+            elif (
                 dominio == "divulgadormagalu.com"
-                or dominio.endswith(".magazineluiza.com.br")
                 or dominio == "magazineluiza.com.br"
+                or dominio.endswith(".magazineluiza.com.br")
             ):
-                return "magalu"
+                marketplace = "magalu"
 
-            if dominio == "kabum.com.br" or dominio.endswith(".kabum.com.br"):
-                return "kabum"
+            elif dominio == "kabum.com.br" or dominio.endswith(".kabum.com.br"):
+                marketplace = "kabum"
 
-            if (
+            elif (
                 dominio == "amazon.com.br"
                 or dominio.endswith(".amazon.com.br")
                 or dominio == "amzn.to"
                 or dominio == "link.amazon"
             ):
-                return "amazon"
+                marketplace = "amazon"
 
-            if dominio == "shopee.com.br" or dominio.endswith(".shopee.com.br"):
-                return "shopee"
+            elif dominio == "shopee.com.br" or dominio.endswith(".shopee.com.br"):
+                marketplace = "shopee"
 
-            if dominio == "aliexpress.com" or dominio.endswith(".aliexpress.com"):
-                return "aliexpress"
+            elif dominio == "aliexpress.com" or dominio.endswith(".aliexpress.com"):
+                marketplace = "aliexpress"
+
+            if marketplace is not None and marketplace not in marketplaces_links:
+                marketplaces_links.append(marketplace)
+
+        suportados = {
+            "mercado_livre",
+            "shopee",
+            "aliexpress",
+            "kabum",
+        }
+
+        # Primeiro: qualquer link de marketplace realmente suportado.
+        for marketplace in marketplaces_links:
+            if marketplace in suportados:
+                return marketplace
 
         texto_normalizado = texto.casefold()
+
+        # Segundo: texto explícito de marketplace suportado.
+        # Isso recupera, por exemplo:
+        #   "ALERTA de Cupom kabum! ... Amazon Prime ..."
+        # quando o link KaBuM está encurtado e o rodapé possui URL Amazon.
+        marcadores_suportados = (
+            ("mercado livre", "mercado_livre"),
+            ("shopee", "shopee"),
+            ("aliexpress", "aliexpress"),
+            ("kabum", "kabum"),
+        )
+
+        for marcador, marketplace in marcadores_suportados:
+            if marcador in texto_normalizado:
+                return marketplace
+
+        # Terceiro: marketplaces reconhecidos mas ainda sem processador.
+        for marketplace in marketplaces_links:
+            if marketplace in {
+                "magalu",
+                "amazon",
+            }:
+                return marketplace
 
         if "magalu" in texto_normalizado:
             return "magalu"
 
-        if "kabum" in texto_normalizado:
-            return "kabum"
-
-        if "mercado livre" in texto_normalizado:
-            return "mercado_livre"
-
         if "amazon" in texto_normalizado:
             return "amazon"
-
-        if "shopee" in texto_normalizado:
-            return "shopee"
-
-        if "aliexpress" in texto_normalizado:
-            return "aliexpress"
 
         return None
 

@@ -69,7 +69,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "10"
+    VERSAO_PROCESSADOR = "11"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -148,6 +148,8 @@ class SocialScoutScraper(BaseScraper):
         )
 
         self.modo_sombra = bool(modo_sombra)
+
+        self._sombra_prevalidacao_por_fingerprint: dict[str, str] = {}
 
         self._handoffs_pendentes: dict[
             int,
@@ -248,6 +250,13 @@ class SocialScoutScraper(BaseScraper):
                     )
 
                     continue
+
+                if self.modo_sombra:
+                    self._preparar_sombra_prevalidacao(
+                        mensagem=mensagem,
+                        deteccao=deteccao,
+                        fingerprint=fingerprint,
+                    )
 
                 resolucao_previa = None
 
@@ -680,6 +689,10 @@ class SocialScoutScraper(BaseScraper):
         fingerprint: str,
         oferta: Oferta,
     ) -> str:
+        self._sombra_prevalidacao_por_fingerprint.pop(
+            fingerprint,
+            None,
+        )
         classificacao = self._obter_classificacao_escopo_social(oferta)
 
         fora_escopo_social = self._oferta_fora_escopo_social(
@@ -725,6 +738,114 @@ class SocialScoutScraper(BaseScraper):
 
         return status
 
+    def _preparar_sombra_prevalidacao(
+        self,
+        *,
+        mensagem: MensagemSocialScout,
+        deteccao,
+        fingerprint: str,
+    ) -> None:
+        """Classifica sinal detectado antes das travas de resolucao/preco.
+
+        Esta etapa e exclusivamente observacional.
+
+        Ela NAO:
+        - cria oferta para o pipeline;
+        - valida preco;
+        - aceita cupom;
+        - relaxa identidade;
+        - publica produto.
+        """
+
+        if not self.modo_sombra or self.classificador_sombra is None:
+            return
+
+        try:
+            preco = 1.0
+
+            for candidato in (
+                deteccao.preco_oferta,
+                deteccao.preco_final,
+                deteccao.preco_original,
+            ):
+                try:
+                    valor = float(candidato)
+
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    continue
+
+                if valor > 0:
+                    preco = valor
+                    break
+
+            link = ""
+
+            for candidato in (
+                *(deteccao.links or ()),
+                *(mensagem.links or ()),
+            ):
+                candidato = str(candidato or "").strip()
+
+                if candidato:
+                    link = candidato
+                    break
+
+            if not link:
+                link = "https://social-scout.invalid/" "observacao"
+
+            nome = str(deteccao.titulo or mensagem.texto or "Produto Social Scout").strip()
+
+            oferta_provisoria = Oferta(
+                nome=nome,
+                loja="Social Scout",
+                preco=preco,
+                preco_antigo=None,
+                link=link,
+                imagem=None,
+                moeda="R$",
+                marketplace=deteccao.marketplace,
+            )
+
+            classificacao = self.classificador_sombra.classificar(oferta_provisoria)
+
+            fora_escopo = self._oferta_fora_escopo_social(
+                oferta_provisoria,
+                classificacao,
+            )
+
+            eh_nicho = bool(classificacao.eh_nicho) and not fora_escopo
+
+            categoria = str(classificacao.categoria or "").replace(
+                "|",
+                "/",
+            )
+
+            try:
+                relevancia = float(classificacao.relevancia or 0.0)
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+                relevancia = 0.0
+
+            estado = "nicho" if eh_nicho else "fora_nicho"
+
+            self._sombra_prevalidacao_por_fingerprint[fingerprint] = (
+                f"shadow_pre={estado}" f"|categoria={categoria}" f"|relevancia={relevancia:.2f}"
+            )
+
+        except Exception:
+            # Observabilidade nunca pode derrubar
+            # a validacao real da mensagem.
+            logger.exception(
+                "Falha na classificacao sombra " "pre-validacao: message=%s.",
+                mensagem.message_id,
+            )
+
     def _marcar_terminal(
         self,
         *,
@@ -733,6 +854,16 @@ class SocialScoutScraper(BaseScraper):
         status: str,
         motivo: str,
     ) -> None:
+        if self.modo_sombra:
+            anotacao_sombra = self._sombra_prevalidacao_por_fingerprint.pop(
+                fingerprint,
+                "",
+            )
+
+            if anotacao_sombra:
+                motivo_base = str(motivo or "").strip()
+
+                motivo = f"{motivo_base}|{anotacao_sombra}" if motivo_base else anotacao_sombra
         self.processamentos_repository.salvar(
             mensagem=mensagem,
             versao_processador=(self.VERSAO_PROCESSADOR),
