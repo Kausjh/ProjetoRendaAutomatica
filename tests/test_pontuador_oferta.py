@@ -258,3 +258,72 @@ def test_score_forte_fica_limitado_a_100():
     )
 
     assert 99.0 <= nota <= 100.0
+
+
+def test_sinal_social_nao_validado_nao_habilita_product_intelligence():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=2699,
+        preco_antigo=None,
+    )
+
+    oferta.origem_descoberta = "social_scout"
+    oferta.preco_condicional_observado = 2399.0
+    oferta.codigo_cupom_observado = "GPU300"
+    oferta.cupom_validado_descoberta = False
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            primeiro=False,
+            menor=False,
+            variacao=0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert oferta.status_sinal_preco == "observado"
+
+    assert oferta.componentes_pontuacao["sinal_preco_descoberta_confirmado"] == 0.0
+
+    assert oferta.componentes_pontuacao["inteligencia_produto"] == 0.0
+
+    assert nota < 72
+
+
+def test_sinal_social_confirmado_habilita_product_intelligence():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=2699,
+        preco_antigo=None,
+    )
+
+    oferta.origem_descoberta = "social_scout"
+    oferta.preco_condicional_observado = 2399.0
+    oferta.codigo_cupom_observado = "GPU300"
+    oferta.cupom_validado_descoberta = True
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            primeiro=False,
+            menor=False,
+            variacao=0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert oferta.status_sinal_preco == "confirmado"
+
+    assert oferta.componentes_pontuacao["sinal_preco_descoberta_confirmado"] == 1.0
+
+    assert oferta.componentes_pontuacao["inteligencia_produto"] > 0.0
+
+    assert oferta.componentes_pontuacao["economia_condicional_observada"] > 0.0
+
+    # Ainda nao significa publicar automaticamente.
+    assert nota < 72

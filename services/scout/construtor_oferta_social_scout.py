@@ -134,6 +134,16 @@ class ConstrutorOfertaSocialScout:
             id_anuncio=resolucao.id_anuncio,
         )
 
+        # Oferta.preco continua oficial.
+        # O sinal social viaja separado.
+        oferta.origem_descoberta = "social_scout"
+
+        oferta.preco_condicional_observado = validacao.preco_final_grupo
+
+        oferta.codigo_cupom_observado = validacao.codigo_cupom
+
+        oferta.cupom_validado_descoberta = bool(validacao.cupom_validado)
+
         return ResultadoConstrucaoOfertaSocialScout(
             status=self.STATUS_CRIADA,
             oferta=oferta,

@@ -57,6 +57,17 @@ class Oferta:
     nivel_desejabilidade: str = "baixo"
     motivos_produto: list[str] = field(default_factory=list)
 
+    # Sinal externo de descoberta / preco condicionado.
+    # Nunca substitui Oferta.preco.
+    origem_descoberta: str | None = None
+    preco_condicional_observado: float | None = None
+    codigo_cupom_observado: str | None = None
+    cupom_validado_descoberta: bool = False
+    status_sinal_preco: str = "sem_sinal"
+    confianca_sinal_preco: float = 0.0
+    economia_condicional_percentual: float = 0.0
+    motivos_sinal_preco: list[str] = field(default_factory=list)
+
     # Familia semantica / anti-repost
     familia_produto: str | None = None
     chave_familia_produto: str | None = None

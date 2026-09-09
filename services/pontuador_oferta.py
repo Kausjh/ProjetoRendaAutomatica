@@ -11,6 +11,10 @@ from services.inteligencia_produto import (
     InteligenciaProduto,
     ResultadoInteligenciaProduto,
 )
+from services.inteligencia_sinal_preco import (
+    InteligenciaSinalPreco,
+    ResultadoInteligenciaSinalPreco,
+)
 
 
 class PontuadorOferta:
@@ -62,12 +66,16 @@ class PontuadorOferta:
 
         self.inteligencia_produto = InteligenciaProduto()
 
+        self.inteligencia_sinal_preco = InteligenciaSinalPreco()
+
     def calcular(
         self,
         oferta: Oferta,
         resultado_historico: ResultadoHistoricoPreco | None = None,
     ) -> float:
         resultado_produto = self.inteligencia_produto.aplicar(oferta)
+
+        resultado_sinal_preco = self.inteligencia_sinal_preco.aplicar(oferta)
 
         resultado_comercial = self.curadoria_comercial.analisar(oferta)
 
@@ -96,6 +104,7 @@ class PontuadorOferta:
             oferta=oferta,
             resultado_produto=resultado_produto,
             resultado_historico=resultado_historico,
+            resultado_sinal_preco=resultado_sinal_preco,
         )
 
         pontos_historicos = pontos_queda + pontos_menor + pontos_maturidade
@@ -140,6 +149,15 @@ class PontuadorOferta:
             ),
             "inteligencia_produto_nota": round(
                 float(resultado_produto.nota),
+                2,
+            ),
+            "sinal_preco_descoberta_confirmado": (1.0 if resultado_sinal_preco.confirmado else 0.0),
+            "sinal_preco_descoberta_confianca": round(
+                float(resultado_sinal_preco.confianca),
+                2,
+            ),
+            "economia_condicional_observada": round(
+                float(resultado_sinal_preco.economia_percentual),
                 2,
             ),
             "queda_real_historico": round(
@@ -204,6 +222,7 @@ class PontuadorOferta:
         oferta: Oferta,
         resultado_produto: ResultadoInteligenciaProduto,
         resultado_historico: ResultadoHistoricoPreco | None,
+        resultado_sinal_preco: ResultadoInteligenciaSinalPreco,
     ) -> float:
         tem_desconto = oferta.desconto_percentual > 0
 
@@ -219,7 +238,9 @@ class PontuadorOferta:
             and resultado_historico.menor_preco_historico
         )
 
-        if not (tem_desconto or tem_queda or tem_novo_minimo):
+        tem_sinal_confirmado = bool(resultado_sinal_preco.confirmado)
+
+        if not (tem_desconto or tem_queda or tem_novo_minimo or tem_sinal_confirmado):
             return 0.0
 
         nota = min(
