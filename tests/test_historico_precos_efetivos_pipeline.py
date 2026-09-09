@@ -150,3 +150,112 @@ def test_main_liga_repository_service_e_executor():
     assert "precos_efetivos_confirmados.json" in main
 
     assert "historico_precos_efetivos_service=" in main
+
+
+class ResultadoTelemetriaFake:
+    def __init__(
+        self,
+        *,
+        elegivel=True,
+        baseline=0,
+        novo_minimo=False,
+        queda_mediana=0.0,
+        queda_minimo=0.0,
+        maturidade=0.0,
+    ):
+        self.elegivel = elegivel
+
+        self.quantidade_registros_baseline = baseline
+
+        self.novo_menor_preco = novo_minimo
+
+        self.queda_vs_mediana_percentual = queda_mediana
+
+        self.queda_vs_minimo_anterior_percentual = queda_minimo
+
+        self.maturidade_baseline_percentual = maturidade
+
+
+def test_telemetria_historico_efetivo_inicia_zerada():
+    telemetria = ExecutorPipeline._criar_telemetria_historico_efetivo()
+
+    assert telemetria == {
+        "precos_com_baseline": 0,
+        "novos_minimos": 0,
+        "maior_queda_vs_mediana_percentual": 0.0,
+        "maior_queda_vs_minimo_percentual": 0.0,
+        "maior_maturidade_percentual": 0.0,
+    }
+
+
+def test_telemetria_historico_efetivo_agrega_metricas():
+    telemetria = ExecutorPipeline._criar_telemetria_historico_efetivo()
+
+    primeiro = ResultadoTelemetriaFake(
+        baseline=3,
+        novo_minimo=True,
+        queda_mediana=5.0,
+        queda_minimo=3.39,
+        maturidade=30.0,
+    )
+
+    segundo = ResultadoTelemetriaFake(
+        baseline=8,
+        novo_minimo=False,
+        queda_mediana=12.5,
+        queda_minimo=1.5,
+        maturidade=80.0,
+    )
+
+    ExecutorPipeline._atualizar_telemetria_historico_efetivo(
+        telemetria,
+        primeiro,
+    )
+
+    ExecutorPipeline._atualizar_telemetria_historico_efetivo(
+        telemetria,
+        segundo,
+    )
+
+    assert telemetria["precos_com_baseline"] == 2
+
+    assert telemetria["novos_minimos"] == 1
+
+    assert telemetria["maior_queda_vs_mediana_percentual"] == 12.5
+
+    assert telemetria["maior_queda_vs_minimo_percentual"] == 3.39
+
+    assert telemetria["maior_maturidade_percentual"] == 80.0
+
+
+def test_telemetria_ignora_resultado_nao_elegivel():
+    telemetria = ExecutorPipeline._criar_telemetria_historico_efetivo()
+
+    resultado = ResultadoTelemetriaFake(
+        elegivel=False,
+        baseline=50,
+        novo_minimo=True,
+        queda_mediana=99.0,
+        queda_minimo=99.0,
+        maturidade=100.0,
+    )
+
+    ExecutorPipeline._atualizar_telemetria_historico_efetivo(
+        telemetria,
+        resultado,
+    )
+
+    assert telemetria == (ExecutorPipeline._criar_telemetria_historico_efetivo())
+
+
+def test_relatorio_expoe_telemetria_observacional():
+    fonte = inspect.getsource(ExecutorPipeline.executar)
+
+    for campo in (
+        "precos_efetivos_com_baseline",
+        "novos_minimos_precos_efetivos",
+        ("maior_queda_preco_efetivo_" "vs_mediana_percentual"),
+        ("maior_queda_preco_efetivo_" "vs_minimo_percentual"),
+        ("maior_maturidade_historico_" "efetivo_percentual"),
+    ):
+        assert campo in fonte

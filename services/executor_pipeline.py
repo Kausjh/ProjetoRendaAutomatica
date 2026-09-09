@@ -133,6 +133,7 @@ class ExecutorPipeline:
         quantidade_com_erro = 0
         quantidade_precos_registrados = 0
         quantidade_precos_efetivos_registrados = 0
+        telemetria_historico_efetivo = self._criar_telemetria_historico_efetivo()
         quantidade_quedas_detectadas = 0
         quantidade_menores_precos = 0
         quantidade_anomalias_detectadas = 0
@@ -214,6 +215,10 @@ class ExecutorPipeline:
                         resultado_historico_efetivo.tipo_condicao,
                     )
 
+                self._atualizar_telemetria_historico_efetivo(
+                    telemetria_historico_efetivo,
+                    resultado_historico_efetivo,
+                )
             except Exception:
                 logger.exception(
                     ("Erro ao analisar historico de " "preco efetivo confirmado de '%s'."),
@@ -597,6 +602,21 @@ class ExecutorPipeline:
             quantidade_com_erro,
         )
 
+        logger.info(
+            (
+                "Preco efetivo | registrados=%s | "
+                "com_baseline=%s | novos_minimos=%s | "
+                "max_vs_mediana=%.2f%% | "
+                "max_vs_minimo=%.2f%% | "
+                "maturidade_max=%.2f%%"
+            ),
+            quantidade_precos_efetivos_registrados,
+            telemetria_historico_efetivo["precos_com_baseline"],
+            telemetria_historico_efetivo["novos_minimos"],
+            telemetria_historico_efetivo["maior_queda_vs_mediana_percentual"],
+            telemetria_historico_efetivo["maior_queda_vs_minimo_percentual"],
+            telemetria_historico_efetivo["maior_maturidade_percentual"],
+        )
         logger.info("Ciclo concluído em %.2f segundo(s).", tempo_total)
 
         relatorio = {
@@ -624,6 +644,17 @@ class ExecutorPipeline:
             "ofertas_ja_publicadas_sem_nova_queda": (quantidade_ignorada),
             "novos_precos_registrados": (quantidade_precos_registrados),
             "novos_precos_efetivos_confirmados": (quantidade_precos_efetivos_registrados),
+            "precos_efetivos_com_baseline": (telemetria_historico_efetivo["precos_com_baseline"]),
+            "novos_minimos_precos_efetivos": (telemetria_historico_efetivo["novos_minimos"]),
+            "maior_queda_preco_efetivo_vs_mediana_percentual": (
+                telemetria_historico_efetivo["maior_queda_vs_mediana_percentual"]
+            ),
+            "maior_queda_preco_efetivo_vs_minimo_percentual": (
+                telemetria_historico_efetivo["maior_queda_vs_minimo_percentual"]
+            ),
+            "maior_maturidade_historico_efetivo_percentual": (
+                telemetria_historico_efetivo["maior_maturidade_percentual"]
+            ),
             "quedas_preco_detectadas": (quantidade_quedas_detectadas),
             "novos_menores_precos_historicos": (quantidade_menores_precos),
             "anomalias_preco_detectadas": quantidade_anomalias_detectadas,
@@ -703,6 +734,91 @@ class ExecutorPipeline:
 
         if callable(salvar):
             salvar()
+
+    @staticmethod
+    def _criar_telemetria_historico_efetivo() -> dict:
+        return {
+            "precos_com_baseline": 0,
+            "novos_minimos": 0,
+            "maior_queda_vs_mediana_percentual": 0.0,
+            "maior_queda_vs_minimo_percentual": 0.0,
+            "maior_maturidade_percentual": 0.0,
+        }
+
+    @staticmethod
+    def _atualizar_telemetria_historico_efetivo(
+        telemetria: dict,
+        resultado,
+    ) -> None:
+        if resultado is None or not getattr(
+            resultado,
+            "elegivel",
+            False,
+        ):
+            return
+
+        baseline = int(
+            getattr(
+                resultado,
+                "quantidade_registros_baseline",
+                0,
+            )
+            or 0
+        )
+
+        if baseline > 0:
+            telemetria["precos_com_baseline"] += 1
+
+        if bool(
+            getattr(
+                resultado,
+                "novo_menor_preco",
+                False,
+            )
+        ):
+            telemetria["novos_minimos"] += 1
+
+        queda_mediana = float(
+            getattr(
+                resultado,
+                "queda_vs_mediana_percentual",
+                0.0,
+            )
+            or 0.0
+        )
+
+        queda_minimo = float(
+            getattr(
+                resultado,
+                "queda_vs_minimo_anterior_percentual",
+                0.0,
+            )
+            or 0.0
+        )
+
+        maturidade = float(
+            getattr(
+                resultado,
+                "maturidade_baseline_percentual",
+                0.0,
+            )
+            or 0.0
+        )
+
+        telemetria["maior_queda_vs_mediana_percentual"] = max(
+            float(telemetria["maior_queda_vs_mediana_percentual"]),
+            queda_mediana,
+        )
+
+        telemetria["maior_queda_vs_minimo_percentual"] = max(
+            float(telemetria["maior_queda_vs_minimo_percentual"]),
+            queda_minimo,
+        )
+
+        telemetria["maior_maturidade_percentual"] = max(
+            float(telemetria["maior_maturidade_percentual"]),
+            maturidade,
+        )
 
     @staticmethod
     def _obter_queda_percentual(
