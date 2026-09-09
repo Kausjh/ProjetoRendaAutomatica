@@ -1,8 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from statistics import median
 
 from models.oferta import Oferta
 from repositories.historico_precos_efetivos_repository import (
@@ -19,14 +20,21 @@ class ResultadoHistoricoPrecoEfetivo:
     preco_efetivo: float | None = None
     preco_anterior: float | None = None
     menor_preco_anterior: float | None = None
+    preco_mediano_anterior: float | None = None
     novo_menor_preco: bool = False
     queda_percentual: float = 0.0
+    queda_vs_mediana_percentual: float = 0.0
+    queda_vs_minimo_anterior_percentual: float = 0.0
+    quantidade_registros_baseline: int = 0
+    maturidade_baseline_percentual: float = 0.0
     primeiro_registro: bool = False
     quantidade_registros: int = 0
     novo_preco_registrado: bool = False
 
 
 class HistoricoPrecosEfetivosService:
+    REGISTROS_PARA_MATURIDADE_MAXIMA = 10
+
     def __init__(
         self,
         repository: HistoricoPrecosEfetivosRepository,
@@ -48,7 +56,7 @@ class HistoricoPrecosEfetivosService:
         if elegibilidade is None:
             return ResultadoHistoricoPrecoEfetivo(
                 elegivel=False,
-                motivo=("preco_efetivo_nao_confirmado"),
+                motivo="preco_efetivo_nao_confirmado",
             )
 
         (
@@ -82,10 +90,39 @@ class HistoricoPrecosEfetivosService:
 
         menor_preco_anterior = min(precos_anteriores) if precos_anteriores else None
 
+        preco_mediano_anterior = (
+            round(
+                float(median(precos_anteriores)),
+                2,
+            )
+            if precos_anteriores
+            else None
+        )
+
+        quantidade_registros_baseline = len(precos_anteriores)
+
+        maturidade_baseline_percentual = round(
+            min(
+                100.0,
+                (quantidade_registros_baseline / self.REGISTROS_PARA_MATURIDADE_MAXIMA) * 100.0,
+            ),
+            2,
+        )
+
         novo_menor_preco = menor_preco_anterior is not None and preco_efetivo < menor_preco_anterior
 
         queda_percentual = self._calcular_queda_percentual(
             preco_anterior=preco_anterior,
+            preco_atual=preco_efetivo,
+        )
+
+        queda_vs_mediana_percentual = self._calcular_queda_percentual(
+            preco_anterior=(preco_mediano_anterior),
+            preco_atual=preco_efetivo,
+        )
+
+        queda_vs_minimo_anterior_percentual = self._calcular_queda_percentual(
+            preco_anterior=(menor_preco_anterior),
             preco_atual=preco_efetivo,
         )
 
@@ -126,8 +163,13 @@ class HistoricoPrecosEfetivosService:
             preco_efetivo=preco_efetivo,
             preco_anterior=preco_anterior,
             menor_preco_anterior=(menor_preco_anterior),
+            preco_mediano_anterior=(preco_mediano_anterior),
             novo_menor_preco=(novo_menor_preco),
             queda_percentual=(queda_percentual),
+            queda_vs_mediana_percentual=(queda_vs_mediana_percentual),
+            queda_vs_minimo_anterior_percentual=(queda_vs_minimo_anterior_percentual),
+            quantidade_registros_baseline=(quantidade_registros_baseline),
+            maturidade_baseline_percentual=(maturidade_baseline_percentual),
             primeiro_registro=(primeiro_registro),
             quantidade_registros=(quantidade_registros),
             novo_preco_registrado=(novo_preco_registrado),
