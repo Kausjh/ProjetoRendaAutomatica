@@ -123,3 +123,30 @@ def test_notebook_com_componentes_continua_notebook():
     assert item.eh_nicho is True
 
     assert item.categoria == "Notebook"
+
+
+def test_fonte_cooler_master_mwe_e_fonte_de_pc():
+    item = classificar("Fonte Cooler Master Mwe 750 V3 " "750w Atx 3.1 Preto")
+
+    assert item.eh_nicho is True
+    assert item.categoria == "Fonte e energia"
+
+
+def test_fonte_corsair_com_wattagem_e_fonte_de_pc():
+    item = classificar("Fonte Corsair RM750e 750W " "Full Modular PCIe 5.0")
+
+    assert item.eh_nicho is True
+    assert item.categoria == "Fonte e energia"
+
+
+def test_fonte_msi_80_plus_continua_fonte_de_pc():
+    item = classificar("Fonte Msi Mag A650bn 650w " "80 Plus Bronze Pfc Ativo Preto")
+
+    assert item.eh_nicho is True
+    assert item.categoria == "Fonte e energia"
+
+
+def test_fonte_baixa_potencia_nao_e_forcada_como_psu():
+    item = classificar("Fonte Carregador Notebook Dell " "65W USB-C")
+
+    assert item.categoria != "Fonte e energia"

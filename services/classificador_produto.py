@@ -848,6 +848,22 @@ class ClassificadorProduto:
                 r"(?:cooling fan|cpu cooler|processor cooler|cooler)\b",
             ),
             ("Processador", r"^(?:processador|cpu)\b"),
+            (
+                "Fonte e energia",
+                # test_marker_fonte_pc_principal
+                (
+                    r"^fonte\b"
+                    r"(?=.*(?:"
+                    r"\batx\b|"
+                    r"\bpfc\b|"
+                    r"\b80 plus\b|"
+                    r"\bmodular\b|"
+                    r"\bsemi modular\b|"
+                    r"\b12vhpwr\b|"
+                    r"\b(?:[3-9]\d{2}|1\d{3}|2000)\s*w\b"
+                    r"))"
+                ),
+            ),
             ("Memória RAM", r"^(?:memoria ram|memoria ddr|ram)\b"),
             ("Placa de vídeo", r"^(?:placa de video|placa grafica|gpu)\b"),
             ("Placa-mãe", r"^(?:placa mae|motherboard)\b"),
