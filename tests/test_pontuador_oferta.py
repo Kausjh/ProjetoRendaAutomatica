@@ -383,3 +383,195 @@ def test_promocao_marketplace_confirmada_habilita_product_intelligence_sem_valid
     # Confirmar a evidencia nao significa
     # publicacao automatica.
     assert nota < 72
+
+
+def test_social_observado_nao_recebe_pontos_de_desconto_efetivo():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    item = oferta_base(
+        preco=3670.0,
+        preco_antigo=None,
+        nota_curadoria=86.0,
+    )
+
+    item.origem_descoberta = "social_scout"
+
+    item.preco_condicional_observado = 3096.0
+
+    item.codigo_cupom_observado = "ACHADOSMELI"
+
+    item.cupom_validado_descoberta = False
+
+    p.calcular(
+        item,
+        historico(
+            primeiro=False,
+            preco_anterior=3670.0,
+            menor_anterior=3670.0,
+            menor=False,
+            variacao=0.0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert item.status_sinal_preco == "observado"
+
+    assert item.componentes_pontuacao["desconto_efetivo_confirmado"] == 0.0
+
+    assert (
+        item.componentes_pontuacao["desconto_pontuado"]
+        == item.componentes_pontuacao["desconto_anunciado"]
+    )
+
+
+def test_preco_efetivo_confirmado_usa_mesmo_bucket_de_desconto():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    item = oferta_base(
+        preco=3670.0,
+        preco_antigo=None,
+        nota_curadoria=86.0,
+    )
+
+    preco_oficial = item.preco
+
+    item.origem_descoberta = "social_scout"
+
+    item.preco_condicional_observado = 3096.0
+
+    item.codigo_cupom_observado = "ACHADOSMELI"
+
+    item.cupom_validado_descoberta = False
+
+    item.status_promocao_marketplace = "confirmada"
+
+    item.promocao_marketplace_confirmada = True
+
+    item.preco_promocional_marketplace = 3096.0
+
+    item.preco_grupo_confere_promocao = True
+
+    p.calcular(
+        item,
+        historico(
+            primeiro=False,
+            preco_anterior=3670.0,
+            menor_anterior=3670.0,
+            menor=False,
+            variacao=0.0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert item.status_sinal_preco == "confirmado"
+
+    # 15,64% de economia em um bucket que
+    # chega a 10 pontos com 40%.
+    assert item.componentes_pontuacao["desconto_efetivo_confirmado"] == 3.91
+
+    assert item.componentes_pontuacao["desconto_pontuado"] == 3.91
+
+    # Nenhuma mutacao de fonte de verdade.
+    assert item.preco == preco_oficial
+
+    assert item.preco_antigo is None
+
+    # Nenhuma ficcao de historico.
+    assert item.componentes_pontuacao["queda_real_historico"] == 0.0
+
+    assert item.componentes_pontuacao["novo_menor_preco"] == 0.0
+
+    # Codigo textual continua nao provado.
+    assert item.cupom_validado_descoberta is False
+
+
+def test_preco_efetivo_confirmado_nao_soma_com_desconto_da_listagem():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    item = oferta_base(
+        preco=3670.0,
+        preco_antigo=4003.98,
+        nota_curadoria=86.0,
+    )
+
+    item.origem_descoberta = "social_scout"
+
+    item.preco_condicional_observado = 3096.0
+
+    item.codigo_cupom_observado = "ACHADOSMELI"
+
+    item.cupom_validado_descoberta = False
+
+    item.status_promocao_marketplace = "confirmada"
+
+    item.promocao_marketplace_confirmada = True
+
+    item.preco_promocional_marketplace = 3096.0
+
+    item.preco_grupo_confere_promocao = True
+
+    p.calcular(
+        item,
+        historico(
+            primeiro=False,
+            preco_anterior=3670.0,
+            menor_anterior=3670.0,
+            menor=False,
+            variacao=0.0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    # Listagem:
+    # 4003,98 -> 3670 ~= 8,34%
+    # ~= 2,08 pontos.
+    assert item.componentes_pontuacao["desconto_anunciado"] == 2.08
+
+    # Condicao confirmada:
+    # 3670 -> 3096 = 15,64%
+    # = 3,91 pontos.
+    assert item.componentes_pontuacao["desconto_efetivo_confirmado"] == 3.91
+
+    # NAO e 2,08 + 3,91.
+    # Usa apenas a melhor evidencia.
+    assert item.componentes_pontuacao["desconto_pontuado"] == 3.91
+
+
+def test_cupom_realmente_validado_tambem_pode_definir_preco_efetivo():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    item = oferta_base(
+        preco=3670.0,
+        preco_antigo=None,
+        nota_curadoria=86.0,
+    )
+
+    item.origem_descoberta = "social_scout"
+
+    item.preco_condicional_observado = 3096.0
+
+    item.codigo_cupom_observado = "CUPOMREAL"
+
+    item.cupom_validado_descoberta = True
+
+    p.calcular(
+        item,
+        historico(
+            primeiro=False,
+            preco_anterior=3670.0,
+            menor_anterior=3670.0,
+            menor=False,
+            variacao=0.0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert item.status_sinal_preco == "confirmado"
+
+    assert item.componentes_pontuacao["desconto_efetivo_confirmado"] == 3.91
+
+    assert item.componentes_pontuacao["desconto_pontuado"] == 3.91

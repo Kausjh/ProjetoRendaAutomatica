@@ -24,7 +24,7 @@ class PontuadorOferta:
 
     Dimensoes observaveis:
     - nicho: 10
-    - desconto anunciado: 10
+    - desconto confirmado (listagem ou condicao promocional): 10
     - Product Intelligence: 20
     - curadoria do comprador: 20
 
@@ -90,7 +90,22 @@ class PontuadorOferta:
 
         pontos_nicho = self._calcular_pontos_nicho(oferta)
 
-        pontos_desconto = self._calcular_pontos_desconto_anunciado(oferta)
+        pontos_desconto_anunciado = self._calcular_pontos_desconto_anunciado(oferta)
+
+        pontos_desconto_confirmado = self._calcular_pontos_desconto_confirmado(
+            resultado_sinal_preco
+        )
+
+        # O mesmo desconto nao pode valer duas vezes.
+        #
+        # Se a listagem oficial ja mostra desconto e
+        # uma promocao confirmada oferece condicao
+        # ainda melhor, usamos somente a melhor
+        # evidencia dentro do MESMO bucket de 10.
+        pontos_desconto = max(
+            pontos_desconto_anunciado,
+            pontos_desconto_confirmado,
+        )
 
         pontos_queda = self._calcular_pontos_queda_real(resultado_historico)
 
@@ -140,6 +155,14 @@ class PontuadorOferta:
                 2,
             ),
             "desconto_anunciado": round(
+                pontos_desconto_anunciado,
+                2,
+            ),
+            "desconto_efetivo_confirmado": round(
+                pontos_desconto_confirmado,
+                2,
+            ),
+            "desconto_pontuado": round(
                 pontos_desconto,
                 2,
             ),
@@ -204,6 +227,27 @@ class PontuadorOferta:
     ) -> float:
         desconto = max(
             float(oferta.desconto_percentual),
+            0.0,
+        )
+
+        desconto = min(
+            desconto,
+            self.DESCONTO_ANUNCIADO_PARA_MAXIMO,
+        )
+
+        return (
+            desconto / self.DESCONTO_ANUNCIADO_PARA_MAXIMO * self.PONTOS_MAXIMOS_DESCONTO_ANUNCIADO
+        )
+
+    def _calcular_pontos_desconto_confirmado(
+        self,
+        resultado_sinal_preco,
+    ) -> float:
+        if not bool(resultado_sinal_preco.confirmado):
+            return 0.0
+
+        desconto = max(
+            float(resultado_sinal_preco.economia_percentual),
             0.0,
         )
 
