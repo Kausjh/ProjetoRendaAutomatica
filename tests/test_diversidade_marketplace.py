@@ -394,3 +394,62 @@ def test_oportunidade_urgente_pode_furar_alternancia() -> None:
 
     assert resultado is not None
     assert resultado.item.oferta.loja == "Mercado Livre"
+
+
+def test_cold_start_normaliza_product_intelligence() -> None:
+    base = criar_oferta(
+        999,
+        "AliExpress",
+        "aliexpress",
+        40.0,
+        "Placa de video",
+    )
+
+    oferta = base[0]
+
+    oferta.nota_tecnica = 48.0
+
+    oferta.componentes_pontuacao = {
+        "inteligencia_produto": 18.0,
+    }
+
+    item = (
+        oferta,
+        40.0,
+        SimpleNamespace(
+            primeiro_registro=True,
+        ),
+        False,
+    )
+
+    normalizada = ExecutorPipeline._pontuacao_tecnica_cold_start_normalizada(item)
+
+    assert normalizada == 80.0
+
+
+def test_cold_start_sem_product_intelligence_preserva_teto_anterior() -> None:
+    base = criar_oferta(
+        1000,
+        "AliExpress",
+        "aliexpress",
+        30.0,
+        "Armazenamento",
+    )
+
+    oferta = base[0]
+
+    oferta.nota_tecnica = 30.0
+    oferta.componentes_pontuacao = {}
+
+    item = (
+        oferta,
+        30.0,
+        SimpleNamespace(
+            primeiro_registro=True,
+        ),
+        False,
+    )
+
+    normalizada = ExecutorPipeline._pontuacao_tecnica_cold_start_normalizada(item)
+
+    assert normalizada == 75.0

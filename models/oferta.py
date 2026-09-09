@@ -51,6 +51,12 @@ class Oferta:
     modelo_produto: str | None = None
     confianca_normalizacao: float = 0.0
 
+    # Inteligencia de produto
+    nota_produto: float = 0.0
+    confianca_produto: float = 0.0
+    nivel_desejabilidade: str = "baixo"
+    motivos_produto: list[str] = field(default_factory=list)
+
     # Familia semantica / anti-repost
     familia_produto: str | None = None
     chave_familia_produto: str | None = None

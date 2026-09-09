@@ -5,7 +5,7 @@ from services.pontuador_oferta import PontuadorOferta
 
 def oferta_base(preco=900.0, preco_antigo=1000.0, nota_curadoria=90.0):
     oferta = Oferta(
-        nome="Produto Gamer Teste",
+        nome="Placa de Video NVIDIA GeForce RTX 5070 12GB",
         loja="Mercado Livre",
         preco=preco,
         preco_antigo=preco_antigo,
@@ -14,6 +14,7 @@ def oferta_base(preco=900.0, preco_antigo=1000.0, nota_curadoria=90.0):
     )
     oferta.eh_nicho = True
     oferta.relevancia_nicho = 100.0
+    oferta.categoria = "Placa de video"
     oferta.nota_curadoria = nota_curadoria
     return oferta
 
@@ -50,7 +51,9 @@ def test_promocao_real_com_historico_forte_supera_72():
     )
 
     assert nota >= 72
-    assert oferta.componentes_pontuacao["novo_menor_preco"] == 20
+    assert (
+        oferta.componentes_pontuacao["novo_menor_preco"] == PontuadorOferta.PONTOS_NOVO_MENOR_PRECO
+    )
     assert oferta.componentes_pontuacao["queda_real_historico"] > 0
 
 
@@ -165,3 +168,93 @@ def test_faixa_de_preco_nao_da_bonus_por_comissao():
     h = historico(variacao=-10, menor=True, registros=8)
 
     assert p.calcular(barato, h) == p.calcular(caro, h)
+
+
+def test_product_intelligence_entra_no_score():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=900,
+        preco_antigo=1000,
+    )
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            primeiro=True,
+            menor=False,
+            variacao=0,
+            caiu=False,
+            registros=1,
+        ),
+    )
+
+    assert nota < 72
+    assert oferta.nota_produto >= 90
+
+    assert oferta.componentes_pontuacao["inteligencia_produto"] > 0
+
+    assert oferta.componentes_pontuacao["inteligencia_produto_nota"] == oferta.nota_produto
+
+
+def test_produto_desejavel_sem_sinal_preco_nao_vira_oferta():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=900,
+        preco_antigo=None,
+        nota_curadoria=100,
+    )
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            primeiro=False,
+            menor=False,
+            variacao=0,
+            caiu=False,
+            registros=10,
+        ),
+    )
+
+    assert oferta.nota_produto >= 90
+
+    assert oferta.componentes_pontuacao["inteligencia_produto"] == 0
+
+    assert nota < 72
+
+
+def test_pesos_product_intelligence_totalizam_100():
+    total = (
+        PontuadorOferta.PONTOS_MAXIMOS_NICHO
+        + PontuadorOferta.PONTOS_MAXIMOS_DESCONTO_ANUNCIADO
+        + PontuadorOferta.PONTOS_MAXIMOS_PRODUTO
+        + PontuadorOferta.PONTOS_MAXIMOS_QUEDA_REAL
+        + PontuadorOferta.PONTOS_NOVO_MENOR_PRECO
+        + PontuadorOferta.PONTOS_MAXIMOS_MATURIDADE_HISTORICO
+        + PontuadorOferta.PONTOS_MAXIMOS_CURADORIA
+    )
+
+    assert total == 100.0
+
+
+def test_score_forte_fica_limitado_a_100():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=100,
+        preco_antigo=1000,
+        nota_curadoria=100,
+    )
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            variacao=-90,
+            menor=True,
+            caiu=True,
+            registros=100,
+        ),
+    )
+
+    assert 99.0 <= nota <= 100.0

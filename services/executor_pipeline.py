@@ -780,11 +780,28 @@ class ExecutorPipeline:
         ):
             return None
 
+        componentes = getattr(
+            oferta,
+            "componentes_pontuacao",
+            {},
+        )
+
+        pontos_produto = float(
+            componentes.get(
+                "inteligencia_produto",
+                0.0,
+            )
+            or 0.0
+        )
+
         teto_tecnico = (
             PontuadorOferta.PONTOS_MAXIMOS_NICHO
             + PontuadorOferta.PONTOS_MAXIMOS_DESCONTO_ANUNCIADO
             + PontuadorOferta.PONTOS_MAXIMOS_CURADORIA
         )
+
+        if pontos_produto > 0:
+            teto_tecnico += PontuadorOferta.PONTOS_MAXIMOS_PRODUTO
 
         if teto_tecnico <= 0:
             return None
