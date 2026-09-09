@@ -104,6 +104,11 @@ class InteligenciaProduto:
             "RX 9070 XT",
             39.0,
         ),
+        (
+            r"\brx\s*9060\s*xt\b",
+            "RX 9060 XT",
+            35.0,
+        ),
         (r"\brx\s*9070\b", "RX 9070", 37.0),
         (
             r"\brx\s*7900\s*xtx\b",
