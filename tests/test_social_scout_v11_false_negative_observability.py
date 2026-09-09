@@ -195,4 +195,4 @@ def test_v11_modo_normal_nao_cria_observacao_shadow():
 
 
 def test_v11_versao_processador():
-    assert SocialScoutScraper.VERSAO_PROCESSADOR == "11"
+    assert int(SocialScoutScraper.VERSAO_PROCESSADOR) >= 11

@@ -28,6 +28,9 @@ from services.scout.construtor_oferta_social_scout import (
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
 )
+from services.scout.politica_preco_social_scout import (
+    PoliticaPrecoSocialScout,
+)
 from services.scout.processador_aliexpress_social_scout import (
     ProcessadorAliExpressSocialScout,
 )
@@ -69,7 +72,7 @@ class SocialScoutScraper(BaseScraper):
     VERSAO_PROCESSADOR.
     """
 
-    VERSAO_PROCESSADOR = "11"
+    VERSAO_PROCESSADOR = "12"
 
     # O ClassificadorProduto e compartilhado pelo projeto inteiro
     # e possui um universo deliberadamente mais amplo.
@@ -141,6 +144,8 @@ class SocialScoutScraper(BaseScraper):
         self.processador_kabum = processador_kabum or ProcessadorKabumSocialScout()
 
         self.construtor = construtor or ConstrutorOfertaSocialScout()
+
+        self.politica_preco_social = PoliticaPrecoSocialScout()
 
         self.max_mensagens_por_execucao = max(
             int(max_mensagens_por_execucao),
@@ -352,6 +357,12 @@ class SocialScoutScraper(BaseScraper):
                 validacao = validador_atual.validar(
                     deteccao,
                     resolucao,
+                )
+
+                validacao = self.politica_preco_social.aplicar(
+                    deteccao=deteccao,
+                    resolucao=resolucao,
+                    validacao=validacao,
                 )
 
                 if validacao.status == "erro":
