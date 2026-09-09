@@ -14,6 +14,9 @@ from repositories.relatorios_repository import RelatoriosRepository
 from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
+from services.historico_precos_efetivos_service import (
+    HistoricoPrecosEfetivosService,
+)
 from services.historico_precos_service import HistoricoPrecosService, ResultadoHistoricoPreco
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
@@ -53,6 +56,7 @@ class ExecutorPipeline:
         cooldown_republicacao_sem_queda_minutos: float = 720.0,
         repositorio_admin: ControleAdministrativoRepository | None = None,
         politica_marketplace: PoliticaMarketplace | None = None,
+        historico_precos_efetivos_service: HistoricoPrecosEfetivosService | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -82,6 +86,7 @@ class ExecutorPipeline:
         self.cooldown_republicacao_sem_queda_minutos = cooldown_republicacao_sem_queda_minutos
         self.repositorio_admin = repositorio_admin
         self.politica_marketplace = politica_marketplace or PoliticaMarketplace()
+        self.historico_precos_efetivos_service = historico_precos_efetivos_service
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -127,6 +132,7 @@ class ExecutorPipeline:
         quantidade_ignorada = 0
         quantidade_com_erro = 0
         quantidade_precos_registrados = 0
+        quantidade_precos_efetivos_registrados = 0
         quantidade_quedas_detectadas = 0
         quantidade_menores_precos = 0
         quantidade_anomalias_detectadas = 0
@@ -191,6 +197,30 @@ class ExecutorPipeline:
 
                 quantidade_com_erro += 1
 
+            try:
+                resultado_historico_efetivo = self._analisar_historico_efetivo(oferta)
+
+                if (
+                    resultado_historico_efetivo is not None
+                    and resultado_historico_efetivo.novo_preco_registrado
+                ):
+                    quantidade_precos_efetivos_registrados += 1
+
+                    logger.debug(
+                        ("Preco efetivo confirmado registrado: " "%s | %s %.2f | condicao=%s"),
+                        oferta.nome,
+                        oferta.moeda,
+                        resultado_historico_efetivo.preco_efetivo,
+                        resultado_historico_efetivo.tipo_condicao,
+                    )
+
+            except Exception:
+                logger.exception(
+                    ("Erro ao analisar historico de " "preco efetivo confirmado de '%s'."),
+                    oferta.nome,
+                )
+
+                quantidade_com_erro += 1
             resultado_filtro = self.filtro.analisar(oferta)
 
             if not resultado_filtro.aprovada:
@@ -374,6 +404,13 @@ class ExecutorPipeline:
                 logger.exception("Erro ao persistir lote final do hist\u00f3rico de pre\u00e7os.")
                 quantidade_com_erro += 1
 
+        try:
+            self._salvar_historico_efetivo_pendente()
+
+        except Exception:
+            logger.exception("Erro ao persistir lote final do " "historico de precos efetivos.")
+
+            quantidade_com_erro += 1
         if self.deduplicacao_canonica_ativa:
             ofertas_aprovadas, quantidade_deduplicada_canonica = self._deduplicar_ofertas_canonicas(
                 ofertas_aprovadas
@@ -586,6 +623,7 @@ class ExecutorPipeline:
             "anuncios_redundantes_removidos": quantidade_deduplicada_canonica,
             "ofertas_ja_publicadas_sem_nova_queda": (quantidade_ignorada),
             "novos_precos_registrados": (quantidade_precos_registrados),
+            "novos_precos_efetivos_confirmados": (quantidade_precos_efetivos_registrados),
             "quedas_preco_detectadas": (quantidade_quedas_detectadas),
             "novos_menores_precos_historicos": (quantidade_menores_precos),
             "anomalias_preco_detectadas": quantidade_anomalias_detectadas,
@@ -637,6 +675,34 @@ class ExecutorPipeline:
         logger.info("Execução finalizada.")
 
         logger.info("=" * 60)
+
+    def _analisar_historico_efetivo(
+        self,
+        oferta,
+    ):
+        service = self.historico_precos_efetivos_service
+
+        if service is None:
+            return None
+
+        return service.analisar_e_registrar(oferta)
+
+    def _salvar_historico_efetivo_pendente(
+        self,
+    ) -> None:
+        service = self.historico_precos_efetivos_service
+
+        if service is None:
+            return
+
+        salvar = getattr(
+            service,
+            "salvar_pendentes",
+            None,
+        )
+
+        if callable(salvar):
+            salvar()
 
     @staticmethod
     def _obter_queda_percentual(

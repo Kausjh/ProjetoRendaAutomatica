@@ -10,6 +10,9 @@ from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
+from repositories.historico_precos_efetivos_repository import (
+    HistoricoPrecosEfetivosRepository,
+)
 from repositories.historico_precos_repository import HistoricoPrecosRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
@@ -19,6 +22,9 @@ from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.executor_pipeline import ExecutorPipeline
+from services.historico_precos_efetivos_service import (
+    HistoricoPrecosEfetivosService,
+)
 from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
@@ -57,6 +63,14 @@ async def main() -> None:
     )
 
     historico_precos_service = HistoricoPrecosService(repository=(historico_precos_repository))
+
+    historico_precos_efetivos_repository = HistoricoPrecosEfetivosRepository(
+        caminho_arquivo=("data/historico/" "precos_efetivos_confirmados.json"),
+    )
+
+    historico_precos_efetivos_service = HistoricoPrecosEfetivosService(
+        repository=(historico_precos_efetivos_repository),
+    )
 
     filtro = OfertaFilter(
         desconto_minimo=(configuracoes.desconto_minimo),
@@ -172,6 +186,7 @@ async def main() -> None:
         fila_publicacao_repository=fila_publicacao_repository,
         relatorios_repository=(relatorios_repository),
         historico_precos_service=(historico_precos_service),
+        historico_precos_efetivos_service=(historico_precos_efetivos_service),
         filtro=filtro,
         pontuador=pontuador,
         quantidade_scrapers=len(scrapers),
