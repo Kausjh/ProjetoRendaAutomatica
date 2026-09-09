@@ -241,7 +241,7 @@ def test_construtor_transporta_promocao_sem_trocar_preco():
     assert oferta.cupom_validado_descoberta is False
 
 
-def test_promotion_intelligence_ainda_nao_confirma_discovery_signal():
+def test_promotion_intelligence_confirma_preco_sem_validar_codigo():
     enriquecedor, _ = criar_enriquecedor(
         resultado_promocao(
             preco=287.0,
@@ -267,15 +267,25 @@ def test_promotion_intelligence_ainda_nao_confirma_discovery_signal():
 
     assert oferta.promocao_marketplace_confirmada is True
 
+    assert oferta.preco_promocional_marketplace == 287.0
+
     assert oferta.preco_grupo_confere_promocao is True
 
+    # O Promotion Engine nao provou o codigo.
     assert oferta.cupom_validado_descoberta is False
 
     sinal = InteligenciaSinalPreco().analisar(oferta)
 
-    # Fase atual = somente metadata.
-    assert sinal.status == "observado"
-    assert sinal.confirmado is False
+    # Agora o PRECO possui evidencia oficial.
+    assert sinal.status == "confirmado"
+    assert sinal.confirmado is True
+
+    # Mas o codigo continua independente.
+    assert sinal.cupom_validado is False
+
+    assert "preco_promocional_marketplace_confirmado" in sinal.motivos
+
+    assert oferta.preco == validada.preco_oficial
 
 
 def test_wiring_fica_depois_politica_v12_e_antes_status():

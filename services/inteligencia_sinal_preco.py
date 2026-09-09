@@ -111,34 +111,66 @@ class InteligenciaSinalPreco:
             preco_condicional=preco_condicional,
         )
 
-        if not cupom_validado:
+        promocao_marketplace_confirma_preco = self._promocao_marketplace_confirma_preco(
+            oferta,
+            preco_oficial=preco_oficial,
+            preco_condicional=preco_condicional,
+        )
+
+        # Caminho historico:
+        # a condicao/cupom social foi validada.
+        if cupom_validado:
             return self._resultado(
-                status=self.STATUS_OBSERVADO,
-                confirmado=False,
+                status=self.STATUS_CONFIRMADO,
+                confirmado=True,
+                preco_oficial=preco_oficial,
+                preco_condicional=preco_condicional,
+                codigo_cupom=codigo_cupom,
+                cupom_validado=True,
+                economia=economia,
+                confianca=100.0,
+                motivos=(
+                    "preco_condicional_melhor_que_oficial",
+                    "condicao_validada",
+                ),
+            )
+
+        # Novo caminho:
+        #
+        # O marketplace confirmou oficialmente
+        # o PRECO promocional do produto e ele
+        # confere com o preco observado pelo grupo.
+        #
+        # Isso NAO prova o codigo textual recebido.
+        if promocao_marketplace_confirma_preco:
+            return self._resultado(
+                status=self.STATUS_CONFIRMADO,
+                confirmado=True,
                 preco_oficial=preco_oficial,
                 preco_condicional=preco_condicional,
                 codigo_cupom=codigo_cupom,
                 cupom_validado=False,
                 economia=economia,
-                confianca=45.0,
+                confianca=100.0,
                 motivos=(
                     "preco_condicional_melhor_que_oficial",
-                    "condicao_ainda_nao_validada",
+                    "preco_promocional_marketplace_confirmado",
+                    "codigo_cupom_ainda_nao_validado",
                 ),
             )
 
         return self._resultado(
-            status=self.STATUS_CONFIRMADO,
-            confirmado=True,
+            status=self.STATUS_OBSERVADO,
+            confirmado=False,
             preco_oficial=preco_oficial,
             preco_condicional=preco_condicional,
             codigo_cupom=codigo_cupom,
-            cupom_validado=True,
+            cupom_validado=False,
             economia=economia,
-            confianca=100.0,
+            confianca=45.0,
             motivos=(
                 "preco_condicional_melhor_que_oficial",
-                "condicao_validada",
+                "condicao_ainda_nao_validada",
             ),
         )
 
@@ -187,6 +219,46 @@ class InteligenciaSinalPreco:
             numero,
             2,
         )
+
+    def _promocao_marketplace_confirma_preco(
+        self,
+        oferta: Oferta,
+        *,
+        preco_oficial: float,
+        preco_condicional: float,
+    ) -> bool:
+        if not bool(oferta.promocao_marketplace_confirmada):
+            return False
+
+        if oferta.preco_grupo_confere_promocao is not True:
+            return False
+
+        preco_promocional = self._preco_positivo(oferta.preco_promocional_marketplace)
+
+        if preco_promocional is None:
+            return False
+
+        # Precisa realmente melhorar o preco oficial.
+        if preco_promocional >= preco_oficial:
+            return False
+
+        # Defesa em profundidade.
+        #
+        # Mesmo que o metadata diga "confere",
+        # os dois valores sao comparados novamente.
+        #
+        # Mesma tolerancia do Promotion Engine:
+        # R$ 1 ou 0,2% do menor valor.
+        tolerancia = max(
+            1.0,
+            min(
+                preco_promocional,
+                preco_condicional,
+            )
+            * 0.002,
+        )
+
+        return abs(preco_promocional - preco_condicional) <= tolerancia
 
     @staticmethod
     def _economia_percentual(

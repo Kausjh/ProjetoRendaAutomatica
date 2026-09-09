@@ -327,3 +327,59 @@ def test_sinal_social_confirmado_habilita_product_intelligence():
 
     # Ainda nao significa publicar automaticamente.
     assert nota < 72
+
+
+def test_promocao_marketplace_confirmada_habilita_product_intelligence_sem_validar_codigo():
+    p = PontuadorOferta(preco_maximo=10000)
+
+    oferta = oferta_base(
+        preco=2699,
+        preco_antigo=None,
+    )
+
+    oferta.origem_descoberta = "social_scout"
+
+    oferta.preco_condicional_observado = 2399.0
+
+    oferta.codigo_cupom_observado = "GPU300"
+
+    oferta.cupom_validado_descoberta = False
+
+    oferta.status_promocao_marketplace = "confirmada"
+
+    oferta.promocao_marketplace_confirmada = True
+
+    oferta.preco_promocional_marketplace = 2399.0
+
+    oferta.preco_grupo_confere_promocao = True
+
+    preco_oficial_antes = oferta.preco
+
+    nota = p.calcular(
+        oferta,
+        historico(
+            primeiro=False,
+            menor=False,
+            variacao=0,
+            caiu=False,
+            registros=3,
+        ),
+    )
+
+    assert oferta.status_sinal_preco == "confirmado"
+
+    assert oferta.componentes_pontuacao["sinal_preco_descoberta_confirmado"] == 1.0
+
+    assert oferta.componentes_pontuacao["inteligencia_produto"] > 0.0
+
+    assert oferta.componentes_pontuacao["economia_condicional_observada"] > 0.0
+
+    # O codigo nao foi provado.
+    assert oferta.cupom_validado_descoberta is False
+
+    # O preco principal continua oficial.
+    assert oferta.preco == preco_oficial_antes
+
+    # Confirmar a evidencia nao significa
+    # publicacao automatica.
+    assert nota < 72
