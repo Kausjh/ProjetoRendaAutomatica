@@ -57,3 +57,69 @@ def test_gpu_avulsa_recebe_normalizacao_de_alta_confianca():
 def test_acessorio_de_headset_e_bloqueado():
     oferta = classificar("Headband Almofada Headset HyperX Cloud 2")
     assert oferta.eh_nicho is False
+
+
+def test_placa_mae_com_hifen_e_canonizada():
+    normalizado = ClassificadorProduto._normalizar_texto("Placa-M\u00e3e MSI B550M")
+
+    assert normalizado == "placa mae msi b550m"
+
+
+def test_b550_reais_com_hifen_continuam_placa_mae():
+    titulos = (
+        ("Placa-M\u00e3e Msi B550m " "Pro-Vdh Am4 Hdmi Vga"),
+        ("Placa-m\u00e3e Asus P/amd Am4 " "B550m-plus Tuf Gaming " "4xddr4 Matx"),
+    )
+
+    for titulo in titulos:
+        item = classificar(titulo)
+
+        assert item.eh_nicho is True
+
+        assert item.categoria == "Placa-m\u00e3e"
+
+        assert item.categoria != "Mem\u00f3ria RAM"
+
+
+def test_a520_com_ddr4_nao_vira_memoria_ram():
+    item = classificar("Placa-m\u00e3e Msi A520m-a Pro " "Am4 Matx Ddr4 Hdmi Dvi M.2")
+
+    assert item.eh_nicho is True
+
+    assert item.categoria == "Placa-m\u00e3e"
+
+    assert item.categoria != "Mem\u00f3ria RAM"
+
+
+def test_b650_com_ddr5_nao_vira_memoria_ram():
+    item = classificar(
+        "Placa-m\u00e3e Asrock B650M-HDV/M.2 " "AMD AM5 Micro ATX DDR5 PCIe " "Gen5 2 M.2 Slots"
+    )
+
+    assert item.eh_nicho is True
+
+    assert item.categoria == "Placa-m\u00e3e"
+
+    assert item.categoria != "Mem\u00f3ria RAM"
+
+
+def test_memorias_ddr4_e_ddr5_continuam_memoria_ram():
+    titulos = (
+        ("Mem\u00f3ria RAM Kingston Fury Beast " "16GB DDR4 3200MHz"),
+        ("Mem\u00f3ria Corsair Vengeance " "32GB DDR5 6000MHz"),
+    )
+
+    for titulo in titulos:
+        item = classificar(titulo)
+
+        assert item.eh_nicho is True
+
+        assert item.categoria == "Mem\u00f3ria RAM"
+
+
+def test_notebook_com_componentes_continua_notebook():
+    item = classificar("Notebook Lenovo IdeaPad " "Ryzen 7 16GB 512GB SSD")
+
+    assert item.eh_nicho is True
+
+    assert item.categoria == "Notebook"

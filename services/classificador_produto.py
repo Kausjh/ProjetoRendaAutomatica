@@ -1033,5 +1033,18 @@ class ClassificadorProduto:
         )
         texto_normalizado = texto_sem_acentos.lower()
         texto_normalizado = re.sub(r"[^a-z0-9.+/\- ]", " ", texto_normalizado)
+
+        # Hifens continuam preservados globalmente porque fazem
+        # parte de diversos modelos e codigos de produto.
+        #
+        # Somente a identidade semantica "placa-mae" e
+        # canonizada para "placa mae", forma ja usada pelas
+        # regras do classificador.
+        texto_normalizado = re.sub(
+            r"\bplaca-mae\b",
+            "placa mae",
+            texto_normalizado,
+        )
+
         texto_normalizado = re.sub(r"\s+", " ", texto_normalizado)
         return texto_normalizado.strip()
