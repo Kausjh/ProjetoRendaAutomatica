@@ -42,6 +42,39 @@ def _variavel_ativa(
     return valor_padrao
 
 
+def _inteiro_positivo(
+    nome: str,
+    valor_padrao: int,
+) -> int:
+    valor = os.getenv(nome)
+
+    if valor is None:
+        return max(
+            int(valor_padrao),
+            1,
+        )
+
+    try:
+        numero = int(str(valor).strip())
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return max(
+            int(valor_padrao),
+            1,
+        )
+
+    if numero <= 0:
+        return max(
+            int(valor_padrao),
+            1,
+        )
+
+    return numero
+
+
 def criar_scrapers() -> list[BaseScraper]:
     """Cria somente as fontes explicitamente habilitadas."""
 
@@ -61,9 +94,15 @@ def criar_scrapers() -> list[BaseScraper]:
             valor_padrao=True,
         )
 
+        max_mensagens_por_execucao = _inteiro_positivo(
+            "SOCIAL_SCOUT_MAX_MENSAGENS_POR_EXECUCAO",
+            valor_padrao=5,
+        )
+
         scrapers.append(
             SocialScoutScraper(
                 modo_sombra=modo_sombra,
+                max_mensagens_por_execucao=(max_mensagens_por_execucao),
             )
         )
 
