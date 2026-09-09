@@ -120,3 +120,5 @@ database/social_scout.sqlite3-shm
 database/social_scout.sqlite3-wal
 *.session
 *.session-journal
+*.session-shm
+*.session-wal
