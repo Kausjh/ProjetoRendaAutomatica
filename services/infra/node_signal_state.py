@@ -1,9 +1,9 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,29 @@ CAMINHO_ESTADO_TEMPORAL_SINAIS_PADRAO = (
 DIRETORIO_HISTORICO_TEMPORAL_SINAIS_PADRAO = (
     DIRETORIO_PROJETO / "data" / "node" / "historico_sinais"
 )
+
+
+def _instante_referencia(
+    valor: object,
+) -> datetime:
+    if not isinstance(valor, str) or not valor.strip():
+        raise ValueError("Referencia temporal invalida.")
+
+    texto = valor.strip()
+
+    if texto.endswith("Z"):
+        texto = texto[:-1] + "+00:00"
+
+    try:
+        instante = datetime.fromisoformat(texto)
+
+    except ValueError as erro:
+        raise ValueError("Referencia temporal invalida.") from erro
+
+    if instante.tzinfo is None:
+        instante = instante.replace(tzinfo=UTC)
+
+    return instante.astimezone(UTC)
 
 
 def _registro_de_dict(
@@ -149,11 +172,7 @@ def carregar_estado_temporal_sinais(
 
     referencia = dados.get("referencia_temporal")
 
-    if not isinstance(
-        referencia,
-        str,
-    ):
-        raise ValueError("Referencia temporal invalida.")
+    _instante_referencia(referencia)
 
     node_id = dados.get("node_id")
 
@@ -196,36 +215,85 @@ def carregar_estado_temporal_sinais(
     )
 
 
-def atualizar_estado_temporal_sinais(
+def _mapear_sinais_atuais(
     analise: AnaliseSinaisNode,
-    estado_anterior: EstadoTemporalSinaisNode | None = None,
-) -> EstadoTemporalSinaisNode:
-    referencia = analise.referencia_temporal
-
-    if (
-        not isinstance(
-            referencia,
-            str,
-        )
-        or not referencia
-    ):
-        raise ValueError("Analise de sinais sem " "referencia temporal valida.")
-
-    if estado_anterior is not None and estado_anterior.node_id != analise.node_id:
-        estado_anterior = None
-
-    anteriores = {}
-
-    if estado_anterior is not None:
-        anteriores = {sinal.codigo: sinal for sinal in estado_anterior.sinais}
-
-    atuais = {}
+) -> dict[str, Any]:
+    atuais: dict[
+        str,
+        Any,
+    ] = {}
 
     for sinal in analise.sinais:
         if sinal.codigo in atuais:
             raise ValueError("Codigo de sinal duplicado: " f"{sinal.codigo}")
 
         atuais[sinal.codigo] = sinal
+
+    return atuais
+
+
+def _validar_retry_consistente(
+    analise: AnaliseSinaisNode,
+    estado_anterior: EstadoTemporalSinaisNode,
+    atuais: dict[str, Any],
+) -> None:
+    if estado_anterior.node_id != analise.node_id:
+        raise ValueError("Retry temporal com node_id diferente.")
+
+    anteriores_ativos = {
+        sinal.codigo: sinal for sinal in estado_anterior.sinais if sinal.observado_agora
+    }
+
+    if set(anteriores_ativos) != set(atuais):
+        raise ValueError(
+            "A mesma referencia temporal foi " "recebida com conjunto de sinais diferente."
+        )
+
+    for codigo, sinal_atual in atuais.items():
+        anterior = anteriores_ativos[codigo]
+
+        if (
+            anterior.origem != sinal_atual.origem
+            or anterior.titulo != sinal_atual.titulo
+            or anterior.evidencias_mais_recentes != dict(sinal_atual.evidencias)
+        ):
+            raise ValueError(
+                "A mesma referencia temporal foi " "recebida com sinais inconsistentes."
+            )
+
+
+def atualizar_estado_temporal_sinais(
+    analise: AnaliseSinaisNode,
+    estado_anterior: EstadoTemporalSinaisNode | None = None,
+) -> EstadoTemporalSinaisNode:
+    referencia = analise.referencia_temporal
+
+    instante_atual = _instante_referencia(referencia)
+
+    atuais = _mapear_sinais_atuais(analise)
+
+    if estado_anterior is not None and estado_anterior.node_id == analise.node_id:
+        instante_anterior = _instante_referencia(estado_anterior.referencia_temporal)
+
+        if instante_atual < instante_anterior:
+            raise ValueError("Referencia temporal fora de ordem.")
+
+        if instante_atual == instante_anterior:
+            _validar_retry_consistente(
+                analise,
+                estado_anterior,
+                atuais,
+            )
+
+            return estado_anterior
+
+    elif estado_anterior is not None:
+        estado_anterior = None
+
+    anteriores = {}
+
+    if estado_anterior is not None:
+        anteriores = {sinal.codigo: sinal for sinal in estado_anterior.sinais}
 
     codigos = sorted(set(anteriores) | set(atuais))
 
@@ -360,16 +428,46 @@ def salvar_estado_temporal_sinais(
     return caminho
 
 
+def _ultimo_registro_historico(
+    caminho: Path,
+) -> dict[str, Any] | None:
+    if not caminho.exists():
+        return None
+
+    try:
+        linhas = caminho.read_text(encoding="utf-8").splitlines()
+
+    except OSError as erro:
+        raise ValueError("Nao foi possivel ler " "o historico temporal.") from erro
+
+    for linha in reversed(linhas):
+        if not linha.strip():
+            continue
+
+        try:
+            registro = json.loads(linha)
+
+        except json.JSONDecodeError as erro:
+            raise ValueError("Ultimo registro do historico " "temporal esta invalido.") from erro
+
+        if not isinstance(
+            registro,
+            dict,
+        ):
+            raise ValueError("Ultimo registro do historico " "temporal esta invalido.")
+
+        return registro
+
+    return None
+
+
 def registrar_historico_temporal_sinais(
     estado: EstadoTemporalSinaisNode,
     diretorio: str | Path,
 ) -> Path:
     diretorio = Path(diretorio)
 
-    try:
-        instante = datetime.fromisoformat(estado.referencia_temporal)
-    except ValueError as erro:
-        raise ValueError("Referencia temporal " "possui formato invalido.") from erro
+    instante = _instante_referencia(estado.referencia_temporal)
 
     caminho = diretorio / (instante.date().isoformat() + ".jsonl")
 
@@ -377,6 +475,25 @@ def registrar_historico_temporal_sinais(
         parents=True,
         exist_ok=True,
     )
+
+    ultimo = _ultimo_registro_historico(caminho)
+
+    if ultimo is not None:
+        ultimo_node = ultimo.get("node_id")
+
+        ultima_referencia = ultimo.get("referencia_temporal")
+
+        if ultimo_node == estado.node_id and isinstance(
+            ultima_referencia,
+            str,
+        ):
+            ultimo_instante = _instante_referencia(ultima_referencia)
+
+            if instante < ultimo_instante:
+                raise ValueError("Historico temporal fora de ordem.")
+
+            if instante == ultimo_instante:
+                return caminho
 
     with caminho.open(
         "a",
@@ -407,6 +524,14 @@ def persistir_estado_temporal_sinais(
         analise,
         anterior,
     )
+
+    if atual is anterior:
+        registrar_historico_temporal_sinais(
+            atual,
+            diretorio_historico,
+        )
+
+        return atual
 
     salvar_estado_temporal_sinais(
         atual,
