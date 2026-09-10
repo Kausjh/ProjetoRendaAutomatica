@@ -669,7 +669,8 @@ class MercadoLivreScraper(BaseScraper):
                     if not pagina.is_closed():
                         pagina.close()
 
-                navegador.close()
+                # Nao chamamos navegador.close().
+                # O Chrome CDP e compartilhado pelo projeto.
 
         except PlaywrightError as erro:
             logger.exception(
