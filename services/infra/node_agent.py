@@ -25,6 +25,10 @@ from services.infra.node_evidence_interpretation_history_analysis import (
 from services.infra.node_evidence_interpretation_state import (
     persistir_estado_interpretacao_evidencias_node,
 )
+from services.infra.node_evidence_interpretation_temporal_summary import (
+    gerar_resumo_temporal_interpretacoes_node,
+    salvar_resumo_temporal_interpretacoes_node,
+)
 from services.infra.node_evidence_summary import (
     gerar_resumo_evidencias_node,
     salvar_resumo_evidencias_node,
@@ -494,17 +498,48 @@ class NodeHealthAgent:
         self,
         diretorio_historico: Path,
     ) -> None:
+        caminho_analise = self.caminho_estado.parent / "analise_historico_interpretacoes_atual.json"
+
         try:
             analise = analisar_historico_interpretacoes_node(diretorio_historico)
 
             salvar_analise_historico_interpretacoes_node(
                 analise,
-                (self.caminho_estado.parent / "analise_historico_interpretacoes_atual.json"),
+                caminho_analise,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar analise historica "
+                "das interpretacoes observacionais do Node Health."
+            )
+
+            return
+
+        self._atualizar_resumo_temporal_interpretacoes(
+            (self.caminho_estado.parent / "interpretacao_estado_atual.json"),
+            caminho_analise,
+        )
+
+    def _atualizar_resumo_temporal_interpretacoes(
+        self,
+        caminho_estado_interpretacao: Path,
+        caminho_analise: Path,
+    ) -> None:
+        try:
+            resumo = gerar_resumo_temporal_interpretacoes_node(
+                caminho_estado_interpretacao,
+                caminho_analise,
+            )
+
+            salvar_resumo_temporal_interpretacoes_node(
+                resumo,
+                (self.caminho_estado.parent / "resumo_temporal_interpretacoes_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar resumo temporal "
                 "das interpretacoes observacionais do Node Health."
             )
 
