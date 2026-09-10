@@ -680,7 +680,7 @@ class MercadoLivreScraper(BaseScraper):
                 erro,
             )
 
-            return []
+            raise
 
         logger.info(
             "Mercado Livre: %s oferta(s) única(s) coletada(s).",
