@@ -18,6 +18,10 @@ from services.infra.node_evidence_interpretation import (
     interpretar_evidencias_node,
     salvar_interpretacao_evidencias_node,
 )
+from services.infra.node_evidence_interpretation_history_analysis import (
+    analisar_historico_interpretacoes_node,
+    salvar_analise_historico_interpretacoes_node,
+)
 from services.infra.node_evidence_interpretation_state import (
     persistir_estado_interpretacao_evidencias_node,
 )
@@ -467,17 +471,41 @@ class NodeHealthAgent:
         self,
         caminho_interpretacao: Path,
     ) -> None:
+        diretorio_historico = self.caminho_estado.parent / "historico_interpretacoes"
+
         try:
             persistir_estado_interpretacao_evidencias_node(
                 caminho_interpretacao,
                 caminho_estado=(self.caminho_estado.parent / "interpretacao_estado_atual.json"),
-                diretorio_historico=(self.caminho_estado.parent / "historico_interpretacoes"),
+                diretorio_historico=(diretorio_historico),
             )
 
         except Exception:
             logger.exception(
                 "Falha ao persistir estado temporal "
                 "da interpretacao observacional do Node Health."
+            )
+
+            return
+
+        self._atualizar_analise_historico_interpretacoes(diretorio_historico)
+
+    def _atualizar_analise_historico_interpretacoes(
+        self,
+        diretorio_historico: Path,
+    ) -> None:
+        try:
+            analise = analisar_historico_interpretacoes_node(diretorio_historico)
+
+            salvar_analise_historico_interpretacoes_node(
+                analise,
+                (self.caminho_estado.parent / "analise_historico_interpretacoes_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar analise historica "
+                "das interpretacoes observacionais do Node Health."
             )
 
     def _registrar_historico(
