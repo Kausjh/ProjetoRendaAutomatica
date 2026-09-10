@@ -25,6 +25,10 @@ from services.infra.node_evidence_interpretation_history_analysis import (
 from services.infra.node_evidence_interpretation_state import (
     persistir_estado_interpretacao_evidencias_node,
 )
+from services.infra.node_evidence_interpretation_temporal_quality import (
+    analisar_qualidade_temporal_interpretacoes_node,
+    salvar_qualidade_temporal_interpretacoes_node,
+)
 from services.infra.node_evidence_interpretation_temporal_summary import (
     gerar_resumo_temporal_interpretacoes_node,
     salvar_resumo_temporal_interpretacoes_node,
@@ -526,6 +530,8 @@ class NodeHealthAgent:
         caminho_estado_interpretacao: Path,
         caminho_analise: Path,
     ) -> None:
+        caminho_resumo = self.caminho_estado.parent / "resumo_temporal_interpretacoes_atual.json"
+
         try:
             resumo = gerar_resumo_temporal_interpretacoes_node(
                 caminho_estado_interpretacao,
@@ -534,12 +540,38 @@ class NodeHealthAgent:
 
             salvar_resumo_temporal_interpretacoes_node(
                 resumo,
-                (self.caminho_estado.parent / "resumo_temporal_interpretacoes_atual.json"),
+                caminho_resumo,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar resumo temporal "
+                "das interpretacoes observacionais do Node Health."
+            )
+
+            return
+
+        self._atualizar_qualidade_temporal_interpretacoes(caminho_resumo)
+
+    def _atualizar_qualidade_temporal_interpretacoes(
+        self,
+        caminho_resumo: Path,
+    ) -> None:
+        try:
+            qualidade = analisar_qualidade_temporal_interpretacoes_node(
+                caminho_resumo,
+                (self.caminho_estado.parent / "historico_interpretacoes"),
+                cadencia_nominal_segundos=(self.intervalo_segundos),
+            )
+
+            salvar_qualidade_temporal_interpretacoes_node(
+                qualidade,
+                (self.caminho_estado.parent / "qualidade_temporal_interpretacoes_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar qualidade temporal "
                 "das interpretacoes observacionais do Node Health."
             )
 
