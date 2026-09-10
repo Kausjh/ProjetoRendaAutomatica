@@ -31,6 +31,10 @@ from services.infra.node_signal_analysis import (
     analisar_sinais_node,
     salvar_sinais_node,
 )
+from services.infra.node_signal_history_analysis import (
+    analisar_historico_sinais_node,
+    salvar_analise_historico_sinais_node,
+)
 from services.infra.node_signal_state import (
     persistir_estado_temporal_sinais,
 )
@@ -329,6 +333,24 @@ class NodeHealthAgent:
             logger.exception(
                 "Falha ao atualizar persistencia " "temporal dos sinais do Node Health."
             )
+
+            return
+
+        self._atualizar_analise_historico_sinais()
+
+    def _atualizar_analise_historico_sinais(
+        self,
+    ) -> None:
+        try:
+            analise = analisar_historico_sinais_node(self.diretorio_historico_sinais)
+
+            salvar_analise_historico_sinais_node(
+                analise,
+                (self.caminho_estado.parent / "analise_historico_sinais_atual.json"),
+            )
+
+        except Exception:
+            logger.exception("Falha ao atualizar analise historica " "dos sinais do Node Health.")
 
     def _registrar_historico(
         self,
