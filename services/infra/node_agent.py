@@ -14,6 +14,10 @@ from services.infra.node_data_quality import (
     analisar_qualidade_dados_node,
     salvar_qualidade_dados_node,
 )
+from services.infra.node_evidence_summary import (
+    gerar_resumo_evidencias_node,
+    salvar_resumo_evidencias_node,
+)
 from services.infra.node_health import (
     CAMINHO_ESTADO_PADRAO,
     DIRETORIO_PROJETO,
@@ -341,16 +345,44 @@ class NodeHealthAgent:
     def _atualizar_analise_historico_sinais(
         self,
     ) -> None:
+        caminho_analise = self.caminho_estado.parent / "analise_historico_sinais_atual.json"
+
         try:
             analise = analisar_historico_sinais_node(self.diretorio_historico_sinais)
 
             salvar_analise_historico_sinais_node(
                 analise,
-                (self.caminho_estado.parent / "analise_historico_sinais_atual.json"),
+                caminho_analise,
             )
 
         except Exception:
             logger.exception("Falha ao atualizar analise historica " "dos sinais do Node Health.")
+
+            return
+
+        self._atualizar_resumo_evidencias(caminho_analise)
+
+    def _atualizar_resumo_evidencias(
+        self,
+        caminho_analise_historica: Path,
+    ) -> None:
+        try:
+            resumo = gerar_resumo_evidencias_node(
+                caminho_sinais=self.caminho_sinais,
+                caminho_estado_temporal=(self.caminho_estado_temporal_sinais),
+                caminho_historico_sinais=(caminho_analise_historica),
+                caminho_qualidade=self.caminho_qualidade,
+            )
+
+            salvar_resumo_evidencias_node(
+                resumo,
+                (self.caminho_estado.parent / "resumo_evidencias_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar resumo observacional " "de evidencias do Node Health."
+            )
 
     def _registrar_historico(
         self,
