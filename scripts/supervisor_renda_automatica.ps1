@@ -24,6 +24,10 @@ $NodeAgentScript = Join-Path `
     $ProjectRoot `
     "node_agent.py"
 
+$PartnerScoutScript = Join-Path `
+    $ProjectRoot `
+    "partner_scout.py"
+
 $ChromeProfile = Join-Path `
     $ProjectRoot `
     "browser_profile_cdp"
@@ -55,6 +59,10 @@ if (-not (Test-Path $ListenerScript)) {
 
 if (-not (Test-Path $NodeAgentScript)) {
     throw "node_agent.py nao encontrado."
+}
+
+if (-not (Test-Path $PartnerScoutScript)) {
+    throw "partner_scout.py nao encontrado."
 }
 
 
@@ -407,6 +415,10 @@ while ($true) {
         Ensure-SingleProjectProcess `
             -ScriptName "node_agent.py" `
             -ScriptPath $NodeAgentScript
+
+        Ensure-SingleProjectProcess `
+            -ScriptName "partner_scout.py" `
+            -ScriptPath $PartnerScoutScript
     }
     catch {
 

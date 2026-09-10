@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import re
@@ -189,3 +189,26 @@ def test_supervisor_identifica_servicos_pelo_caminho_absoluto_do_script():
     assert 'CommandLine -like "*$ScriptPath*"' in conteudo
 
     assert "-ScriptPath $ScriptPath" in conteudo
+
+
+def test_supervisor_mantem_partner_scout_fora_da_limpeza_de_startup():
+    conteudo = carregar_supervisor()
+
+    trecho = extrair_regex_processos_gerenciados(
+        conteudo,
+    )
+
+    assert "partner_scout" not in trecho
+
+
+def test_supervisor_garante_partner_scout_no_loop():
+    conteudo = carregar_supervisor()
+
+    assert "$PartnerScoutScript = Join-Path" in conteudo
+    assert '"partner_scout.py"' in conteudo
+    assert "Test-Path $PartnerScoutScript" in conteudo
+
+    loop = conteudo[conteudo.index("while ($true)") :]
+
+    assert '-ScriptName "partner_scout.py"' in loop
+    assert "-ScriptPath $PartnerScoutScript" in loop
