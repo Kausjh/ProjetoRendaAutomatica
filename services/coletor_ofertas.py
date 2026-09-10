@@ -1,11 +1,13 @@
-# 63.8738, -149.7525
+﻿# 63.8738, -149.7525
 
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections.abc import Mapping
 
 from models.oferta import Oferta
+from models.resultado_hunter_v2 import ResultadoHunterV2
 from scrapers.base_scraper import BaseScraper
 from services.classificador_produto import ClassificadorProduto
+from services.hunter_v2 import HunterV2
 from services.pipeline.pipeline import Pipeline
 from services.validadores.validador_oferta import (
     EstatisticasValidacao,
@@ -23,24 +25,27 @@ class ColetorOfertas:
         classificador: ClassificadorProduto,
         pipeline: Pipeline | None = None,
         validador: ValidadorOferta | None = None,
+        hunter: HunterV2 | None = None,
+        limites_hunter_por_fonte: (
+            Mapping[
+                str,
+                int,
+            ]
+            | None
+        ) = None,
     ) -> None:
+        self.scrapers = list(scrapers)
 
-        self.scrapers = scrapers
         self.classificador = classificador
         self.pipeline = pipeline
+
         self.validador = validador if validador is not None else ValidadorOferta()
 
-    def _executar_scraper(self, scraper: BaseScraper, limite: int) -> list[Oferta]:
+        self.hunter = hunter if hunter is not None else HunterV2(self.scrapers)
 
-        nome_scraper = type(scraper).__name__
+        self.limites_hunter_por_fonte = dict(limites_hunter_por_fonte or {})
 
-        logger.info("Executando scraper: %s", nome_scraper)
-
-        ofertas = scraper.buscar_ofertas(limite=limite)
-
-        logger.info("Scraper '%s' encontrou %s oferta(s).", nome_scraper, len(ofertas))
-
-        return ofertas
+        self.ultimo_resultado_hunter: ResultadoHunterV2 | None = None
 
     def _confirmar_handoff(
         self,
@@ -68,7 +73,7 @@ class ColetorOfertas:
 
             except Exception:
                 logger.exception(
-                    "Erro ao confirmar handoff da oferta " "'%s' no scraper '%s'.",
+                    ("Erro ao confirmar handoff " "da oferta '%s' no scraper '%s'."),
                     oferta.nome,
                     type(scraper).__name__,
                 )
@@ -99,9 +104,34 @@ class ColetorOfertas:
 
         return confirmados
 
-    def _remover_duplicadas(self, ofertas: list[Oferta]) -> list[Oferta]:
+    def _confirmar_duplicatas_hunter(
+        self,
+        resultado: ResultadoHunterV2,
+    ) -> int:
+        confirmadas = 0
 
+        for duplicata in resultado.duplicatas:
+            if duplicata.tipo_identidade == "link_exato":
+                motivo = "link_duplicado_no_coletor"
+
+            else:
+                motivo = "identidade_segura_" "duplicada_no_hunter"
+
+            if self._confirmar_handoff(
+                duplicata.oferta,
+                status="coletor_duplicada",
+                motivo=motivo,
+            ):
+                confirmadas += 1
+
+        return confirmadas
+
+    def _remover_duplicadas(
+        self,
+        ofertas: list[Oferta],
+    ) -> list[Oferta]:
         ofertas_unicas: list[Oferta] = []
+
         links = set()
 
         for oferta in ofertas:
@@ -114,7 +144,7 @@ class ColetorOfertas:
                 self._confirmar_handoff(
                     oferta,
                     status="coletor_duplicada",
-                    motivo="link_duplicado_no_coletor",
+                    motivo=("link_duplicado_no_coletor"),
                 )
 
                 continue
@@ -125,13 +155,19 @@ class ColetorOfertas:
 
         return ofertas_unicas
 
-    def _validar_ofertas(self, ofertas: list[Oferta]) -> list[Oferta]:
-
+    def _validar_ofertas(
+        self,
+        ofertas: list[Oferta],
+    ) -> list[Oferta]:
         resultado: list[Oferta] = []
+
         estatisticas = EstatisticasValidacao()
 
         for oferta in ofertas:
-            oferta_validada = self.validador.validar(oferta, estatisticas=estatisticas)
+            oferta_validada = self.validador.validar(
+                oferta,
+                estatisticas=estatisticas,
+            )
 
             resultado.append(oferta_validada)
 
@@ -139,22 +175,26 @@ class ColetorOfertas:
 
         return resultado
 
-    def _classificar_ofertas(self, ofertas: list[Oferta]) -> list[Oferta]:
-
+    def _classificar_ofertas(
+        self,
+        ofertas: list[Oferta],
+    ) -> list[Oferta]:
         resultado: list[Oferta] = []
 
         for oferta in ofertas:
             if not oferta.valida:
                 logger.warning(
-                    ("Oferta inválida não seguirá para a " "classificação: '%s'. Motivos: %s"),
+                    ("Oferta invalida nao seguira " "para a classificacao: '%s'. " "Motivos: %s"),
                     oferta.nome,
                     "; ".join(oferta.motivos_validacao),
                 )
 
                 self._confirmar_handoff(
                     oferta,
-                    status="coletor_rejeitada_validacao",
-                    motivo=("; ".join(oferta.motivos_validacao) or "oferta_invalida_no_coletor"),
+                    status=("coletor_rejeitada_validacao"),
+                    motivo=(
+                        "; ".join(oferta.motivos_validacao) or ("oferta_invalida_" "no_coletor")
+                    ),
                 )
 
                 continue
@@ -163,7 +203,7 @@ class ColetorOfertas:
 
             if not classificacao.eh_nicho:
                 logger.debug(
-                    "Oferta fora do nicho removida: '%s'. Motivo: %s",
+                    ("Oferta fora do nicho " "removida: '%s'. Motivo: %s"),
                     oferta.nome,
                     classificacao.motivo,
                 )
@@ -177,7 +217,7 @@ class ColetorOfertas:
                 continue
 
             logger.debug(
-                ("Oferta classificada: '%s' | " "Categoria: %s | Relevância: %.2f."),
+                ("Oferta classificada: '%s' | " "Categoria: %s | " "Relevancia: %.2f."),
                 oferta.nome,
                 classificacao.categoria,
                 classificacao.relevancia,
@@ -186,15 +226,17 @@ class ColetorOfertas:
             resultado.append(oferta)
 
         logger.info(
-            ("Classificação concluída: %s de %s oferta(s) " "pertencem ao nicho."),
+            ("Classificacao concluida: " "%s de %s oferta(s) " "pertencem ao nicho."),
             len(resultado),
             len(ofertas),
         )
 
         return resultado
 
-    def _processar_pipeline(self, ofertas: list[Oferta]) -> list[Oferta]:
-
+    def _processar_pipeline(
+        self,
+        ofertas: list[Oferta],
+    ) -> list[Oferta]:
         if self.pipeline is None:
             return ofertas
 
@@ -205,31 +247,43 @@ class ColetorOfertas:
 
         return resultado
 
-    def buscar_ofertas(self, limite_por_scraper: int) -> list[Oferta]:
-
-        ofertas: list[Oferta] = []
-
+    def buscar_ofertas(
+        self,
+        limite_por_scraper: int,
+    ) -> list[Oferta]:
         if not self.scrapers:
             logger.warning("Nenhum scraper foi configurado.")
-            return ofertas
 
-        with ThreadPoolExecutor(max_workers=max(1, len(self.scrapers))) as executor:
+            return []
 
-            tarefas = {
-                executor.submit(self._executar_scraper, scraper, limite_por_scraper): scraper
-                for scraper in self.scrapers
-            }
+        resultado_hunter = self.hunter.descobrir(
+            limite_por_scraper,
+            limites_por_fonte=(self.limites_hunter_por_fonte),
+        )
 
-            for tarefa in as_completed(tarefas):
-                scraper = tarefas[tarefa]
+        self.ultimo_resultado_hunter = resultado_hunter
 
-                try:
-                    ofertas.extend(tarefa.result())
-                except Exception:
-                    logger.exception("Erro ao executar o scraper '%s'.", type(scraper).__name__)
+        handoffs_duplicatas = self._confirmar_duplicatas_hunter(resultado_hunter)
 
-        logger.info("Ofertas coletadas antes da remoção de duplicatas: %s", len(ofertas))
+        logger.info(
+            (
+                "Hunter V2 -> Coletor: "
+                "%s bruta(s), "
+                "%s unica(s), "
+                "%s duplicada(s), "
+                "%s fonte(s) com erro, "
+                "%s handoff(s) de duplicata."
+            ),
+            resultado_hunter.quantidade_bruta,
+            resultado_hunter.quantidade_unica,
+            (resultado_hunter.duplicadas_confirmadas),
+            len(resultado_hunter.fontes_com_erro),
+            handoffs_duplicatas,
+        )
 
+        ofertas = resultado_hunter.ofertas
+
+        # Barreira defensiva legada.
         ofertas = self._remover_duplicadas(ofertas)
 
         ofertas = self._validar_ofertas(ofertas)
@@ -238,6 +292,9 @@ class ColetorOfertas:
 
         ofertas = self._processar_pipeline(ofertas)
 
-        logger.info("Pipeline executado para %s oferta(s).", len(ofertas))
+        logger.info(
+            "Pipeline executado para %s oferta(s).",
+            len(ofertas),
+        )
 
         return ofertas

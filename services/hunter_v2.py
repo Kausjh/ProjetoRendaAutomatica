@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from models.oferta import Oferta
 from models.resultado_hunter_v2 import (
     CandidatoHunterV2,
+    DuplicataHunterV2,
     ResultadoFonteHunterV2,
     ResultadoHunterV2,
 )
@@ -34,22 +35,9 @@ class HunterV2:
     """
     Orquestrador de descoberta de alto recall.
 
-    Responsabilidades:
-    - executar fontes em paralelo;
-    - permitir orcamento diferente por fonte;
-    - isolar falhas individuais;
-    - remover somente duplicatas com identidade segura;
-    - preservar rastreabilidade das fontes.
-
-    Nao e responsabilidade do Hunter:
-    - validar oferta;
-    - classificar nicho;
-    - pontuar;
-    - executar pipeline;
-    - decidir publicacao.
-
-    O Hunter pode trazer ruido.
-    As camadas posteriores continuam conservadoras.
+    O Hunter coleta candidatos e preserva recall.
+    Validacao, classificacao, pontuacao e publicacao
+    pertencem as camadas posteriores.
     """
 
     def __init__(
@@ -200,16 +188,16 @@ class HunterV2:
         coletas: list[_ColetaFonte],
     ) -> tuple[
         tuple[CandidatoHunterV2, ...],
-        int,
+        tuple[DuplicataHunterV2, ...],
     ]:
         candidatos: list[CandidatoHunterV2] = []
+
+        duplicatas: list[DuplicataHunterV2] = []
 
         indice_por_chave: dict[
             tuple[str, ...],
             int,
         ] = {}
-
-        duplicadas = 0
 
         for coleta in coletas:
             for oferta in coleta.ofertas:
@@ -229,9 +217,16 @@ class HunterV2:
 
                     continue
 
-                duplicadas += 1
-
                 existente = candidatos[indice_existente]
+
+                duplicatas.append(
+                    DuplicataHunterV2(
+                        oferta=oferta,
+                        representante=(existente.oferta),
+                        fonte=coleta.fonte,
+                        tipo_identidade=chave[0],
+                    )
+                )
 
                 if coleta.fonte in existente.fontes:
                     continue
@@ -243,7 +238,7 @@ class HunterV2:
 
         return (
             tuple(candidatos),
-            duplicadas,
+            tuple(duplicatas),
         )
 
     def descobrir(
@@ -284,6 +279,7 @@ class HunterV2:
             return ResultadoHunterV2(
                 candidatos=(),
                 fontes=(),
+                duplicatas=(),
                 quantidade_bruta=0,
                 quantidade_unica=0,
                 duplicadas_confirmadas=0,
@@ -300,7 +296,6 @@ class HunterV2:
                 len(self.scrapers),
             )
         ) as executor:
-
             tarefas = {}
 
             for indice, scraper in enumerate(self.scrapers):
@@ -328,7 +323,7 @@ class HunterV2:
 
         quantidade_bruta = sum(len(coleta.ofertas) for coleta in coletas)
 
-        candidatos, duplicadas = self._deduplicar(coletas)
+        candidatos, duplicatas = self._deduplicar(coletas)
 
         fontes = tuple(
             ResultadoFonteHunterV2(
@@ -343,15 +338,19 @@ class HunterV2:
         resultado = ResultadoHunterV2(
             candidatos=candidatos,
             fontes=fontes,
+            duplicatas=duplicatas,
             quantidade_bruta=(quantidade_bruta),
             quantidade_unica=len(candidatos),
-            duplicadas_confirmadas=(duplicadas),
+            duplicadas_confirmadas=len(duplicatas),
         )
 
         logger.info(
-            "Hunter V2 concluido: "
-            "%s bruta(s), %s unica(s), "
-            "%s duplicada(s), %s fonte(s) com erro.",
+            (
+                "Hunter V2 concluido: "
+                "%s bruta(s), %s unica(s), "
+                "%s duplicada(s), "
+                "%s fonte(s) com erro."
+            ),
             resultado.quantidade_bruta,
             resultado.quantidade_unica,
             resultado.duplicadas_confirmadas,

@@ -26,9 +26,18 @@ class CandidatoHunterV2:
 
 
 @dataclass(frozen=True, slots=True)
+class DuplicataHunterV2:
+    oferta: Oferta
+    representante: Oferta
+    fonte: str
+    tipo_identidade: str
+
+
+@dataclass(frozen=True, slots=True)
 class ResultadoHunterV2:
     candidatos: tuple[CandidatoHunterV2, ...]
     fontes: tuple[ResultadoFonteHunterV2, ...]
+    duplicatas: tuple[DuplicataHunterV2, ...]
     quantidade_bruta: int
     quantidade_unica: int
     duplicadas_confirmadas: int
