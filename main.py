@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from config.configuracoes import Configuracoes
+from config.hunter_budget_config import carregar_limites_hunter_por_fonte
 from config.logging_config import configurar_logging
 from filters.oferta_filter import OfertaFilter
 from repositories.controle_administrativo_repository import (
@@ -38,6 +39,7 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     try:
         configuracoes = Configuracoes()
+        limites_hunter_por_fonte = carregar_limites_hunter_por_fonte()
 
     except ValueError:
         logger.exception("Erro nas configurações do projeto.")
@@ -48,7 +50,11 @@ async def main() -> None:
 
     classificador = ClassificadorProduto()
 
-    coletor = ColetorOfertas(scrapers=scrapers, classificador=classificador)
+    coletor = ColetorOfertas(
+        scrapers=scrapers,
+        classificador=classificador,
+        limites_hunter_por_fonte=limites_hunter_por_fonte,
+    )
 
     repository = PublicadosRepository()
 
