@@ -1,8 +1,49 @@
 import json
 
+import pytest
+
 from services.aliexpress_preco_cdp_service import (
     AliExpressPrecoCdpService,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolar_cooldown_aliexpress_do_estado_real(
+    monkeypatch,
+    tmp_path,
+):
+    """
+    Nenhum teste deste modulo pode escrever no
+    cooldown persistente usado pelo runtime real.
+
+    Construtores que ja fornecem arquivo_cooldown
+    explicitamente continuam usando o proprio arquivo.
+    """
+    original_init = AliExpressPrecoCdpService.__init__
+
+    arquivo_isolado = tmp_path / "aliexpress_cooldown_teste.txt"
+
+    def init_isolado(
+        self,
+        *args,
+        **kwargs,
+    ):
+        kwargs.setdefault(
+            "arquivo_cooldown",
+            arquivo_isolado,
+        )
+
+        return original_init(
+            self,
+            *args,
+            **kwargs,
+        )
+
+    monkeypatch.setattr(
+        AliExpressPrecoCdpService,
+        "__init__",
+        init_isolado,
+    )
 
 
 def criar_html(
