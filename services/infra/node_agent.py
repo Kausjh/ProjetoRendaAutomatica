@@ -25,6 +25,10 @@ from services.infra.node_evidence_interpretation_history_analysis import (
 from services.infra.node_evidence_interpretation_state import (
     persistir_estado_interpretacao_evidencias_node,
 )
+from services.infra.node_evidence_interpretation_synthesis import (
+    gerar_sintese_evidencias_interpretacoes_node,
+    salvar_sintese_evidencias_interpretacoes_node,
+)
 from services.infra.node_evidence_interpretation_temporal_quality import (
     analisar_qualidade_temporal_interpretacoes_node,
     salvar_qualidade_temporal_interpretacoes_node,
@@ -557,6 +561,10 @@ class NodeHealthAgent:
         self,
         caminho_resumo: Path,
     ) -> None:
+        caminho_qualidade = (
+            self.caminho_estado.parent / "qualidade_temporal_interpretacoes_atual.json"
+        )
+
         try:
             qualidade = analisar_qualidade_temporal_interpretacoes_node(
                 caminho_resumo,
@@ -566,12 +574,41 @@ class NodeHealthAgent:
 
             salvar_qualidade_temporal_interpretacoes_node(
                 qualidade,
-                (self.caminho_estado.parent / "qualidade_temporal_interpretacoes_atual.json"),
+                caminho_qualidade,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar qualidade temporal "
+                "das interpretacoes observacionais do Node Health."
+            )
+
+            return
+
+        self._atualizar_sintese_evidencias_interpretacoes(
+            caminho_resumo,
+            caminho_qualidade,
+        )
+
+    def _atualizar_sintese_evidencias_interpretacoes(
+        self,
+        caminho_resumo: Path,
+        caminho_qualidade: Path,
+    ) -> None:
+        try:
+            sintese = gerar_sintese_evidencias_interpretacoes_node(
+                caminho_resumo,
+                caminho_qualidade,
+            )
+
+            salvar_sintese_evidencias_interpretacoes_node(
+                sintese,
+                (self.caminho_estado.parent / "sintese_evidencias_interpretacoes_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar sintese estruturada "
                 "das interpretacoes observacionais do Node Health."
             )
 
