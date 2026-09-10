@@ -37,6 +37,9 @@ class AgregadorTendenciasComerciaisScout:
     DIRECAO_ESTAVEL = "estavel"
     DIRECAO_QUEDA = "queda"
 
+    MINIMO_COBERTURA_TEMPORAL_HORAS = 1.0
+    MAXIMA_CONCENTRACAO_MESMO_MINUTO = 0.80
+
     def agregar(
         self,
         observacoes: list[ObservacaoComercialScout],
@@ -160,6 +163,19 @@ class AgregadorTendenciasComerciaisScout:
             if sinais_distintos < minimo_sinais:
                 continue
 
+            (
+                qualidade_temporal,
+                cobertura_horas,
+                minutos_distintos,
+                concentracao_maxima_minuto,
+            ) = self._avaliar_qualidade_temporal(
+                registros,
+                meio_janela=meio_janela,
+            )
+
+            if not qualidade_temporal:
+                continue
+
             anteriores = sum(1 for instante, _rotulo in registros if instante < meio_janela)
 
             recentes = sum(1 for instante, _rotulo in registros if instante >= meio_janela)
@@ -181,6 +197,11 @@ class AgregadorTendenciasComerciaisScout:
                 f"janela_horas:{janela_horas}",
                 f"periodo_anterior:{anteriores}",
                 f"periodo_recente:{recentes}",
+                "qualidade_temporal:aprovada",
+                f"cobertura_horas:{cobertura_horas:.3f}",
+                f"minutos_distintos:{minutos_distintos}",
+                ("concentracao_maxima_minuto:" f"{concentracao_maxima_minuto:.3f}"),
+                "ambas_metades_tem_sinais",
             )
 
             tendencias.append(
@@ -207,6 +228,73 @@ class AgregadorTendenciasComerciaisScout:
         )
 
         return tendencias
+
+    @classmethod
+    def _avaliar_qualidade_temporal(
+        cls,
+        registros: list[
+            tuple[
+                datetime,
+                str,
+            ]
+        ],
+        *,
+        meio_janela: datetime,
+    ) -> tuple[
+        bool,
+        float,
+        int,
+        float,
+    ]:
+        """
+        Impede que um lote concentrado ou um cold start
+        seja interpretado como tendencia comercial.
+
+        A verificacao e feita por dimensao/chave depois
+        da deduplicacao por sinal.
+        """
+
+        if len(registros) < 2:
+            return (
+                False,
+                0.0,
+                0,
+                1.0,
+            )
+
+        instantes = sorted(instante for instante, _rotulo in registros)
+
+        cobertura_horas = (instantes[-1] - instantes[0]).total_seconds() / 3600.0
+
+        minutos = Counter(
+            instante.replace(
+                second=0,
+                microsecond=0,
+            )
+            for instante in instantes
+        )
+
+        minutos_distintos = len(minutos)
+
+        concentracao_maxima_minuto = max(minutos.values()) / len(instantes)
+
+        possui_periodo_anterior = any(instante < meio_janela for instante in instantes)
+
+        possui_periodo_recente = any(instante >= meio_janela for instante in instantes)
+
+        qualidade_temporal = (
+            cobertura_horas >= cls.MINIMO_COBERTURA_TEMPORAL_HORAS
+            and concentracao_maxima_minuto < cls.MAXIMA_CONCENTRACAO_MESMO_MINUTO
+            and possui_periodo_anterior
+            and possui_periodo_recente
+        )
+
+        return (
+            qualidade_temporal,
+            cobertura_horas,
+            minutos_distintos,
+            concentracao_maxima_minuto,
+        )
 
     @classmethod
     def _extrair_dimensoes(

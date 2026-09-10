@@ -269,6 +269,7 @@ def test_termos_equivalentes_sao_agregados_sem_diferenca_de_caixa():
     tendencias = AgregadorTendenciasComerciaisScout().agregar(
         observacoes,
         agora=AGORA,
+        janela_horas=24,
     )
 
     termos = buscar(
@@ -304,6 +305,7 @@ def test_parceiro_com_id_e_agregado_pelo_id_e_nao_pelo_nome():
     tendencias = AgregadorTendenciasComerciaisScout().agregar(
         observacoes,
         agora=AGORA,
+        janela_horas=24,
     )
 
     parceiros = buscar(
@@ -339,6 +341,7 @@ def test_marketplace_e_cupom_sao_dimensoes_independentes():
     tendencias = AgregadorTendenciasComerciaisScout().agregar(
         observacoes,
         agora=AGORA,
+        janela_horas=24,
     )
 
     marketplaces = buscar(
