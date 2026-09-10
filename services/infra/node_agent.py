@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -30,6 +30,9 @@ from services.infra.node_identity import (
 from services.infra.node_signal_analysis import (
     analisar_sinais_node,
     salvar_sinais_node,
+)
+from services.infra.node_signal_state import (
+    persistir_estado_temporal_sinais,
 )
 from services.infra.node_trend_analysis import (
     analisar_tendencia_node,
@@ -98,6 +101,10 @@ class NodeHealthAgent:
             ...,
             Path,
         ] = salvar_sinais_node,
+        persistir_estado_sinais: Callable[
+            ...,
+            object,
+        ] = persistir_estado_temporal_sinais,
     ) -> None:
         intervalo_segundos = float(intervalo_segundos)
 
@@ -157,6 +164,12 @@ class NodeHealthAgent:
         self._analisar_sinais = analisar_sinais
 
         self._salvar_sinais = salvar_sinais
+
+        self._persistir_estado_sinais = persistir_estado_sinais
+
+        self.caminho_estado_temporal_sinais = diretorio_derivados / "sinais_estado_atual.json"
+
+        self.diretorio_historico_sinais = diretorio_derivados / "historico_sinais"
 
         self._parada = threading.Event()
 
@@ -296,8 +309,26 @@ class NodeHealthAgent:
                 self.caminho_sinais,
             )
 
+            self._atualizar_estado_temporal_sinais(sinais)
+
         except Exception:
             logger.exception("Falha ao atualizar " "sinais observacionais " "do Node Health.")
+
+    def _atualizar_estado_temporal_sinais(
+        self,
+        sinais: object,
+    ) -> None:
+        try:
+            self._persistir_estado_sinais(
+                sinais,
+                caminho_estado=(self.caminho_estado_temporal_sinais),
+                diretorio_historico=(self.diretorio_historico_sinais),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar persistencia " "temporal dos sinais do Node Health."
+            )
 
     def _registrar_historico(
         self,
