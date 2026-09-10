@@ -236,3 +236,73 @@ def test_snapshot_e_salvo_em_json_atomico(
     assert dados["node_id"] == ("node-a1b2c3d4e5f6")
 
     assert not (tmp_path / "estado_atual.json.tmp").exists()
+
+
+def test_snapshot_detecta_node_health_agent_sem_confundir_arquivo_de_teste(
+    monkeypatch,
+    tmp_path,
+):
+    projeto = tmp_path / "ProjetoRendaAutomatica"
+
+    projeto.mkdir()
+
+    processos = (
+        _processo(
+            70,
+            1,
+            "python.exe",
+            f"{projeto}\\node_agent.py",
+        ),
+        _processo(
+            71,
+            1,
+            "python.exe",
+            ("python.exe -m pytest " f"{projeto}\\tests\\" "test_node_agent.py"),
+        ),
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_listar_processos",
+        lambda: processos,
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_cdp_esta_disponivel",
+        lambda: False,
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_obter_metricas_sistema",
+        lambda: node_health.MetricasSistema(
+            uptime_segundos=100.0,
+            cpu_percentual=10.0,
+            memoria_total_bytes=1000,
+            memoria_disponivel_bytes=500,
+            memoria_uso_percentual=50.0,
+        ),
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_metricas_disco",
+        lambda diretorio: (
+            2000,
+            1000,
+            50.0,
+        ),
+    )
+
+    estado = node_health.capturar_estado_node(
+        node_id="node-a1b2c3d4e5f6",
+        diretorio_projeto=projeto,
+    )
+
+    servicos = {servico.nome: servico for servico in estado.servicos}
+
+    agente = servicos["node_health_agent"]
+
+    assert agente.ativo is True
+    assert agente.pids == (70,)

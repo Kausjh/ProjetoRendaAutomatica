@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 $ErrorActionPreference = "Stop"
 
@@ -19,6 +19,10 @@ $RuntimeScript = Join-Path `
 $ListenerScript = Join-Path `
     $ProjectRoot `
     "social_scout_telegram.py"
+
+$NodeAgentScript = Join-Path `
+    $ProjectRoot `
+    "node_agent.py"
 
 $ChromeProfile = Join-Path `
     $ProjectRoot `
@@ -49,10 +53,14 @@ if (-not (Test-Path $ListenerScript)) {
     throw "social_scout_telegram.py nao encontrado."
 }
 
+if (-not (Test-Path $NodeAgentScript)) {
+    throw "node_agent.py nao encontrado."
+}
+
 
 function Get-ProjectPythonProcess {
     param(
-        [string]$ScriptName
+        [string]$ScriptPath
     )
 
     $resultado = @(
@@ -61,7 +69,7 @@ function Get-ProjectPythonProcess {
                 $_.Name -match "^python(w)?\.exe$" -and
                 $_.CommandLine -and
                 $_.CommandLine -like "*$ProjectRoot*" -and
-                $_.CommandLine -like "*$ScriptName*"
+                $_.CommandLine -like "*$ScriptPath*"
             }
     )
 
@@ -71,12 +79,12 @@ function Get-ProjectPythonProcess {
 
 function Get-ProjectProcess {
     param(
-        [string]$ScriptName
+        [string]$ScriptPath
     )
 
     $processos = @(
         Get-ProjectPythonProcess `
-            -ScriptName $ScriptName
+            -ScriptPath $ScriptPath
     )
 
     if ($processos.Count -eq 0) {
@@ -239,7 +247,7 @@ function Ensure-SingleProjectProcess {
 
     $processos = @(
         Get-ProjectProcess `
-            -ScriptName $ScriptName
+            -ScriptPath $ScriptPath
     )
 
     if ($processos.Count -gt 1) {
@@ -269,7 +277,7 @@ function Ensure-SingleProjectProcess {
 
         $processos = @(
             Get-ProjectProcess `
-                -ScriptName $ScriptName
+                -ScriptPath $ScriptPath
         )
     }
 
@@ -395,6 +403,10 @@ while ($true) {
         Ensure-SingleProjectProcess `
             -ScriptName "runtime.py" `
             -ScriptPath $RuntimeScript
+
+        Ensure-SingleProjectProcess `
+            -ScriptName "node_agent.py" `
+            -ScriptPath $NodeAgentScript
     }
     catch {
 

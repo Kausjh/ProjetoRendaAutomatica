@@ -158,3 +158,34 @@ def test_supervisor_e_sintaticamente_valido_no_powershell():
     )
 
     assert resultado.returncode == 0, resultado.stdout + "\n" + resultado.stderr
+
+
+def test_supervisor_mantem_node_health_agent_fora_da_limpeza_de_startup():
+    conteudo = carregar_supervisor()
+
+    trecho = extrair_regex_processos_gerenciados(
+        conteudo,
+    )
+
+    assert "node_agent" not in trecho
+
+
+def test_supervisor_garante_node_health_agent_no_loop():
+    conteudo = carregar_supervisor()
+
+    assert "$NodeAgentScript = Join-Path" in conteudo
+    assert '"node_agent.py"' in conteudo
+    assert "Test-Path $NodeAgentScript" in conteudo
+
+    loop = conteudo[conteudo.index("while ($true)") :]
+
+    assert '-ScriptName "node_agent.py"' in loop
+    assert "-ScriptPath $NodeAgentScript" in loop
+
+
+def test_supervisor_identifica_servicos_pelo_caminho_absoluto_do_script():
+    conteudo = carregar_supervisor()
+
+    assert 'CommandLine -like "*$ScriptPath*"' in conteudo
+
+    assert "-ScriptPath $ScriptPath" in conteudo

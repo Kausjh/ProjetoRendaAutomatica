@@ -803,6 +803,12 @@ def capturar_estado_node(
         "publicador_fila.py",
     )
 
+    node_agent_pids = _buscar_pids(
+        processos,
+        diretorio_projeto,
+        str(diretorio_projeto / "node_agent.py"),
+    )
+
     chrome_pids = _buscar_chrome_cdp_pids(
         processos,
         diretorio_projeto,
@@ -835,6 +841,11 @@ def capturar_estado_node(
             nome="publicador_fila",
             ativo=bool(publicador_pids),
             pids=publicador_pids,
+        ),
+        EstadoServicoNode(
+            nome="node_health_agent",
+            ativo=bool(node_agent_pids),
+            pids=node_agent_pids,
         ),
         EstadoServicoNode(
             nome="chrome_cdp",
