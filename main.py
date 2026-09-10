@@ -30,6 +30,7 @@ from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.pontuador_oferta import PontuadorOferta
+from services.scout.wiring_discovery_comercial_hunter import aplicar_discovery_comercial_hunter
 
 configurar_logging()
 
@@ -40,6 +41,12 @@ async def main() -> None:
     try:
         configuracoes = Configuracoes()
         limites_hunter_por_fonte = carregar_limites_hunter_por_fonte()
+
+        resultado_discovery_comercial = aplicar_discovery_comercial_hunter(
+            limites_hunter_por_fonte,
+        )
+
+        limites_hunter_por_fonte = resultado_discovery_comercial.como_mapping()
 
     except ValueError:
         logger.exception("Erro nas configurações do projeto.")
