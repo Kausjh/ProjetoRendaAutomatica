@@ -42,6 +42,10 @@ from services.infra.node_signal_history_analysis import (
 from services.infra.node_signal_state import (
     persistir_estado_temporal_sinais,
 )
+from services.infra.node_temporal_evidence_quality import (
+    analisar_qualidade_temporal_evidencia_node,
+    salvar_qualidade_temporal_evidencia_node,
+)
 from services.infra.node_trend_analysis import (
     analisar_tendencia_node,
     salvar_tendencia_node,
@@ -366,6 +370,8 @@ class NodeHealthAgent:
         self,
         caminho_analise_historica: Path,
     ) -> None:
+        caminho_resumo = self.caminho_estado.parent / "resumo_evidencias_atual.json"
+
         try:
             resumo = gerar_resumo_evidencias_node(
                 caminho_sinais=self.caminho_sinais,
@@ -376,12 +382,40 @@ class NodeHealthAgent:
 
             salvar_resumo_evidencias_node(
                 resumo,
-                (self.caminho_estado.parent / "resumo_evidencias_atual.json"),
+                caminho_resumo,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar resumo observacional " "de evidencias do Node Health."
+            )
+
+            return
+
+        self._atualizar_qualidade_temporal_evidencia(
+            caminho_resumo,
+            caminho_analise_historica,
+        )
+
+    def _atualizar_qualidade_temporal_evidencia(
+        self,
+        caminho_resumo: Path,
+        caminho_analise_historica: Path,
+    ) -> None:
+        try:
+            analise = analisar_qualidade_temporal_evidencia_node(
+                caminho_resumo=caminho_resumo,
+                caminho_historico_sinais=(caminho_analise_historica),
+            )
+
+            salvar_qualidade_temporal_evidencia_node(
+                analise,
+                (self.caminho_estado.parent / "qualidade_evidencia_temporal_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar qualidade temporal " "da evidencia do Node Health."
             )
 
     def _registrar_historico(
