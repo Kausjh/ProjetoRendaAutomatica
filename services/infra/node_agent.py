@@ -29,6 +29,9 @@ from services.infra.node_evidence_interpretation_synthesis import (
     gerar_sintese_evidencias_interpretacoes_node,
     salvar_sintese_evidencias_interpretacoes_node,
 )
+from services.infra.node_evidence_interpretation_synthesis_history import (
+    persistir_sintese_evidencias_interpretacoes_node,
+)
 from services.infra.node_evidence_interpretation_temporal_quality import (
     analisar_qualidade_temporal_interpretacoes_node,
     salvar_qualidade_temporal_interpretacoes_node,
@@ -595,6 +598,10 @@ class NodeHealthAgent:
         caminho_resumo: Path,
         caminho_qualidade: Path,
     ) -> None:
+        caminho_sintese = (
+            self.caminho_estado.parent / "sintese_evidencias_interpretacoes_atual.json"
+        )
+
         try:
             sintese = gerar_sintese_evidencias_interpretacoes_node(
                 caminho_resumo,
@@ -603,12 +610,32 @@ class NodeHealthAgent:
 
             salvar_sintese_evidencias_interpretacoes_node(
                 sintese,
-                (self.caminho_estado.parent / "sintese_evidencias_interpretacoes_atual.json"),
+                caminho_sintese,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar sintese estruturada "
+                "das interpretacoes observacionais do Node Health."
+            )
+
+            return
+
+        self._persistir_historico_sintese_evidencias_interpretacoes(caminho_sintese)
+
+    def _persistir_historico_sintese_evidencias_interpretacoes(
+        self,
+        caminho_sintese: Path,
+    ) -> None:
+        try:
+            persistir_sintese_evidencias_interpretacoes_node(
+                caminho_sintese,
+                (self.caminho_estado.parent / "historico_sinteses_interpretacoes"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao persistir historico da sintese "
                 "das interpretacoes observacionais do Node Health."
             )
 
