@@ -13,10 +13,22 @@ class ResultadoFonteHunterV2:
     limite_solicitado: int
     quantidade_coletada: int
     erro: str | None = None
+    quantidade_novas: int = 0
+    quantidade_duplicadas: int = 0
 
     @property
     def sucesso(self) -> bool:
         return self.erro is None
+
+    @property
+    def taxa_novidade_percentual(self) -> float:
+        if self.quantidade_coletada <= 0:
+            return 0.0
+
+        return round(
+            (self.quantidade_novas / self.quantidade_coletada) * 100,
+            2,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,3 +61,7 @@ class ResultadoHunterV2:
     @property
     def fontes_com_erro(self) -> tuple[str, ...]:
         return tuple(resultado.fonte for resultado in self.fontes if not resultado.sucesso)
+
+    @property
+    def quantidade_candidatos_multifonte(self) -> int:
+        return sum(1 for candidato in self.candidatos if len(candidato.fontes) > 1)

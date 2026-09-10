@@ -116,7 +116,7 @@ class HunterV2:
             ):
                 raise TypeError("Scraper nao retornou list.")
 
-            ofertas = []
+            ofertas: list[Oferta] = []
 
             for item in resultado:
                 if not isinstance(
@@ -241,6 +241,24 @@ class HunterV2:
             tuple(duplicatas),
         )
 
+    @staticmethod
+    def _quantidade_novas_fonte(
+        *,
+        fonte: str,
+        candidatos: tuple[CandidatoHunterV2, ...],
+    ) -> int:
+        return sum(
+            1 for candidato in candidatos if (candidato.fontes and candidato.fontes[0] == fonte)
+        )
+
+    @staticmethod
+    def _quantidade_duplicadas_fonte(
+        *,
+        fonte: str,
+        duplicatas: tuple[DuplicataHunterV2, ...],
+    ) -> int:
+        return sum(1 for duplicata in duplicatas if duplicata.fonte == fonte)
+
     def descobrir(
         self,
         limite_base: int,
@@ -331,6 +349,18 @@ class HunterV2:
                 limite_solicitado=(coleta.limite),
                 quantidade_coletada=len(coleta.ofertas),
                 erro=coleta.erro,
+                quantidade_novas=(
+                    self._quantidade_novas_fonte(
+                        fonte=coleta.fonte,
+                        candidatos=candidatos,
+                    )
+                ),
+                quantidade_duplicadas=(
+                    self._quantidade_duplicadas_fonte(
+                        fonte=coleta.fonte,
+                        duplicatas=duplicatas,
+                    )
+                ),
             )
             for coleta in coletas
         )
@@ -349,12 +379,31 @@ class HunterV2:
                 "Hunter V2 concluido: "
                 "%s bruta(s), %s unica(s), "
                 "%s duplicada(s), "
+                "%s multifonte, "
                 "%s fonte(s) com erro."
             ),
             resultado.quantidade_bruta,
             resultado.quantidade_unica,
             resultado.duplicadas_confirmadas,
+            (resultado.quantidade_candidatos_multifonte),
             len(resultado.fontes_com_erro),
         )
+
+        for fonte in resultado.fontes:
+            logger.info(
+                (
+                    "Hunter V2 yield | %s | "
+                    "limite=%s | coletadas=%s | "
+                    "novas=%s | duplicadas=%s | "
+                    "novidade=%.2f%% | sucesso=%s"
+                ),
+                fonte.fonte,
+                fonte.limite_solicitado,
+                fonte.quantidade_coletada,
+                fonte.quantidade_novas,
+                fonte.quantidade_duplicadas,
+                fonte.taxa_novidade_percentual,
+                fonte.sucesso,
+            )
 
         return resultado
