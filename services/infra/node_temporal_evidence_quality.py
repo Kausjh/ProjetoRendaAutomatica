@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -181,6 +181,23 @@ def _atinge_referencia(
     return cobertura >= referencia
 
 
+def _cobertura_janela(
+    dados: object,
+) -> float | None:
+    if not isinstance(
+        dados,
+        dict,
+    ):
+        return None
+
+    normalizada = _numero(dados.get("cobertura_normalizada_percentual"))
+
+    if normalizada is not None:
+        return normalizada
+
+    return _numero(dados.get("razao_amostras_percentual"))
+
+
 def _extrair_cobertura(
     qualidade_relacionada: object,
 ) -> tuple[
@@ -233,7 +250,7 @@ def _extrair_cobertura(
         )
 
     if tipo == "janela_recente":
-        recente = _numero(dados.get("razao_amostras_percentual"))
+        recente = _cobertura_janela(dados)
 
         return (
             tipo,
@@ -501,12 +518,8 @@ def analisar_qualidade_temporal_evidencia_node(
         node_id=node_id,
         referencia_temporal=referencia_temporal,
         cobertura_referencia_percentual=(cobertura_referencia_percentual),
-        janela_recente_cobertura_percentual=(
-            _numero(janela_recente.get("razao_amostras_percentual"))
-        ),
-        janela_baseline_cobertura_percentual=(
-            _numero(janela_baseline.get("razao_amostras_percentual"))
-        ),
+        janela_recente_cobertura_percentual=(_cobertura_janela(janela_recente)),
+        janela_baseline_cobertura_percentual=(_cobertura_janela(janela_baseline)),
         janela_recente_amostras_esperadas=(_inteiro(janela_recente.get("amostras_esperadas"))),
         janela_recente_amostras_observadas=(_inteiro(janela_recente.get("amostras_observadas"))),
         janela_baseline_amostras_esperadas=(_inteiro(janela_baseline.get("amostras_esperadas"))),

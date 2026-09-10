@@ -332,3 +332,189 @@ def test_parametros_invalidos_sao_rejeitados(
             tmp_path,
             cadencia_nominal_segundos=0,
         )
+
+
+def test_razao_bruta_pode_superar_100_mas_cobertura_nao(
+    tmp_path,
+):
+    historico = tmp_path / "historico"
+
+    registros = [
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:00:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:04:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:08:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:12:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:15:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+    ]
+
+    _gravar(
+        historico / "2026-09-10.jsonl",
+        registros,
+    )
+
+    janela = analisar_qualidade_dados_node(
+        historico,
+        janela_recente_minutos=15,
+        janela_baseline_minutos=15,
+        cadencia_nominal_segundos=300,
+    ).janela_recente
+
+    assert janela.amostras_esperadas == 4
+    assert janela.amostras_observadas == 5
+
+    assert janela.razao_amostras_percentual == 125.0
+    assert janela.cobertura_normalizada_percentual == 100.0
+    assert janela.amostras_excedentes == 1
+
+
+def test_timestamps_distintos_sao_separados_das_amostras(
+    tmp_path,
+):
+    historico = tmp_path / "historico"
+
+    registros = [
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:00:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:10:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:10:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:15:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+    ]
+
+    _gravar(
+        historico / "2026-09-10.jsonl",
+        registros,
+    )
+
+    janela = analisar_qualidade_dados_node(
+        historico,
+        janela_recente_minutos=15,
+        janela_baseline_minutos=15,
+        cadencia_nominal_segundos=300,
+    ).janela_recente
+
+    assert janela.amostras_observadas == 4
+    assert janela.timestamps_distintos == 3
+    assert janela.timestamps_repetidos == 1
+
+
+def test_gap_de_borda_nao_altera_gap_interno_legado(
+    tmp_path,
+):
+    historico = tmp_path / "historico"
+
+    registros = [
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:10:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+        {
+            "node_id": "node-v117",
+            "coletado_em": "2026-09-10T00:15:00+00:00",
+            "cpu_percentual": 10,
+            "servicos": [],
+        },
+    ]
+
+    _gravar(
+        historico / "2026-09-10.jsonl",
+        registros,
+    )
+
+    janela = analisar_qualidade_dados_node(
+        historico,
+        janela_recente_minutos=15,
+        janela_baseline_minutos=15,
+        cadencia_nominal_segundos=300,
+    ).janela_recente
+
+    assert janela.maior_gap_segundos == 300.0
+    assert janela.gaps_igual_ou_acima_2x_cadencia == 0
+
+    assert janela.gap_borda_inicio_segundos == 600.0
+    assert janela.gap_borda_fim_segundos == 0.0
+
+    assert janela.maior_gap_com_bordas_segundos == 600.0
+
+    assert janela.maior_gap_com_bordas_multiplo_cadencia == 2.0
+
+    assert janela.gaps_com_bordas_igual_ou_acima_2x_cadencia == 1
+
+
+def test_janela_sem_amostras_tem_gap_total_observavel(
+    tmp_path,
+):
+    historico = tmp_path / "historico"
+
+    _gravar(
+        historico / "2026-09-10.jsonl",
+        [
+            {
+                "node_id": "node-v117",
+                "coletado_em": "2026-09-10T01:00:00+00:00",
+                "cpu_percentual": 10,
+                "servicos": [],
+            }
+        ],
+    )
+
+    janela = analisar_qualidade_dados_node(
+        historico,
+        janela_recente_minutos=30,
+        janela_baseline_minutos=30,
+        cadencia_nominal_segundos=300,
+    ).janela_baseline
+
+    assert janela.amostras_observadas == 0
+    assert janela.timestamps_distintos == 0
+
+    assert janela.gap_borda_inicio_segundos is None
+    assert janela.gap_borda_fim_segundos is None
+    assert janela.maior_gap_com_bordas_segundos == 1800.0
+
+    assert janela.gaps_com_bordas_igual_ou_acima_2x_cadencia == 1

@@ -391,3 +391,86 @@ def test_saida_atomica_e_sem_politica_operacional(
         "severidade",
     ):
         assert termo not in texto
+
+
+def test_cobertura_de_janela_prefere_valor_normalizado(
+    tmp_path,
+):
+    caminhos, resumo, historico = _base(tmp_path)
+
+    resumo["qualidade_janela_recente"]["razao_amostras_percentual"] = 110.0
+
+    resumo["qualidade_janela_recente"]["cobertura_normalizada_percentual"] = 100.0
+
+    resumo["qualidade_janela_baseline"]["razao_amostras_percentual"] = 102.0
+
+    resumo["qualidade_janela_baseline"]["cobertura_normalizada_percentual"] = 100.0
+
+    _gravar(
+        caminhos["resumo"],
+        resumo,
+    )
+
+    _gravar(
+        caminhos["historico"],
+        historico,
+    )
+
+    analise = _analisar(caminhos)
+
+    assert analise.janela_recente_cobertura_percentual == 100.0
+
+    assert analise.janela_baseline_cobertura_percentual == 100.0
+
+
+def test_sinal_de_janela_prefere_cobertura_normalizada(
+    tmp_path,
+):
+    caminhos, resumo, historico = _base(tmp_path)
+
+    codigo = "cobertura_coleta_recente_incompleta"
+
+    resumo["sinais"] = [
+        {
+            "codigo": codigo,
+            "observado_agora": True,
+            "quantidade_episodios": 1,
+            "reaparecimentos": 0,
+            "duracao_episodio_atual_segundos": 300.0,
+            "maior_duracao_acompanhada_segundos": 300.0,
+            "qualidade_relacionada": {
+                "tipo": "janela_recente",
+                "nome": "janela_recente",
+                "dados": {
+                    "razao_amostras_percentual": 120.0,
+                    "cobertura_normalizada_percentual": 100.0,
+                },
+            },
+        }
+    ]
+
+    historico["sinais"] = [
+        {
+            "codigo": codigo,
+            "episodios": [
+                {
+                    "inicio_confirmado": True,
+                    "aberto_no_fim_da_janela": True,
+                }
+            ],
+        }
+    ]
+
+    _gravar(
+        caminhos["resumo"],
+        resumo,
+    )
+
+    _gravar(
+        caminhos["historico"],
+        historico,
+    )
+
+    sinal = _analisar(caminhos).sinais[0]
+
+    assert sinal.cobertura_recente_percentual == 100.0

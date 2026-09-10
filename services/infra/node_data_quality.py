@@ -125,8 +125,8 @@ def _qualidade_janela(
 
     instantes.sort()
 
-    maior_gap: float | None = None
-    gaps_grandes = 0
+    maior_gap_interno: float | None = None
+    gaps_grandes_internos = 0
     repetidos = 0
 
     for anterior, atual in zip(
@@ -140,11 +140,11 @@ def _qualidade_janela(
             repetidos += 1
             continue
 
-        if maior_gap is None or gap > maior_gap:
-            maior_gap = gap
+        if maior_gap_interno is None or gap > maior_gap_interno:
+            maior_gap_interno = gap
 
         if gap >= (cadencia_segundos * 2.0):
-            gaps_grandes += 1
+            gaps_grandes_internos += 1
 
     if inclui_fim:
         esperadas = _esperadas_recente(
@@ -159,12 +159,78 @@ def _qualidade_janela(
 
     observadas = len(instantes)
 
-    razao = _percentual(
+    distintos = len(set(instantes))
+
+    razao_bruta = _percentual(
         observadas,
         esperadas,
     )
 
-    multiplo = maior_gap / cadencia_segundos if maior_gap is not None else None
+    cobertura_normalizada = (
+        min(
+            100.0,
+            razao_bruta,
+        )
+        if razao_bruta is not None
+        else None
+    )
+
+    excedentes = max(
+        0,
+        observadas - esperadas,
+    )
+
+    duracao_janela_segundos = (fim - inicio).total_seconds()
+
+    gap_borda_inicio: float | None = None
+    gap_borda_fim: float | None = None
+
+    gaps_com_bordas: list[float] = []
+
+    if instantes:
+        gap_borda_inicio = max(
+            0.0,
+            (instantes[0] - inicio).total_seconds(),
+        )
+
+        gap_borda_fim = max(
+            0.0,
+            (fim - instantes[-1]).total_seconds(),
+        )
+
+        gaps_com_bordas.append(gap_borda_inicio)
+
+        for anterior, atual in zip(
+            instantes,
+            instantes[1:],
+            strict=False,
+        ):
+            gap = (atual - anterior).total_seconds()
+
+            if gap > 0:
+                gaps_com_bordas.append(gap)
+
+        gaps_com_bordas.append(gap_borda_fim)
+
+    else:
+        gaps_com_bordas.append(
+            max(
+                0.0,
+                duracao_janela_segundos,
+            )
+        )
+
+    maior_gap_com_bordas = max(gaps_com_bordas) if gaps_com_bordas else None
+
+    gaps_grandes_com_bordas = sum(1 for gap in gaps_com_bordas if gap >= (cadencia_segundos * 2.0))
+
+    multiplo_interno = (
+        maior_gap_interno / cadencia_segundos if maior_gap_interno is not None else None
+    )
+
+    multiplo_com_bordas = (
+        maior_gap_com_bordas / cadencia_segundos if maior_gap_com_bordas is not None else None
+    )
 
     return QualidadeJanelaNode(
         nome=nome,
@@ -174,13 +240,21 @@ def _qualidade_janela(
         cadencia_nominal_segundos=(cadencia_segundos),
         amostras_esperadas=esperadas,
         amostras_observadas=observadas,
-        razao_amostras_percentual=razao,
+        razao_amostras_percentual=(razao_bruta),
         primeira_amostra=(instantes[0].isoformat() if instantes else None),
         ultima_amostra=(instantes[-1].isoformat() if instantes else None),
-        maior_gap_segundos=maior_gap,
-        maior_gap_multiplo_cadencia=(multiplo),
-        gaps_igual_ou_acima_2x_cadencia=(gaps_grandes),
-        timestamps_repetidos=repetidos,
+        maior_gap_segundos=(maior_gap_interno),
+        maior_gap_multiplo_cadencia=(multiplo_interno),
+        gaps_igual_ou_acima_2x_cadencia=(gaps_grandes_internos),
+        timestamps_repetidos=(repetidos),
+        timestamps_distintos=(distintos),
+        amostras_excedentes=(excedentes),
+        cobertura_normalizada_percentual=(cobertura_normalizada),
+        gap_borda_inicio_segundos=(gap_borda_inicio),
+        gap_borda_fim_segundos=(gap_borda_fim),
+        maior_gap_com_bordas_segundos=(maior_gap_com_bordas),
+        maior_gap_com_bordas_multiplo_cadencia=(multiplo_com_bordas),
+        gaps_com_bordas_igual_ou_acima_2x_cadencia=(gaps_grandes_com_bordas),
     )
 
 

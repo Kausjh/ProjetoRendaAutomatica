@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -28,6 +28,19 @@ class QualidadeJanelaNode:
     gaps_igual_ou_acima_2x_cadencia: int
     timestamps_repetidos: int
 
+    timestamps_distintos: int = 0
+    amostras_excedentes: int = 0
+
+    cobertura_normalizada_percentual: float | None = None
+
+    gap_borda_inicio_segundos: float | None = None
+    gap_borda_fim_segundos: float | None = None
+
+    maior_gap_com_bordas_segundos: float | None = None
+    maior_gap_com_bordas_multiplo_cadencia: float | None = None
+
+    gaps_com_bordas_igual_ou_acima_2x_cadencia: int = 0
+
     def para_dict(self) -> dict[str, Any]:
         return {
             "nome": self.nome,
@@ -44,6 +57,16 @@ class QualidadeJanelaNode:
             "maior_gap_multiplo_cadencia": (self.maior_gap_multiplo_cadencia),
             "gaps_igual_ou_acima_2x_cadencia": (self.gaps_igual_ou_acima_2x_cadencia),
             "timestamps_repetidos": self.timestamps_repetidos,
+            "timestamps_distintos": self.timestamps_distintos,
+            "amostras_excedentes": self.amostras_excedentes,
+            "cobertura_normalizada_percentual": (self.cobertura_normalizada_percentual),
+            "gap_borda_inicio_segundos": (self.gap_borda_inicio_segundos),
+            "gap_borda_fim_segundos": (self.gap_borda_fim_segundos),
+            "maior_gap_com_bordas_segundos": (self.maior_gap_com_bordas_segundos),
+            "maior_gap_com_bordas_multiplo_cadencia": (self.maior_gap_com_bordas_multiplo_cadencia),
+            "gaps_com_bordas_igual_ou_acima_2x_cadencia": (
+                self.gaps_com_bordas_igual_ou_acima_2x_cadencia
+            ),
         }
 
 
