@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 import pytest
 
@@ -186,3 +186,200 @@ def test_maximo_ciclos_invalido_e_rejeitado(
         match="maior que zero",
     ):
         agente.executar(maximo_ciclos=0)
+
+
+def test_v17_atualiza_derivados_automaticamente(
+    tmp_path,
+):
+    estado = _estado()
+    chamadas = []
+
+    historico = tmp_path / "historico"
+
+    def analisar_historico(diretorio):
+        chamadas.append(("analise", diretorio))
+        return "ANALISE"
+
+    def analisar_tendencia(diretorio):
+        chamadas.append(("tendencia", diretorio))
+        return "TENDENCIA"
+
+    def analisar_qualidade(
+        diretorio,
+        *,
+        cadencia_nominal_segundos,
+    ):
+        chamadas.append(
+            (
+                "qualidade",
+                diretorio,
+                cadencia_nominal_segundos,
+            )
+        )
+        return "QUALIDADE"
+
+    def salvar(nome):
+        def executar(
+            valor,
+            caminho,
+        ):
+            chamadas.append(
+                (
+                    nome,
+                    valor,
+                    caminho,
+                )
+            )
+            return caminho
+
+        return executar
+
+    agente = NodeHealthAgent(
+        intervalo_segundos=123,
+        caminho_estado=(tmp_path / "estado_atual.json"),
+        diretorio_historico=historico,
+        obter_node_id=lambda: ("node-a1b2c3d4e5f6"),
+        capturar_estado=(lambda *, node_id: estado),
+        salvar_estado=(lambda valor, caminho: caminho),
+        analisar_historico=(analisar_historico),
+        salvar_analise=salvar("salvar_analise"),
+        analisar_tendencia=(analisar_tendencia),
+        salvar_tendencia=salvar("salvar_tendencia"),
+        analisar_qualidade=(analisar_qualidade),
+        salvar_qualidade=salvar("salvar_qualidade"),
+    )
+
+    resultado = agente.executar_ciclo()
+
+    assert resultado is estado
+
+    assert (historico / "2026-09-10.jsonl").exists()
+
+    assert chamadas == [
+        (
+            "analise",
+            historico,
+        ),
+        (
+            "salvar_analise",
+            "ANALISE",
+            tmp_path / "analise_atual.json",
+        ),
+        (
+            "tendencia",
+            historico,
+        ),
+        (
+            "salvar_tendencia",
+            "TENDENCIA",
+            tmp_path / "tendencia_atual.json",
+        ),
+        (
+            "qualidade",
+            historico,
+            123.0,
+        ),
+        (
+            "salvar_qualidade",
+            "QUALIDADE",
+            tmp_path / "qualidade_atual.json",
+        ),
+    ]
+
+
+def test_v17_falha_derivada_nao_quebra_coleta(
+    tmp_path,
+):
+    estado = _estado()
+    chamadas = []
+
+    def falhar_analise(diretorio):
+        del diretorio
+        chamadas.append("analise")
+        raise RuntimeError("falha proposital")
+
+    def tendencia(diretorio):
+        del diretorio
+        chamadas.append("tendencia")
+        return "TENDENCIA"
+
+    def falhar_salvamento(
+        valor,
+        caminho,
+    ):
+        del valor, caminho
+        chamadas.append("salvar_tendencia")
+        raise OSError("falha proposital")
+
+    def qualidade(
+        diretorio,
+        *,
+        cadencia_nominal_segundos,
+    ):
+        del diretorio
+        del cadencia_nominal_segundos
+        chamadas.append("qualidade")
+        return "QUALIDADE"
+
+    def salvar_qualidade(
+        valor,
+        caminho,
+    ):
+        del valor
+        chamadas.append("salvar_qualidade")
+        return caminho
+
+    agente = NodeHealthAgent(
+        intervalo_segundos=300,
+        caminho_estado=(tmp_path / "estado.json"),
+        diretorio_historico=(tmp_path / "historico"),
+        obter_node_id=lambda: ("node-a1b2c3d4e5f6"),
+        capturar_estado=(lambda *, node_id: estado),
+        salvar_estado=(lambda valor, caminho: caminho),
+        analisar_historico=(falhar_analise),
+        salvar_analise=(lambda valor, caminho: caminho),
+        analisar_tendencia=tendencia,
+        salvar_tendencia=(falhar_salvamento),
+        analisar_qualidade=qualidade,
+        salvar_qualidade=(salvar_qualidade),
+    )
+
+    resultado = agente.executar_ciclo()
+
+    assert resultado is estado
+
+    assert (tmp_path / "historico" / "2026-09-10.jsonl").exists()
+
+    assert chamadas == [
+        "analise",
+        "tendencia",
+        "salvar_tendencia",
+        "qualidade",
+        "salvar_qualidade",
+    ]
+
+
+def test_v17_defaults_geram_derivados_reais(
+    tmp_path,
+):
+    estado = _estado()
+
+    agente = NodeHealthAgent(
+        intervalo_segundos=300,
+        caminho_estado=(tmp_path / "estado_atual.json"),
+        diretorio_historico=(tmp_path / "historico"),
+        obter_node_id=lambda: ("node-a1b2c3d4e5f6"),
+        capturar_estado=(lambda *, node_id: estado),
+    )
+
+    resultado = agente.executar_ciclo()
+
+    assert resultado is estado
+
+    for nome in (
+        "estado_atual.json",
+        "analise_atual.json",
+        "tendencia_atual.json",
+        "qualidade_atual.json",
+    ):
+        assert (tmp_path / nome).exists()

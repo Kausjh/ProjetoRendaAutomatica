@@ -10,14 +10,26 @@ from datetime import datetime
 from pathlib import Path
 
 from models.estado_node import EstadoNode
+from services.infra.node_data_quality import (
+    analisar_qualidade_dados_node,
+    salvar_qualidade_dados_node,
+)
 from services.infra.node_health import (
     CAMINHO_ESTADO_PADRAO,
     DIRETORIO_PROJETO,
     capturar_estado_node,
     salvar_estado_node,
 )
+from services.infra.node_history_analysis import (
+    analisar_historico_node,
+    salvar_analise_node,
+)
 from services.infra.node_identity import (
     obter_ou_criar_node_id,
+)
+from services.infra.node_trend_analysis import (
+    analisar_tendencia_node,
+    salvar_tendencia_node,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,10 +42,13 @@ DIRETORIO_HISTORICO_PADRAO = DIRETORIO_PROJETO / "data" / "node" / "historico"
 class NodeHealthAgent:
     def __init__(
         self,
-        intervalo_segundos: float = (INTERVALO_PADRAO_SEGUNDOS),
+        intervalo_segundos: float = INTERVALO_PADRAO_SEGUNDOS,
         *,
-        caminho_estado: str | Path = (CAMINHO_ESTADO_PADRAO),
-        diretorio_historico: str | Path = (DIRETORIO_HISTORICO_PADRAO),
+        caminho_estado: str | Path = CAMINHO_ESTADO_PADRAO,
+        diretorio_historico: str | Path = DIRETORIO_HISTORICO_PADRAO,
+        caminho_analise: str | Path | None = None,
+        caminho_tendencia: str | Path | None = None,
+        caminho_qualidade: str | Path | None = None,
         obter_node_id: Callable[
             [],
             str,
@@ -46,6 +61,30 @@ class NodeHealthAgent:
             ...,
             Path,
         ] = salvar_estado_node,
+        analisar_historico: Callable[
+            ...,
+            object,
+        ] = analisar_historico_node,
+        salvar_analise: Callable[
+            ...,
+            Path,
+        ] = salvar_analise_node,
+        analisar_tendencia: Callable[
+            ...,
+            object,
+        ] = analisar_tendencia_node,
+        salvar_tendencia: Callable[
+            ...,
+            Path,
+        ] = salvar_tendencia_node,
+        analisar_qualidade: Callable[
+            ...,
+            object,
+        ] = analisar_qualidade_dados_node,
+        salvar_qualidade: Callable[
+            ...,
+            Path,
+        ] = salvar_qualidade_dados_node,
     ) -> None:
         intervalo_segundos = float(intervalo_segundos)
 
@@ -53,16 +92,41 @@ class NodeHealthAgent:
             raise ValueError("intervalo_segundos precisa " "ser maior que zero.")
 
         self.intervalo_segundos = intervalo_segundos
-
         self.caminho_estado = Path(caminho_estado)
-
         self.diretorio_historico = Path(diretorio_historico)
 
+        diretorio_derivados = self.caminho_estado.parent
+
+        self.caminho_analise = Path(
+            caminho_analise
+            if caminho_analise is not None
+            else diretorio_derivados / "analise_atual.json"
+        )
+
+        self.caminho_tendencia = Path(
+            caminho_tendencia
+            if caminho_tendencia is not None
+            else diretorio_derivados / "tendencia_atual.json"
+        )
+
+        self.caminho_qualidade = Path(
+            caminho_qualidade
+            if caminho_qualidade is not None
+            else diretorio_derivados / "qualidade_atual.json"
+        )
+
         self._obter_node_id = obter_node_id
-
         self._capturar_estado = capturar_estado
-
         self._salvar_estado = salvar_estado
+
+        self._analisar_historico = analisar_historico
+        self._salvar_analise = salvar_analise
+
+        self._analisar_tendencia = analisar_tendencia
+        self._salvar_tendencia = salvar_tendencia
+
+        self._analisar_qualidade = analisar_qualidade
+        self._salvar_qualidade = salvar_qualidade
 
         self._parada = threading.Event()
 
@@ -80,6 +144,8 @@ class NodeHealthAgent:
         )
 
         self._registrar_historico(estado)
+
+        self._atualizar_derivados()
 
         return estado
 
@@ -115,6 +181,45 @@ class NodeHealthAgent:
         logger.info("Node Health Agent encerrado.")
 
         return ciclos
+
+    def _atualizar_derivados(
+        self,
+    ) -> None:
+        try:
+            analise = self._analisar_historico(self.diretorio_historico)
+
+            self._salvar_analise(
+                analise,
+                self.caminho_analise,
+            )
+
+        except Exception:
+            logger.exception("Falha ao atualizar " "analise historica do Node Health.")
+
+        try:
+            tendencia = self._analisar_tendencia(self.diretorio_historico)
+
+            self._salvar_tendencia(
+                tendencia,
+                self.caminho_tendencia,
+            )
+
+        except Exception:
+            logger.exception("Falha ao atualizar " "tendencia do Node Health.")
+
+        try:
+            qualidade = self._analisar_qualidade(
+                self.diretorio_historico,
+                cadencia_nominal_segundos=(self.intervalo_segundos),
+            )
+
+            self._salvar_qualidade(
+                qualidade,
+                self.caminho_qualidade,
+            )
+
+        except Exception:
+            logger.exception("Falha ao atualizar qualidade " "dos dados do Node Health.")
 
     def _registrar_historico(
         self,
