@@ -27,6 +27,10 @@ from services.infra.node_history_analysis import (
 from services.infra.node_identity import (
     obter_ou_criar_node_id,
 )
+from services.infra.node_signal_analysis import (
+    analisar_sinais_node,
+    salvar_sinais_node,
+)
 from services.infra.node_trend_analysis import (
     analisar_tendencia_node,
     salvar_tendencia_node,
@@ -42,13 +46,14 @@ DIRETORIO_HISTORICO_PADRAO = DIRETORIO_PROJETO / "data" / "node" / "historico"
 class NodeHealthAgent:
     def __init__(
         self,
-        intervalo_segundos: float = INTERVALO_PADRAO_SEGUNDOS,
+        intervalo_segundos: float = (INTERVALO_PADRAO_SEGUNDOS),
         *,
-        caminho_estado: str | Path = CAMINHO_ESTADO_PADRAO,
-        diretorio_historico: str | Path = DIRETORIO_HISTORICO_PADRAO,
+        caminho_estado: str | Path = (CAMINHO_ESTADO_PADRAO),
+        diretorio_historico: str | Path = (DIRETORIO_HISTORICO_PADRAO),
         caminho_analise: str | Path | None = None,
         caminho_tendencia: str | Path | None = None,
         caminho_qualidade: str | Path | None = None,
+        caminho_sinais: str | Path | None = None,
         obter_node_id: Callable[
             [],
             str,
@@ -85,6 +90,14 @@ class NodeHealthAgent:
             ...,
             Path,
         ] = salvar_qualidade_dados_node,
+        analisar_sinais: Callable[
+            ...,
+            object,
+        ] = analisar_sinais_node,
+        salvar_sinais: Callable[
+            ...,
+            Path,
+        ] = salvar_sinais_node,
     ) -> None:
         intervalo_segundos = float(intervalo_segundos)
 
@@ -92,7 +105,9 @@ class NodeHealthAgent:
             raise ValueError("intervalo_segundos precisa " "ser maior que zero.")
 
         self.intervalo_segundos = intervalo_segundos
+
         self.caminho_estado = Path(caminho_estado)
+
         self.diretorio_historico = Path(diretorio_historico)
 
         diretorio_derivados = self.caminho_estado.parent
@@ -100,40 +115,59 @@ class NodeHealthAgent:
         self.caminho_analise = Path(
             caminho_analise
             if caminho_analise is not None
-            else diretorio_derivados / "analise_atual.json"
+            else (diretorio_derivados / "analise_atual.json")
         )
 
         self.caminho_tendencia = Path(
             caminho_tendencia
             if caminho_tendencia is not None
-            else diretorio_derivados / "tendencia_atual.json"
+            else (diretorio_derivados / "tendencia_atual.json")
         )
 
         self.caminho_qualidade = Path(
             caminho_qualidade
             if caminho_qualidade is not None
-            else diretorio_derivados / "qualidade_atual.json"
+            else (diretorio_derivados / "qualidade_atual.json")
+        )
+
+        self.caminho_sinais = Path(
+            caminho_sinais
+            if caminho_sinais is not None
+            else (diretorio_derivados / "sinais_atual.json")
         )
 
         self._obter_node_id = obter_node_id
+
         self._capturar_estado = capturar_estado
+
         self._salvar_estado = salvar_estado
 
         self._analisar_historico = analisar_historico
+
         self._salvar_analise = salvar_analise
 
         self._analisar_tendencia = analisar_tendencia
+
         self._salvar_tendencia = salvar_tendencia
 
         self._analisar_qualidade = analisar_qualidade
+
         self._salvar_qualidade = salvar_qualidade
+
+        self._analisar_sinais = analisar_sinais
+
+        self._salvar_sinais = salvar_sinais
 
         self._parada = threading.Event()
 
-    def solicitar_parada(self) -> None:
+    def solicitar_parada(
+        self,
+    ) -> None:
         self._parada.set()
 
-    def executar_ciclo(self) -> EstadoNode:
+    def executar_ciclo(
+        self,
+    ) -> EstadoNode:
         node_id = self._obter_node_id()
 
         estado = self._capturar_estado(node_id=node_id)
@@ -185,6 +219,9 @@ class NodeHealthAgent:
     def _atualizar_derivados(
         self,
     ) -> None:
+        tendencia_atualizada = False
+        qualidade_atualizada = False
+
         try:
             analise = self._analisar_historico(self.diretorio_historico)
 
@@ -194,7 +231,7 @@ class NodeHealthAgent:
             )
 
         except Exception:
-            logger.exception("Falha ao atualizar " "analise historica do Node Health.")
+            logger.exception("Falha ao atualizar " "analise historica " "do Node Health.")
 
         try:
             tendencia = self._analisar_tendencia(self.diretorio_historico)
@@ -204,8 +241,10 @@ class NodeHealthAgent:
                 self.caminho_tendencia,
             )
 
+            tendencia_atualizada = True
+
         except Exception:
-            logger.exception("Falha ao atualizar " "tendencia do Node Health.")
+            logger.exception("Falha ao atualizar " "tendencia " "do Node Health.")
 
         try:
             qualidade = self._analisar_qualidade(
@@ -218,8 +257,47 @@ class NodeHealthAgent:
                 self.caminho_qualidade,
             )
 
+            qualidade_atualizada = True
+
         except Exception:
-            logger.exception("Falha ao atualizar qualidade " "dos dados do Node Health.")
+            logger.exception("Falha ao atualizar " "qualidade dos dados " "do Node Health.")
+
+        self._atualizar_sinais(
+            tendencia_atualizada=(tendencia_atualizada),
+            qualidade_atualizada=(qualidade_atualizada),
+        )
+
+    def _atualizar_sinais(
+        self,
+        *,
+        tendencia_atualizada: bool,
+        qualidade_atualizada: bool,
+    ) -> None:
+        if not (tendencia_atualizada and qualidade_atualizada):
+            logger.warning(
+                "Sinais do Node Health nao foram "
+                "atualizados neste ciclo porque "
+                "tendencia ou qualidade nao foi "
+                "atualizada."
+            )
+
+            return
+
+        try:
+            sinais = self._analisar_sinais(
+                self.caminho_estado,
+                self.caminho_tendencia,
+                self.caminho_qualidade,
+                self.diretorio_historico,
+            )
+
+            self._salvar_sinais(
+                sinais,
+                self.caminho_sinais,
+            )
+
+        except Exception:
+            logger.exception("Falha ao atualizar " "sinais observacionais " "do Node Health.")
 
     def _registrar_historico(
         self,
@@ -227,6 +305,7 @@ class NodeHealthAgent:
     ) -> Path:
         try:
             instante = datetime.fromisoformat(estado.coletado_em)
+
         except ValueError as erro:
             raise ValueError("coletado_em do estado " "possui formato invalido.") from erro
 
@@ -250,6 +329,7 @@ class NodeHealthAgent:
             encoding="utf-8",
         ) as arquivo:
             arquivo.write(linha)
+
             arquivo.write("\n")
 
         return caminho
