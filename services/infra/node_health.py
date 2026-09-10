@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -38,6 +38,7 @@ class ProcessoNode:
     parent_pid: int
     nome: str
     linha_comando: str
+    memoria_rss_bytes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -397,6 +398,7 @@ def _listar_processos_windows() -> tuple[
         "ProcessId,"
         "ParentProcessId,"
         "Name,"
+        "WorkingSetSize,"
         "CommandLine | "
         "ConvertTo-Json -Compress"
     )
@@ -465,12 +467,23 @@ def _listar_processos_windows() -> tuple[
         if pid <= 0:
             continue
 
+        memoria_bruta = item.get("WorkingSetSize")
+
+        try:
+            memoria = int(memoria_bruta) if memoria_bruta is not None else None
+        except (
+            TypeError,
+            ValueError,
+        ):
+            memoria = None
+
         processos.append(
             ProcessoNode(
                 pid=pid,
                 parent_pid=parent_pid,
                 nome=str(item.get("Name") or ""),
                 linha_comando=str(item.get("CommandLine") or ""),
+                memoria_rss_bytes=memoria,
             )
         )
 
@@ -486,7 +499,7 @@ def _listar_processos_posix() -> tuple[
             [
                 "ps",
                 "-eo",
-                "pid=,ppid=,comm=,args=",
+                "pid=,ppid=,rss=,comm=,args=",
             ],
             capture_output=True,
             text=True,
@@ -509,10 +522,10 @@ def _listar_processos_posix() -> tuple[
     for linha in resultado.stdout.splitlines():
         partes = linha.strip().split(
             None,
-            3,
+            4,
         )
 
-        if len(partes) < 3:
+        if len(partes) < 4:
             continue
 
         try:
@@ -521,9 +534,14 @@ def _listar_processos_posix() -> tuple[
         except ValueError:
             continue
 
-        nome = partes[2]
+        try:
+            memoria = int(partes[2]) * 1024
+        except ValueError:
+            memoria = None
 
-        linha_comando = partes[3] if len(partes) == 4 else nome
+        nome = partes[3]
+
+        linha_comando = partes[4] if len(partes) == 5 else nome
 
         processos.append(
             ProcessoNode(
@@ -531,6 +549,7 @@ def _listar_processos_posix() -> tuple[
                 parent_pid=parent_pid,
                 nome=nome,
                 linha_comando=linha_comando,
+                memoria_rss_bytes=memoria,
             )
         )
 
@@ -611,9 +630,6 @@ def _buscar_chrome_cdp_pids(
         if "chrome" not in nome:
             continue
 
-        if "--remote-debugging-port=9222" not in comando:
-            continue
-
         if "browser_profile_cdp" not in comando:
             continue
 
@@ -623,6 +639,35 @@ def _buscar_chrome_cdp_pids(
         encontrados.append(processo.pid)
 
     return tuple(sorted(set(encontrados)))
+
+
+def _somar_memoria_processos(
+    processos: tuple[
+        ProcessoNode,
+        ...,
+    ],
+    pids: tuple[int, ...] | None = None,
+) -> int | None:
+    if pids is None:
+        selecionados = processos
+    else:
+        ids = set(pids)
+
+        selecionados = tuple(processo for processo in processos if processo.pid in ids)
+
+    if not selecionados:
+        return 0
+
+    valores = [
+        processo.memoria_rss_bytes
+        for processo in selecionados
+        if (processo.memoria_rss_bytes is not None and processo.memoria_rss_bytes >= 0)
+    ]
+
+    if not valores:
+        return None
+
+    return int(sum(valores))
 
 
 def _cdp_esta_disponivel() -> bool:
@@ -709,6 +754,7 @@ def _estado_pipeline(
         ativo=True,
         pids=(pid,),
         detalhes="lock_com_processo_ativo",
+        memoria_rss_bytes=(processo.memoria_rss_bytes),
     )
 
 
@@ -782,25 +828,25 @@ def capturar_estado_node(
     runtime_pids = _buscar_pids(
         processos,
         diretorio_projeto,
-        "runtime.py",
+        str(diretorio_projeto / "runtime.py"),
     )
 
     social_pids = _buscar_pids(
         processos,
         diretorio_projeto,
-        "social_scout_telegram.py",
+        str(diretorio_projeto / "social_scout_telegram.py"),
     )
 
     bot_pids = _buscar_pids(
         processos,
         diretorio_projeto,
-        "bot_consulta.py",
+        str(diretorio_projeto / "bot_consulta.py"),
     )
 
     publicador_pids = _buscar_pids(
         processos,
         diretorio_projeto,
-        "publicador_fila.py",
+        str(diretorio_projeto / "publicador_fila.py"),
     )
 
     node_agent_pids = _buscar_pids(
@@ -821,43 +867,87 @@ def capturar_estado_node(
             nome="supervisor",
             ativo=bool(supervisor_pids),
             pids=supervisor_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    supervisor_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="runtime",
             ativo=bool(runtime_pids),
             pids=runtime_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    runtime_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="social_scout",
             ativo=bool(social_pids),
             pids=social_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    social_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="bot_consulta",
             ativo=bool(bot_pids),
             pids=bot_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    bot_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="publicador_fila",
             ativo=bool(publicador_pids),
             pids=publicador_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    publicador_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="node_health_agent",
             ativo=bool(node_agent_pids),
             pids=node_agent_pids,
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    node_agent_pids,
+                )
+            ),
         ),
         EstadoServicoNode(
             nome="chrome_cdp",
             ativo=(bool(chrome_pids) and cdp_disponivel),
             pids=chrome_pids,
             detalhes=("endpoint_funcional" if cdp_disponivel else "endpoint_indisponivel"),
+            memoria_rss_bytes=(
+                _somar_memoria_processos(
+                    processos,
+                    chrome_pids,
+                )
+            ),
         ),
         _estado_pipeline(
             processos,
             caminho_lock,
         ),
     )
+
+    memoria_projeto = _somar_memoria_processos(processos_projeto)
 
     return EstadoNode(
         versao_schema=1,
@@ -876,6 +966,7 @@ def capturar_estado_node(
         disco_uso_percentual=(disco_percentual),
         quantidade_processos_projeto=(len(processos_projeto)),
         servicos=servicos,
+        memoria_processos_projeto_bytes=(memoria_projeto),
     )
 
 

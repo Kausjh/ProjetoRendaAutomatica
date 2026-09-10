@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ class EstadoServicoNode:
     ativo: bool
     pids: tuple[int, ...] = ()
     detalhes: str | None = None
+    memoria_rss_bytes: int | None = None
 
     def para_dict(self) -> dict[str, Any]:
         return {
@@ -19,6 +20,7 @@ class EstadoServicoNode:
             "ativo": self.ativo,
             "pids": list(self.pids),
             "detalhes": self.detalhes,
+            "memoria_rss_bytes": self.memoria_rss_bytes,
         }
 
 
@@ -48,6 +50,8 @@ class EstadoNode:
 
     servicos: tuple[EstadoServicoNode, ...]
 
+    memoria_processos_projeto_bytes: int | None = None
+
     def para_dict(self) -> dict[str, Any]:
         return {
             "versao_schema": self.versao_schema,
@@ -65,5 +69,6 @@ class EstadoNode:
             "disco_livre_bytes": self.disco_livre_bytes,
             "disco_uso_percentual": self.disco_uso_percentual,
             "quantidade_processos_projeto": (self.quantidade_processos_projeto),
+            "memoria_processos_projeto_bytes": (self.memoria_processos_projeto_bytes),
             "servicos": [servico.para_dict() for servico in self.servicos],
         }

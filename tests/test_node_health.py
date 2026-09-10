@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 from services.infra import node_health
 
@@ -8,12 +8,14 @@ def _processo(
     parent_pid,
     nome,
     comando,
+    memoria_rss_bytes=None,
 ):
     return node_health.ProcessoNode(
         pid=pid,
         parent_pid=parent_pid,
         nome=nome,
         linha_comando=comando,
+        memoria_rss_bytes=memoria_rss_bytes,
     )
 
 
@@ -306,3 +308,137 @@ def test_snapshot_detecta_node_health_agent_sem_confundir_arquivo_de_teste(
 
     assert agente.ativo is True
     assert agente.pids == (70,)
+
+
+def test_snapshot_mede_memoria_por_componente(
+    monkeypatch,
+    tmp_path,
+):
+    projeto = tmp_path / "ProjetoRendaAutomatica"
+
+    projeto.mkdir()
+
+    raiz = str(projeto)
+
+    processos = (
+        _processo(
+            10,
+            1,
+            "python.exe",
+            f"{raiz}\\runtime.py",
+            100,
+        ),
+        _processo(
+            11,
+            10,
+            "python.exe",
+            f"{raiz}\\runtime.py",
+            200,
+        ),
+        _processo(
+            20,
+            1,
+            "python.exe",
+            (f"{raiz}\\" "social_scout_telegram.py"),
+            50,
+        ),
+        _processo(
+            30,
+            1,
+            "python.exe",
+            f"{raiz}\\node_agent.py",
+            25,
+        ),
+        _processo(
+            40,
+            1,
+            "chrome.exe",
+            (
+                "chrome.exe "
+                "--remote-debugging-port=9222 "
+                f"--user-data-dir={raiz}\\"
+                "browser_profile_cdp"
+            ),
+            400,
+        ),
+        _processo(
+            41,
+            40,
+            "chrome.exe",
+            ("chrome.exe --type=utility " f"--user-data-dir={raiz}\\" "browser_profile_cdp"),
+            100,
+        ),
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_listar_processos",
+        lambda: processos,
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_cdp_esta_disponivel",
+        lambda: True,
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_obter_metricas_sistema",
+        lambda: node_health.MetricasSistema(
+            uptime_segundos=100.0,
+            cpu_percentual=10.0,
+            memoria_total_bytes=5000,
+            memoria_disponivel_bytes=1000,
+            memoria_uso_percentual=80.0,
+        ),
+    )
+
+    monkeypatch.setattr(
+        node_health,
+        "_metricas_disco",
+        lambda diretorio: (
+            10000,
+            5000,
+            50.0,
+        ),
+    )
+
+    estado = node_health.capturar_estado_node(
+        node_id="node-a1b2c3d4e5f6",
+        diretorio_projeto=projeto,
+    )
+
+    servicos = {servico.nome: servico for servico in estado.servicos}
+
+    assert servicos["runtime"].memoria_rss_bytes == 300
+
+    assert servicos["social_scout"].memoria_rss_bytes == 50
+
+    assert servicos["node_health_agent"].memoria_rss_bytes == 25
+
+    assert servicos["chrome_cdp"].memoria_rss_bytes == 500
+
+    assert servicos["chrome_cdp"].pids == (
+        40,
+        41,
+    )
+
+    assert estado.memoria_processos_projeto_bytes == 875
+
+
+def test_soma_memoria_retorna_none_quando_rss_nao_disponivel():
+    processos = (
+        _processo(
+            1,
+            0,
+            "python",
+            "python app.py",
+        ),
+    )
+
+    assert node_health._somar_memoria_processos(processos) is None
+
+
+def test_soma_memoria_conjunto_vazio_retorna_zero():
+    assert node_health._somar_memoria_processos(()) == 0
