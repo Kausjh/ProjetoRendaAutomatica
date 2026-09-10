@@ -14,6 +14,10 @@ from services.infra.node_data_quality import (
     analisar_qualidade_dados_node,
     salvar_qualidade_dados_node,
 )
+from services.infra.node_evidence_interpretation import (
+    interpretar_evidencias_node,
+    salvar_interpretacao_evidencias_node,
+)
 from services.infra.node_evidence_summary import (
     gerar_resumo_evidencias_node,
     salvar_resumo_evidencias_node,
@@ -402,6 +406,10 @@ class NodeHealthAgent:
         caminho_resumo: Path,
         caminho_analise_historica: Path,
     ) -> None:
+        caminho_qualidade_temporal = (
+            self.caminho_estado.parent / "qualidade_evidencia_temporal_atual.json"
+        )
+
         try:
             analise = analisar_qualidade_temporal_evidencia_node(
                 caminho_resumo=caminho_resumo,
@@ -410,12 +418,40 @@ class NodeHealthAgent:
 
             salvar_qualidade_temporal_evidencia_node(
                 analise,
-                (self.caminho_estado.parent / "qualidade_evidencia_temporal_atual.json"),
+                caminho_qualidade_temporal,
             )
 
         except Exception:
             logger.exception(
                 "Falha ao atualizar qualidade temporal " "da evidencia do Node Health."
+            )
+
+            return
+
+        self._atualizar_interpretacao_evidencias(
+            caminho_resumo,
+            caminho_qualidade_temporal,
+        )
+
+    def _atualizar_interpretacao_evidencias(
+        self,
+        caminho_resumo: Path,
+        caminho_qualidade_temporal: Path,
+    ) -> None:
+        try:
+            interpretacao = interpretar_evidencias_node(
+                caminho_resumo=caminho_resumo,
+                caminho_qualidade_temporal=(caminho_qualidade_temporal),
+            )
+
+            salvar_interpretacao_evidencias_node(
+                interpretacao,
+                (self.caminho_estado.parent / "interpretacao_evidencias_atual.json"),
+            )
+
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar interpretacao " "observacional das evidencias do Node Health."
             )
 
     def _registrar_historico(
