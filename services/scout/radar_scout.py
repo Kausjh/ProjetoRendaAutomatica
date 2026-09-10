@@ -25,12 +25,20 @@ class SensorScout(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class EventoRadarScout:
+    sensor: str
+    sinal: SinalScout
+    resultado: str
+
+
+@dataclass(frozen=True, slots=True)
 class ResultadoRadarScout:
     sinais_recebidos: int
     novos: int
     atualizados: int
     inalterados: int
     erros: int
+    eventos: tuple[EventoRadarScout, ...] = ()
 
 
 class RadarScout:
@@ -52,6 +60,8 @@ class RadarScout:
         atualizados = 0
         inalterados = 0
         erros = 0
+
+        eventos: list[EventoRadarScout] = []
 
         for sensor in self.sensores:
             chave = "ultima_sincronizacao:" + sensor.nome
@@ -76,6 +86,14 @@ class RadarScout:
             for sinal in sinais:
                 resultado = self.repository.salvar(sinal)
 
+                eventos.append(
+                    EventoRadarScout(
+                        sensor=sensor.nome,
+                        sinal=sinal,
+                        resultado=resultado,
+                    )
+                )
+
                 if resultado == "novo":
                     novos += 1
 
@@ -98,6 +116,7 @@ class RadarScout:
             atualizados=atualizados,
             inalterados=inalterados,
             erros=erros,
+            eventos=tuple(eventos),
         )
 
     @staticmethod
