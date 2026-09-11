@@ -28,6 +28,7 @@ class ItemFilaPublicacao:
     criado_em: datetime
     atualizado_em: datetime
     status: str
+    proveniencia_discovery_comercial: dict[str, Any] | None = None
     segurado_ate: datetime | None = None
     agendado_para: datetime | None = None
     aprovado_manualmente: bool = False
@@ -80,6 +81,7 @@ class FilaPublicacaoRepository:
                     segurado_ate TEXT,
                     agendado_para TEXT,
                     aprovado_manualmente INTEGER NOT NULL DEFAULT 0,
+                    proveniencia_discovery_json TEXT,
                     status TEXT NOT NULL DEFAULT 'pendente',
                     criado_em TEXT NOT NULL,
                     atualizado_em TEXT NOT NULL,
@@ -112,6 +114,7 @@ class FilaPublicacaoRepository:
                 "segurado_ate": "TEXT",
                 "agendado_para": "TEXT",
                 "aprovado_manualmente": "INTEGER NOT NULL DEFAULT 0",
+                "proveniencia_discovery_json": "TEXT",
             }
 
             for coluna, tipo in migracoes.items():
@@ -149,6 +152,7 @@ class FilaPublicacaoRepository:
                     tipo_oportunidade TEXT NOT NULL,
                     oferta_json TEXT NOT NULL,
                     pontuacao REAL NOT NULL,
+                    proveniencia_discovery_json TEXT,
                     publicado_em TEXT NOT NULL
                 );
 
@@ -162,6 +166,19 @@ class FilaPublicacaoRepository:
                 ON historico_publicacoes_fila(publicado_em DESC);
                 """)
 
+            colunas_historico_publicacoes = {
+                linha["name"]
+                for linha in conexao.execute(
+                    "PRAGMA table_info(historico_publicacoes_fila)"
+                ).fetchall()
+            }
+
+            if "proveniencia_discovery_json" not in colunas_historico_publicacoes:
+                conexao.execute(
+                    "ALTER TABLE historico_publicacoes_fila "
+                    "ADD COLUMN proveniencia_discovery_json TEXT"
+                )
+
             conexao.execute("""
                 INSERT OR IGNORE INTO historico_publicacoes_fila (
                     fila_item_id,
@@ -174,6 +191,7 @@ class FilaPublicacaoRepository:
                     tipo_oportunidade,
                     oferta_json,
                     pontuacao,
+                    proveniencia_discovery_json,
                     publicado_em
                 )
                 SELECT
@@ -187,6 +205,7 @@ class FilaPublicacaoRepository:
                     tipo_oportunidade,
                     oferta_json,
                     pontuacao,
+                    proveniencia_discovery_json,
                     publicado_em
                 FROM fila_publicacao
                 WHERE publicado_em IS NOT NULL
@@ -616,6 +635,34 @@ class FilaPublicacaoRepository:
         )
         return True
 
+    def definir_proveniencia_discovery_comercial(
+        self,
+        link: str,
+        proveniencia: dict[str, Any] | None,
+    ) -> None:
+        proveniencia_json = (
+            json.dumps(
+                proveniencia,
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            if proveniencia is not None
+            else None
+        )
+
+        with self._conectar() as conexao:
+            conexao.execute(
+                """
+                UPDATE fila_publicacao
+                SET proveniencia_discovery_json = ?
+                WHERE link = ?
+                """,
+                (
+                    proveniencia_json,
+                    link,
+                ),
+            )
+
     def listar_pendentes(self, limite: int = 100) -> list[ItemFilaPublicacao]:
         with self._conectar() as conexao:
             linhas = conexao.execute(
@@ -699,6 +746,7 @@ class FilaPublicacaoRepository:
                     tipo_oportunidade,
                     oferta_json,
                     pontuacao,
+                    proveniencia_discovery_json,
                     publicado_em
                 )
                 SELECT
@@ -712,6 +760,7 @@ class FilaPublicacaoRepository:
                     tipo_oportunidade,
                     oferta_json,
                     pontuacao,
+                    proveniencia_discovery_json,
                     publicado_em
                 FROM fila_publicacao
                 WHERE id = ?
@@ -1290,6 +1339,16 @@ class FilaPublicacaoRepository:
             ResultadoHistoricoPreco(**historico_dados) if historico_dados is not None else None
         )
 
+        proveniencia_json = (
+            linha["proveniencia_discovery_json"]
+            if "proveniencia_discovery_json" in linha.keys()
+            else None
+        )
+
+        proveniencia_discovery_comercial = (
+            json.loads(proveniencia_json) if proveniencia_json else None
+        )
+
         segurado_ate = (
             datetime.fromisoformat(linha["segurado_ate"]) if linha["segurado_ate"] else None
         )
@@ -1310,4 +1369,5 @@ class FilaPublicacaoRepository:
             criado_em=datetime.fromisoformat(linha["criado_em"]),
             atualizado_em=datetime.fromisoformat(linha["atualizado_em"]),
             status=str(linha["status"]),
+            proveniencia_discovery_comercial=(proveniencia_discovery_comercial),
         )

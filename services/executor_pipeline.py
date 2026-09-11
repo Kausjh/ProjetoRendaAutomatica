@@ -25,6 +25,9 @@ from services.pontuador_oferta import PontuadorOferta
 from services.scout.feedback_outcome_discovery_comercial_hunter import (
     criar_feedback_outcome_discovery_comercial_hunter,
 )
+from services.scout.proveniencia_publicacao_discovery_comercial_hunter import (
+    criar_proveniencias_publicacao_discovery_comercial_hunter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -556,6 +559,17 @@ class ExecutorPipeline:
             ofertas_elegiveis=(item[0] for item in ofertas_aprovadas),
             ofertas_selecionadas_fila=(item[0] for item in candidatos_fila),
         )
+        proveniencias_publicacao_discovery = (
+            criar_proveniencias_publicacao_discovery_comercial_hunter(
+                observabilidade=(self.observabilidade_discovery_comercial_hunter),
+                resultado_hunter=getattr(
+                    self.coletor,
+                    "ultimo_resultado_hunter",
+                    None,
+                ),
+                ofertas_selecionadas_fila=(item[0] for item in candidatos_fila),
+            )
+        )
 
         logger.info(
             (
@@ -615,6 +629,10 @@ class ExecutorPipeline:
                 deve_republicar_por_queda=deve_republicar_por_queda,
                 prioridade=prioridade,
                 permitir_republicacao=permitir_republicacao,
+            )
+            self.fila_publicacao_repository.definir_proveniencia_discovery_comercial(
+                oferta.link,
+                proveniencias_publicacao_discovery.get(oferta.link),
             )
 
             if resultado_fila in {
