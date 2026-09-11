@@ -32,6 +32,9 @@ class AgregadorTendenciasComerciaisScout:
     DIMENSAO_PARCEIRO = "parceiro"
     DIMENSAO_TERMO = "termo_discovery"
     DIMENSAO_CUPOM = "cupom"
+    DIMENSAO_ROTA_DISCOVERY = "rota_discovery"
+
+    SEPARADOR_ROTA_DISCOVERY = "\x1f"
 
     DIRECAO_ALTA = "alta"
     DIRECAO_ESTAVEL = "estavel"
@@ -376,6 +379,85 @@ class AgregadorTendenciasComerciaisScout:
                     rotulo,
                 )
             )
+
+        utilizavel_discovery = bool(
+            getattr(
+                perfil,
+                "utilizavel_discovery",
+                False,
+            )
+        )
+
+        estrategia_discovery = str(
+            getattr(
+                perfil,
+                "estrategia_discovery",
+                "",
+            )
+            or ""
+        ).strip()
+
+        if (
+            marketplace
+            and utilizavel_discovery
+            and estrategia_discovery
+            and estrategia_discovery.casefold() != "ignorar"
+        ):
+            marketplace_rota = cls._normalizar_chave(
+                marketplace,
+            )
+            estrategia_rota = cls._normalizar_chave(
+                estrategia_discovery,
+            )
+
+            termos_rota = [
+                str(termo or "").strip()
+                for termo in (
+                    getattr(
+                        perfil,
+                        "termos_descoberta",
+                        (),
+                    )
+                    or ()
+                )
+                if str(termo or "").strip()
+            ]
+
+            if termos_rota:
+                for termo in termos_rota:
+                    chave = cls.SEPARADOR_ROTA_DISCOVERY.join(
+                        (
+                            marketplace_rota,
+                            estrategia_rota,
+                            cls._normalizar_chave(
+                                termo,
+                            ),
+                        )
+                    )
+
+                    dimensoes.append(
+                        (
+                            cls.DIMENSAO_ROTA_DISCOVERY,
+                            chave,
+                            termo,
+                        )
+                    )
+            else:
+                chave = cls.SEPARADOR_ROTA_DISCOVERY.join(
+                    (
+                        marketplace_rota,
+                        estrategia_rota,
+                        "",
+                    )
+                )
+
+                dimensoes.append(
+                    (
+                        cls.DIMENSAO_ROTA_DISCOVERY,
+                        chave,
+                        estrategia_discovery,
+                    )
+                )
 
         codigo_cupom = str(perfil.codigo_voucher or "").strip()
 
