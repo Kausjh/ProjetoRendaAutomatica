@@ -30,6 +30,9 @@ from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.pontuador_oferta import PontuadorOferta
+from services.scout.observabilidade_discovery_comercial_hunter import (
+    criar_observabilidade_discovery_comercial_hunter,
+)
 from services.scout.wiring_alvos_discovery_comercial_hunter import (
     carregar_alvos_discovery_comercial_hunter,
 )
@@ -60,6 +63,11 @@ async def main() -> None:
 
     scrapers = criar_scrapers(
         alvos_discovery_comercial=(resultado_alvos_discovery_comercial.alvos),
+    )
+
+    observabilidade_discovery_comercial_hunter = criar_observabilidade_discovery_comercial_hunter(
+        resultado=resultado_alvos_discovery_comercial,
+        scrapers=scrapers,
     )
 
     classificador = ClassificadorProduto()
@@ -211,6 +219,7 @@ async def main() -> None:
         pontuador=pontuador,
         quantidade_scrapers=len(scrapers),
         limite_ofertas=(configuracoes.limite_ofertas),
+        observabilidade_discovery_comercial_hunter=(observabilidade_discovery_comercial_hunter),
         maximo_entradas_fila_por_ciclo=(configuracoes.maximo_entradas_fila_por_ciclo),
         pontuacao_minima_fila=configuracoes.pontuacao_minima_fila,
         fila_reposicao_adaptativa_ativa=(configuracoes.fila_reposicao_adaptativa_ativa),

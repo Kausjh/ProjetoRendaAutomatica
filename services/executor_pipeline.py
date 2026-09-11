@@ -57,6 +57,7 @@ class ExecutorPipeline:
         repositorio_admin: ControleAdministrativoRepository | None = None,
         politica_marketplace: PoliticaMarketplace | None = None,
         historico_precos_efetivos_service: HistoricoPrecosEfetivosService | None = None,
+        observabilidade_discovery_comercial_hunter: dict | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -87,6 +88,18 @@ class ExecutorPipeline:
         self.repositorio_admin = repositorio_admin
         self.politica_marketplace = politica_marketplace or PoliticaMarketplace()
         self.historico_precos_efetivos_service = historico_precos_efetivos_service
+        self.observabilidade_discovery_comercial_hunter = dict(
+            observabilidade_discovery_comercial_hunter
+            or {
+                "schema_version": 1,
+                "status": "nao_informado",
+                "motivo_status": "observabilidade_nao_fornecida",
+                "alvos_total": 0,
+                "alvos_aplicados": 0,
+                "fontes_hunter": [],
+                "alvos": [],
+            }
+        )
 
     async def executar(self) -> None:
         inicio_execucao = perf_counter()
@@ -113,6 +126,35 @@ class ExecutorPipeline:
             "Máximo de entradas da mesma categoria por ciclo: %s",
             self.maximo_entradas_por_categoria_ciclo,
         )
+
+        observabilidade_discovery = self.observabilidade_discovery_comercial_hunter
+
+        logger.info(
+            (
+                "Commercial Discovery Observability | "
+                "status=%s | alvos=%s | aplicados=%s | motivo=%s"
+            ),
+            observabilidade_discovery.get("status"),
+            observabilidade_discovery.get("alvos_total", 0),
+            observabilidade_discovery.get("alvos_aplicados", 0),
+            observabilidade_discovery.get("motivo_status"),
+        )
+
+        for alvo_discovery in observabilidade_discovery.get("alvos", ()):
+            logger.info(
+                (
+                    "Commercial Discovery Observability Target | "
+                    "fonte=%s | estrategia=%s | termo=%s | "
+                    "sinais=%s | aplicado=%s | motivo=%s | posicao=%s"
+                ),
+                alvo_discovery.get("fonte_hunter"),
+                alvo_discovery.get("estrategia"),
+                alvo_discovery.get("termo_busca"),
+                alvo_discovery.get("sinais_distintos"),
+                alvo_discovery.get("aplicado"),
+                alvo_discovery.get("motivo_aplicacao"),
+                alvo_discovery.get("posicao_runtime"),
+            )
 
         try:
             ofertas = self.coletor.buscar_ofertas(limite_por_scraper=self.limite_ofertas)
@@ -661,6 +703,7 @@ class ExecutorPipeline:
             "anomalias_preco_publicaveis": quantidade_anomalias_publicaveis,
             "anomalias_preco_retidas": quantidade_anomalias_retidas,
             "ofertas_com_erro": quantidade_com_erro,
+            "discovery_comercial_hunter": (self.observabilidade_discovery_comercial_hunter),
             "tempo_total_segundos": round(tempo_total, 2),
         }
 
