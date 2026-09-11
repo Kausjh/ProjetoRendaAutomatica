@@ -22,6 +22,19 @@ $ManagedScriptRegex = (
 
 $ComponentStates = @{}
 
+$CurrentIdentity = (
+    [Security.Principal.WindowsIdentity]::GetCurrent().Name
+)
+
+$CurrentSessionId = (
+    Get-Process -Id $PID
+).SessionId
+
+$RunChromeHeadless = (
+    $CurrentIdentity -ieq "NT AUTHORITY\SYSTEM" -or
+    $CurrentSessionId -eq 0
+)
+
 Set-Location $ProjectRoot
 
 New-Item `
@@ -368,15 +381,35 @@ function Ensure-Cdp {
         throw "Google Chrome nao encontrado."
     }
 
+    $chromeArguments = @(
+        "--remote-debugging-port=9222",
+        "--user-data-dir=$ChromeProfile",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "about:blank"
+    )
+
+    $chromeMode = "interactive"
+
+    if ($RunChromeHeadless) {
+        $chromeArguments = @(
+            "--headless=new",
+            "--disable-gpu"
+        ) + $chromeArguments
+
+        $chromeMode = "headless-system"
+    }
+
+    Write-SupervisorLog `
+        -Level "INFO" `
+        -Message (
+            "Iniciando Chrome/CDP | modo={0}" -f
+            $chromeMode
+        )
+
     Start-Process `
         -FilePath $Chrome `
-        -ArgumentList @(
-            "--remote-debugging-port=9222",
-            "--user-data-dir=$ChromeProfile",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "about:blank"
-        )
+        -ArgumentList $chromeArguments
 
     $cdpOk = $false
 
@@ -425,8 +458,8 @@ if (-not (Test-Path $Python)) {
     throw "Python do projeto nao encontrado."
 }
 
-$identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-$sessionId = (Get-Process -Id $PID).SessionId
+$identity = $CurrentIdentity
+$sessionId = $CurrentSessionId
 $bootTime = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
 
 Write-SupervisorLog `

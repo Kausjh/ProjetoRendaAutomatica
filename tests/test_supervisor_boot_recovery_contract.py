@@ -110,3 +110,35 @@ def test_componentes_independentes_validam_script_no_proprio_passo():
         "Test-Path $RuntimeScript",
     ):
         assert verificacao in loop
+
+
+def test_system_session_usa_chrome_headless():
+    texto = _texto()
+
+    assert "$CurrentIdentity = (" in texto
+    assert "$CurrentSessionId = (" in texto
+    assert "$RunChromeHeadless = (" in texto
+    assert "NT AUTHORITY\\SYSTEM" in texto
+
+    assert '"--headless=new"' in texto
+    assert '"--disable-gpu"' in texto
+    assert '$chromeMode = "headless-system"' in texto
+
+
+def test_sessao_interativa_preserva_modo_chrome_normal():
+    texto = _texto()
+
+    assert '$chromeMode = "interactive"' in texto
+    assert "if ($RunChromeHeadless)" in texto
+
+    bloco = texto[
+        texto.index("$chromeArguments = @(") : texto.index(
+            "if (-not $cdpOk)",
+            texto.index("$chromeArguments = @("),
+        )
+    ]
+
+    assert "--remote-debugging-port=9222" in bloco
+    assert "--user-data-dir=$ChromeProfile" in bloco
+    assert "Start-Process" in bloco
+    assert "-ArgumentList $chromeArguments" in bloco
