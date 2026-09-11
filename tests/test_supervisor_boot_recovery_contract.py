@@ -142,3 +142,10 @@ def test_sessao_interativa_preserva_modo_chrome_normal():
     assert "--user-data-dir=$ChromeProfile" in bloco
     assert "Start-Process" in bloco
     assert "-ArgumentList $chromeArguments" in bloco
+
+
+def test_log_startup_registra_identidade_real():
+    texto = _texto()
+
+    assert "identidade={0}" not in texto
+    assert "identidade=$identity" in texto

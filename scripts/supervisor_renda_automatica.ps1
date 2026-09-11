@@ -465,7 +465,7 @@ $bootTime = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
 Write-SupervisorLog `
     -Level "INFO" `
     -Message (
-        "Supervisor iniciado | identidade={0} | " +
+        "Supervisor iniciado | identidade=$identity | " +
         "sessao={1} | boot={2:yyyy-MM-dd HH:mm:ss}" -f
         $identity,
         $sessionId,
