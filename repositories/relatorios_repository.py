@@ -24,6 +24,9 @@ class RelatoriosRepository:
 
         logger.info("Relatório da execução salvo em: %s", self.caminho_arquivo)
 
+    def listar(self) -> list[dict[str, Any]]:
+        return self._carregar_relatorios()
+
     def _carregar_relatorios(self) -> list[dict[str, Any]]:
         try:
             with self.caminho_arquivo.open(mode="r", encoding="utf-8") as arquivo:

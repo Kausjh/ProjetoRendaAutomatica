@@ -1387,6 +1387,12 @@ class FilaPublicacaoRepository:
 
         return historico
 
+    def historico_publicacoes_discovery_comercial_learning(
+        self,
+        limite: int = 5000,
+    ) -> list[dict[str, Any]]:
+        return self.historico_publicacoes_discovery_comercial(limite=limite)
+
     @staticmethod
     def _converter_linha(linha: sqlite3.Row) -> ItemFilaPublicacao:
         oferta = Oferta(**json.loads(linha["oferta_json"]))

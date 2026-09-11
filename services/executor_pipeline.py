@@ -28,8 +28,14 @@ from services.scout.feedback_outcome_discovery_comercial_hunter import (
 from services.scout.feedback_publicacao_discovery_comercial_hunter import (
     criar_feedback_publicacao_discovery_comercial_hunter,
 )
+from services.scout.janela_learning_discovery_comercial_hunter import (
+    criar_janela_learning_discovery_comercial_hunter,
+)
 from services.scout.proveniencia_publicacao_discovery_comercial_hunter import (
     criar_proveniencias_publicacao_discovery_comercial_hunter,
+)
+from services.scout.score_learning_discovery_comercial_hunter import (
+    criar_score_learning_discovery_comercial_hunter,
 )
 
 logger = logging.getLogger(__name__)
@@ -772,8 +778,71 @@ class ExecutorPipeline:
             ),
         )
 
+        data_hora_ciclo = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        obter_relatorios_learning = getattr(
+            self.relatorios_repository,
+            "listar",
+            None,
+        )
+
+        if callable(obter_relatorios_learning):
+            relatorios_learning = list(obter_relatorios_learning())
+        else:
+            relatorios_learning = []
+
+        relatorios_learning.append(
+            {
+                "data_hora": data_hora_ciclo,
+                "commercial_discovery_outcome": (feedback_discovery_comercial),
+            }
+        )
+
+        obter_publicacoes_learning = getattr(
+            self.fila_publicacao_repository,
+            ("historico_publicacoes_" "discovery_comercial_learning"),
+            None,
+        )
+
+        if callable(obter_publicacoes_learning):
+            publicacoes_learning = obter_publicacoes_learning()
+        else:
+            publicacoes_learning = historico_publicacoes_discovery
+
+        janela_learning_discovery = criar_janela_learning_discovery_comercial_hunter(
+            relatorios_execucao=relatorios_learning,
+            historico_publicacoes=publicacoes_learning,
+        )
+
+        score_learning_discovery = criar_score_learning_discovery_comercial_hunter(
+            janela_learning=janela_learning_discovery,
+        )
+
+        learning_discovery_comercial = {
+            "schema_version": 1,
+            "modo": "observacional",
+            "influencia_priorizacao": False,
+            "janela": janela_learning_discovery,
+            "score": score_learning_discovery,
+        }
+
+        logger.info(
+            (
+                "Commercial Discovery Learning | "
+                "janela=%s | score=%s | "
+                "fontes_score=%s | influencia=%s"
+            ),
+            janela_learning_discovery.get("status"),
+            score_learning_discovery.get("status"),
+            score_learning_discovery.get(
+                "fontes_score_calculavel",
+                0,
+            ),
+            learning_discovery_comercial.get("influencia_priorizacao"),
+        )
+
         relatorio = {
-            "data_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "data_hora": data_hora_ciclo,
             "scrapers_executados": self.quantidade_scrapers,
             "ofertas_coletadas": len(ofertas),
             "ofertas_aprovadas_pelo_filtro": (quantidade_aprovada_pelo_filtro),
@@ -817,6 +886,7 @@ class ExecutorPipeline:
             "discovery_comercial_hunter": (self.observabilidade_discovery_comercial_hunter),
             "commercial_discovery_outcome": (feedback_discovery_comercial),
             "commercial_discovery_publication_outcome": (feedback_publicacao_discovery_comercial),
+            "commercial_discovery_learning": (learning_discovery_comercial),
             "tempo_total_segundos": round(tempo_total, 2),
         }
 
