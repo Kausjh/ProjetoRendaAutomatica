@@ -112,3 +112,13 @@ def test_monitor_continua_observador():
         "restart-computer",
     ):
         assert item not in texto
+
+
+def test_v1c_reboot_exige_chave_operacional_de_armamento():
+    texto = _supervisor()
+
+    assert "auto_reboot_armed.flag" in texto
+    assert "$AutoRebootArmPath" in texto
+    assert "Test-Path -LiteralPath $AutoRebootArmPath" in texto
+    assert "chave " in texto
+    assert "operacional de armamento nao esta presente." in texto

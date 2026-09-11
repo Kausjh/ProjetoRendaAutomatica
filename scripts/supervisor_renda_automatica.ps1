@@ -64,8 +64,13 @@ $NetworkAutonomyProofPath = Join-Path `
     $HealthDirectory `
     "network_autonomy_proof.json"
 
-# V1C: o reboot real permanece protegido pela policy.
+# V1C: o reboot real permanece protegido pela policy
+# e por uma chave operacional fora do repositorio.
 $AutoRebootDelaySeconds = 60
+
+$AutoRebootArmPath = Join-Path `
+    $HealthDirectory `
+    "auto_reboot_armed.flag"
 
 
 Set-Location $ProjectRoot
@@ -734,6 +739,13 @@ function Invoke-WindowsAutoReboot {
 
     if ($DelaySeconds -lt 0) {
         $DelaySeconds = 0
+    }
+
+    if (-not (Test-Path -LiteralPath $AutoRebootArmPath)) {
+        throw (
+            "Auto-Recovery V1C solicitou reboot, mas a chave " +
+            "operacional de armamento nao esta presente."
+        )
     }
 
     $shutdownExe = Join-Path `
