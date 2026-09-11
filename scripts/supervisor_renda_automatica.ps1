@@ -35,6 +35,16 @@ $RunChromeHeadless = (
     $CurrentSessionId -eq 0
 )
 
+$SupervisorStartedAt = Get-Date
+
+$HealthDirectory = Join-Path `
+    $env:ProgramData `
+    "ProjetoRendaAutomatica\health"
+
+$HealthHeartbeatPath = Join-Path `
+    $HealthDirectory `
+    "heartbeat.json"
+
 Set-Location $ProjectRoot
 
 New-Item `
@@ -432,6 +442,116 @@ function Ensure-Cdp {
 }
 
 
+
+function Get-HeartbeatComponentState {
+    param(
+        [string]$Name
+    )
+
+    if (
+        $ComponentStates.ContainsKey($Name)
+    ) {
+        return [string]$ComponentStates[$Name]
+    }
+
+    return "UNKNOWN"
+}
+
+function Write-HealthHeartbeat {
+    try {
+        if (-not (Test-Path $HealthDirectory)) {
+            New-Item `
+                -ItemType Directory `
+                -Path $HealthDirectory `
+                -Force |
+                Out-Null
+        }
+
+        $components = [ordered]@{
+            node_agent = (
+                Get-HeartbeatComponentState `
+                    -Name 'node_agent'
+            )
+            partner_scout = (
+                Get-HeartbeatComponentState `
+                    -Name 'partner_scout'
+            )
+            social_scout = (
+                Get-HeartbeatComponentState `
+                    -Name 'social_scout'
+            )
+            chrome_cdp = (
+                Get-HeartbeatComponentState `
+                    -Name 'chrome_cdp'
+            )
+            runtime = (
+                Get-HeartbeatComponentState `
+                    -Name 'runtime'
+            )
+        }
+
+        $degraded = @(
+            $components.Values |
+                Where-Object {
+                    $_ -ne "HEALTHY"
+                }
+        ).Count -gt 0
+
+        if ($degraded) {
+            $overall = "DEGRADED"
+        }
+        else {
+            $overall = "ONLINE"
+        }
+
+        $payload = [ordered]@{
+            schema_version = 1
+            generated_at = (
+                Get-Date
+            ).ToString("o")
+            overall = $overall
+            supervisor = [ordered]@{
+                started_at = (
+                    $SupervisorStartedAt
+                ).ToString("o")
+                identity = $CurrentIdentity
+                session_id = $CurrentSessionId
+                pid = $PID
+                boot_time = (
+                    $bootTime
+                ).ToString("o")
+            }
+            components = $components
+        }
+
+        $tempPath = (
+            $HealthHeartbeatPath +
+            ".tmp." +
+            $PID
+        )
+
+        $payload |
+            ConvertTo-Json -Depth 5 |
+            Set-Content `
+                -LiteralPath $tempPath `
+                -Encoding UTF8
+
+        Move-Item `
+            -LiteralPath $tempPath `
+            -Destination $HealthHeartbeatPath `
+            -Force
+    }
+    catch {
+        Write-SupervisorLog `
+            -Level "WARN" `
+            -Message (
+                "Falha ao gravar heartbeat: {0}" -f
+                $_.Exception.Message
+            )
+    }
+}
+
+
 function Invoke-SupervisorStep {
     param(
         [string]$Name,
@@ -538,6 +658,8 @@ while ($true) {
                 -ScriptName "runtime.py" `
                 -ScriptPath $RuntimeScript
         }
+
+    Write-HealthHeartbeat
 
     Start-Sleep -Seconds 30
 }
