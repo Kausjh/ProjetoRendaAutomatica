@@ -1329,6 +1329,64 @@ class FilaPublicacaoRepository:
 
         return historico
 
+    def historico_publicacoes_discovery_comercial(
+        self,
+        limite: int = 500,
+    ) -> list[dict[str, Any]]:
+        limite_valido = max(
+            1,
+            int(limite),
+        )
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    id,
+                    fila_item_id,
+                    link,
+                    publicado_em,
+                    proveniencia_discovery_json
+                FROM historico_publicacoes_fila
+                ORDER BY publicado_em DESC, id DESC
+                LIMIT ?
+                """,
+                (limite_valido,),
+            ).fetchall()
+
+        historico: list[dict[str, Any]] = []
+
+        for linha in linhas:
+            registro = dict(linha)
+
+            proveniencia_bruta = registro.pop(
+                "proveniencia_discovery_json",
+                None,
+            )
+
+            proveniencia = None
+
+            if proveniencia_bruta:
+                try:
+                    proveniencia_carregada = json.loads(proveniencia_bruta)
+                except (
+                    TypeError,
+                    json.JSONDecodeError,
+                ):
+                    proveniencia_carregada = None
+
+                if isinstance(
+                    proveniencia_carregada,
+                    dict,
+                ):
+                    proveniencia = proveniencia_carregada
+
+            registro["proveniencia_discovery_comercial"] = proveniencia
+
+            historico.append(registro)
+
+        return historico
+
     @staticmethod
     def _converter_linha(linha: sqlite3.Row) -> ItemFilaPublicacao:
         oferta = Oferta(**json.loads(linha["oferta_json"]))

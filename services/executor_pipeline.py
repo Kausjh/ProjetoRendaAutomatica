@@ -25,6 +25,9 @@ from services.pontuador_oferta import PontuadorOferta
 from services.scout.feedback_outcome_discovery_comercial_hunter import (
     criar_feedback_outcome_discovery_comercial_hunter,
 )
+from services.scout.feedback_publicacao_discovery_comercial_hunter import (
+    criar_feedback_publicacao_discovery_comercial_hunter,
+)
 from services.scout.proveniencia_publicacao_discovery_comercial_hunter import (
     criar_proveniencias_publicacao_discovery_comercial_hunter,
 )
@@ -731,6 +734,44 @@ class ExecutorPipeline:
         )
         logger.info("Ciclo concluído em %.2f segundo(s).", tempo_total)
 
+        obter_historico_publicacoes_discovery = getattr(
+            self.fila_publicacao_repository,
+            "historico_publicacoes_discovery_comercial",
+            None,
+        )
+
+        if callable(obter_historico_publicacoes_discovery):
+            historico_publicacoes_discovery = obter_historico_publicacoes_discovery()
+        else:
+            historico_publicacoes_discovery = []
+
+        feedback_publicacao_discovery_comercial = (
+            criar_feedback_publicacao_discovery_comercial_hunter(
+                historico_publicacoes=(historico_publicacoes_discovery),
+            )
+        )
+
+        logger.info(
+            (
+                "Commercial Discovery Publication Outcome | "
+                "status=%s | observadas=%s | "
+                "atribuidas=%s | fontes=%s"
+            ),
+            feedback_publicacao_discovery_comercial.get("status"),
+            feedback_publicacao_discovery_comercial.get(
+                "publicacoes_observadas",
+                0,
+            ),
+            feedback_publicacao_discovery_comercial.get(
+                "publicacoes_atribuidas_discovery",
+                0,
+            ),
+            feedback_publicacao_discovery_comercial.get(
+                "fontes_total",
+                0,
+            ),
+        )
+
         relatorio = {
             "data_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "scrapers_executados": self.quantidade_scrapers,
@@ -775,6 +816,7 @@ class ExecutorPipeline:
             "ofertas_com_erro": quantidade_com_erro,
             "discovery_comercial_hunter": (self.observabilidade_discovery_comercial_hunter),
             "commercial_discovery_outcome": (feedback_discovery_comercial),
+            "commercial_discovery_publication_outcome": (feedback_publicacao_discovery_comercial),
             "tempo_total_segundos": round(tempo_total, 2),
         }
 
