@@ -22,6 +22,9 @@ from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.politica_marketplace import PoliticaMarketplace
 from services.pontuador_oferta import PontuadorOferta
+from services.scout.feedback_outcome_discovery_comercial_hunter import (
+    criar_feedback_outcome_discovery_comercial_hunter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -543,6 +546,55 @@ class ExecutorPipeline:
                 self.maximo_entradas_por_categoria_ciclo,
             )
 
+        feedback_discovery_comercial = criar_feedback_outcome_discovery_comercial_hunter(
+            observabilidade=(self.observabilidade_discovery_comercial_hunter),
+            resultado_hunter=getattr(
+                self.coletor,
+                "ultimo_resultado_hunter",
+                None,
+            ),
+            ofertas_elegiveis=(item[0] for item in ofertas_aprovadas),
+            ofertas_selecionadas_fila=(item[0] for item in candidatos_fila),
+        )
+
+        logger.info(
+            (
+                "Commercial Discovery Outcome | "
+                "status=%s | fontes=%s | "
+                "granularidade=%s | "
+                "alvo_individual=%s"
+            ),
+            feedback_discovery_comercial.get("status"),
+            feedback_discovery_comercial.get(
+                "fontes_total",
+                0,
+            ),
+            feedback_discovery_comercial.get("granularidade"),
+            feedback_discovery_comercial.get("atribuicao_alvo_individual"),
+        )
+
+        for fonte_feedback in feedback_discovery_comercial.get(
+            "fontes",
+            (),
+        ):
+            logger.info(
+                (
+                    "Commercial Discovery Outcome Source | "
+                    "fonte=%s | alvos=%s | "
+                    "coletadas=%s | novas=%s | "
+                    "elegiveis=%s | fila=%s | "
+                    "taxa_elegivel=%s | taxa_fila=%s"
+                ),
+                fonte_feedback.get("fonte_hunter"),
+                fonte_feedback.get("alvos_aplicados"),
+                fonte_feedback.get("quantidade_coletada"),
+                fonte_feedback.get("quantidade_novas"),
+                fonte_feedback.get("elegiveis_atribuidas"),
+                fonte_feedback.get("selecionadas_fila_atribuidas"),
+                fonte_feedback.get("taxa_elegibilidade_percentual"),
+                fonte_feedback.get("taxa_selecao_fila_percentual"),
+            )
+
         for (
             oferta,
             pontuacao,
@@ -704,6 +756,7 @@ class ExecutorPipeline:
             "anomalias_preco_retidas": quantidade_anomalias_retidas,
             "ofertas_com_erro": quantidade_com_erro,
             "discovery_comercial_hunter": (self.observabilidade_discovery_comercial_hunter),
+            "commercial_discovery_outcome": (feedback_discovery_comercial),
             "tempo_total_segundos": round(tempo_total, 2),
         }
 
