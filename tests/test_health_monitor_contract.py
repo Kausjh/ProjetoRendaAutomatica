@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -115,3 +115,43 @@ def test_monitor_e_somente_observador():
 
     for item in proibidos:
         assert item not in texto
+
+
+def test_heartbeat_expoe_telemetria_de_rede_pos_boot():
+    texto = _supervisor()
+
+    assert "function Update-InternetBootState" in texto
+    assert "Get-NetConnectionProfile" in texto
+    assert "network_boot_state.json" in texto
+    assert "first_online_at" in texto
+    assert 'source = "windows_ncsi"' in texto
+    assert "network = [ordered]@{" in texto
+
+
+def test_estado_de_rede_e_persistido_por_boot():
+    texto = _supervisor()
+
+    assert '$bootKey = $bootTime.ToString("o")' in texto
+    assert "$HealthNetworkStatePath" in texto
+    assert "$networkTemp = (" in texto
+    assert "-Destination $HealthNetworkStatePath" in texto
+
+
+def test_monitor_exibe_prova_de_internet_antes_do_login():
+    texto = _monitor()
+
+    assert "REDE / RECUPERACAO" in texto
+    assert "Internet atual:" in texto
+    assert "1a conexao pos-boot:" in texto
+    assert "internet ficou online antes do Explorer" in texto
+    assert "SEM RESTRICAO - rede autonoma comprovada" in texto
+    assert "JANELA SEGURA - horario ainda nao definido" in texto
+
+
+def test_telemetria_nao_adiciona_reboot_automatico():
+    supervisor = _supervisor().lower()
+    monitor = _monitor().lower()
+
+    for texto in (supervisor, monitor):
+        assert "shutdown.exe" not in texto
+        assert "restart-computer" not in texto

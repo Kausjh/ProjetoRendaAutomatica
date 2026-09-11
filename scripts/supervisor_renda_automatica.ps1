@@ -44,6 +44,9 @@ $HealthDirectory = Join-Path `
 $HealthHeartbeatPath = Join-Path `
     $HealthDirectory `
     "heartbeat.json"
+$HealthNetworkStatePath = Join-Path `
+    $HealthDirectory `
+    "network_boot_state.json"
 
 Set-Location $ProjectRoot
 
@@ -443,6 +446,112 @@ function Ensure-Cdp {
 
 
 
+function Update-InternetBootState {
+    $checkedAt = Get-Date
+    $online = $false
+
+    try {
+        $profiles = @(
+            Get-NetConnectionProfile `
+                -ErrorAction Stop
+        )
+
+        $online = @(
+            $profiles |
+                Where-Object {
+                    $_.IPv4Connectivity -eq "Internet" -or
+                    $_.IPv6Connectivity -eq "Internet"
+                }
+        ).Count -gt 0
+    }
+    catch {
+        $online = $false
+    }
+
+    $bootKey = $bootTime.ToString("o")
+    $firstOnlineAt = $null
+
+    if (Test-Path $HealthNetworkStatePath) {
+        try {
+            $state = Get-Content `
+                -LiteralPath $HealthNetworkStatePath `
+                -Raw |
+                ConvertFrom-Json
+
+            if (
+                [string]$state.boot_time -eq $bootKey -and
+                $state.first_online_at
+            ) {
+                $firstOnlineAt = (
+                    [DateTimeOffset]::Parse(
+                        [string]$state.first_online_at
+                    )
+                )
+            }
+        }
+        catch {
+            $firstOnlineAt = $null
+        }
+    }
+
+    if (
+        $online -and
+        $null -eq $firstOnlineAt
+    ) {
+        $firstOnlineAt = [DateTimeOffset]$checkedAt
+    }
+
+    $firstOnlineText = $null
+
+    if ($null -ne $firstOnlineAt) {
+        $firstOnlineText = $firstOnlineAt.ToString("o")
+    }
+
+    $statePayload = [ordered]@{
+        schema_version = 1
+        boot_time = $bootKey
+        checked_at = $checkedAt.ToString("o")
+        online = $online
+        first_online_at = $firstOnlineText
+        source = "windows_ncsi"
+    }
+
+    $networkTemp = (
+        $HealthNetworkStatePath +
+        ".tmp." +
+        $PID
+    )
+
+    try {
+        $statePayload |
+            ConvertTo-Json -Depth 4 |
+            Set-Content `
+                -LiteralPath $networkTemp `
+                -Encoding UTF8
+
+        Move-Item `
+            -LiteralPath $networkTemp `
+            -Destination $HealthNetworkStatePath `
+            -Force
+    }
+    catch {
+        Write-SupervisorLog `
+            -Level "WARN" `
+            -Message (
+                "Falha ao persistir estado de rede: {0}" -f
+                $_.Exception.Message
+            )
+    }
+
+    return [pscustomobject]@{
+        online = $online
+        checked_at = [DateTimeOffset]$checkedAt
+        first_online_at = $firstOnlineAt
+        source = "windows_ncsi"
+    }
+}
+
+
 function Get-HeartbeatComponentState {
     param(
         [string]$Name
@@ -466,6 +575,8 @@ function Write-HealthHeartbeat {
                 -Force |
                 Out-Null
         }
+
+        $network = Update-InternetBootState
 
         $components = [ordered]@{
             node_agent = (
@@ -504,6 +615,14 @@ function Write-HealthHeartbeat {
             $overall = "ONLINE"
         }
 
+        $networkFirstOnlineText = $null
+
+        if ($null -ne $network.first_online_at) {
+            $networkFirstOnlineText = (
+                $network.first_online_at.ToString("o")
+            )
+        }
+
         $payload = [ordered]@{
             schema_version = 1
             generated_at = (
@@ -522,6 +641,12 @@ function Write-HealthHeartbeat {
                 ).ToString("o")
             }
             components = $components
+            network = [ordered]@{
+                online = $network.online
+                checked_at = $network.checked_at.ToString("o")
+                first_online_at = $networkFirstOnlineText
+                source = $network.source
+            }
         }
 
         $tempPath = (

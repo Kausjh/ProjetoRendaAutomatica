@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -154,6 +154,10 @@ function Get-HeartbeatView {
         identity = "-"
         session_id = "-"
         boot_time = $null
+        network_online = $false
+        network_checked_at = $null
+        network_first_online_at = $null
+        network_source = "-"
         components = [ordered]@{
             node_agent = "UNKNOWN"
             partner_scout = "UNKNOWN"
@@ -208,6 +212,28 @@ function Get-HeartbeatView {
             [DateTimeOffset]::Parse(
                 [string]$data.supervisor.boot_time
             )
+        )
+
+        $view.network_online = [bool]$data.network.online
+
+        if ($data.network.checked_at) {
+            $view.network_checked_at = (
+                [DateTimeOffset]::Parse(
+                    [string]$data.network.checked_at
+                )
+            )
+        }
+
+        if ($data.network.first_online_at) {
+            $view.network_first_online_at = (
+                [DateTimeOffset]::Parse(
+                    [string]$data.network.first_online_at
+                )
+            )
+        }
+
+        $view.network_source = (
+            [string]$data.network.source
         )
 
         foreach ($name in @(
@@ -522,6 +548,41 @@ function Update-Central {
         }
     }
 
+    $internetProof = "NAO COMPROVADA"
+    $futureRecoveryPolicy = (
+        "JANELA SEGURA - horario ainda nao definido"
+    )
+
+    if (
+        $null -ne $view.network_first_online_at -and
+        $null -ne $explorerStart
+    ) {
+        $networkLocal = (
+            [DateTimeOffset]$view.network_first_online_at
+        ).LocalDateTime
+
+        if ($networkLocal -le $explorerStart) {
+            $internetProof = (
+                "SIM - internet ficou online antes do Explorer"
+            )
+
+            $futureRecoveryPolicy = (
+                "SEM RESTRICAO - rede autonoma comprovada"
+            )
+        }
+        else {
+            $internetProof = (
+                "NAO - internet ficou online depois do Explorer"
+            )
+        }
+    }
+
+    $internetStatus = "OFFLINE"
+
+    if ($view.network_online) {
+        $internetStatus = "ONLINE"
+    }
+
     $heartbeatAge = "-"
 
     if ($null -ne $view.age_seconds) {
@@ -557,6 +618,15 @@ function Update-Central {
         "Session ID:            $($view.session_id)"
         "Ultimo heartbeat:      $(Format-Time $view.generated_at)"
         "Idade heartbeat:       $heartbeatAge"
+        ""
+        "REDE / RECUPERACAO"
+        "--------------------------------------------------"
+        "Internet atual:        $internetStatus"
+        "Rede verificada em:    $(Format-Time $view.network_checked_at)"
+        "1a conexao pos-boot:   $(Format-Time $view.network_first_online_at)"
+        "Antes do login GUI:    $internetProof"
+        "Fonte:                 $($view.network_source)"
+        "Politica futura:       $futureRecoveryPolicy"
         ""
         "COMPONENTES"
         "--------------------------------------------------"
