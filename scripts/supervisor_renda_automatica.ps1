@@ -2,37 +2,15 @@
 
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = (
-    Resolve-Path (
-        Join-Path $PSScriptRoot ".."
-    )
-).Path
-
-$Python = Join-Path `
-    $ProjectRoot `
-    ".venv\Scripts\python.exe"
-
-$RuntimeScript = Join-Path `
-    $ProjectRoot `
-    "runtime.py"
-
-$ListenerScript = Join-Path `
-    $ProjectRoot `
-    "social_scout_telegram.py"
-
-$NodeAgentScript = Join-Path `
-    $ProjectRoot `
-    "node_agent.py"
-
-$PartnerScoutScript = Join-Path `
-    $ProjectRoot `
-    "partner_scout.py"
-
-$ChromeProfile = Join-Path `
-    $ProjectRoot `
-    "browser_profile_cdp"
-
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$Python = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+$RuntimeScript = Join-Path $ProjectRoot "runtime.py"
+$ListenerScript = Join-Path $ProjectRoot "social_scout_telegram.py"
+$NodeAgentScript = Join-Path $ProjectRoot "node_agent.py"
+$PartnerScoutScript = Join-Path $ProjectRoot "partner_scout.py"
+$ChromeProfile = Join-Path $ProjectRoot "browser_profile_cdp"
 $CdpEndpoint = "http://127.0.0.1:9222/json/version"
+$SupervisorLogDirectory = Join-Path $ProjectRoot "logs\supervisor"
 
 $ManagedScriptRegex = (
     "runtime\.py|" +
@@ -42,27 +20,70 @@ $ManagedScriptRegex = (
     "[\\/]main\.py"
 )
 
+$ComponentStates = @{}
+
 Set-Location $ProjectRoot
 
+New-Item `
+    -ItemType Directory `
+    -Path $SupervisorLogDirectory `
+    -Force |
+    Out-Null
 
-if (-not (Test-Path $Python)) {
-    throw "Python do projeto nao encontrado."
+
+function Write-SupervisorLog {
+    param(
+        [ValidateSet("INFO", "WARNING", "ERROR")]
+        [string]$Level,
+        [string]$Message
+    )
+
+    $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $logFile = Join-Path `
+        $SupervisorLogDirectory `
+        ("supervisor_{0}.log" -f (Get-Date).ToString("yyyy-MM-dd"))
+
+    $line = "{0} | {1} | {2}" -f $timestamp, $Level, $Message
+
+    Add-Content `
+        -LiteralPath $logFile `
+        -Value $line `
+        -Encoding UTF8
+
+    Write-Host $line
 }
 
-if (-not (Test-Path $RuntimeScript)) {
-    throw "runtime.py nao encontrado."
-}
 
-if (-not (Test-Path $ListenerScript)) {
-    throw "social_scout_telegram.py nao encontrado."
-}
+function Set-ComponentState {
+    param(
+        [string]$Name,
+        [string]$State,
+        [string]$Detail = ""
+    )
 
-if (-not (Test-Path $NodeAgentScript)) {
-    throw "node_agent.py nao encontrado."
-}
+    $previous = $ComponentStates[$Name]
 
-if (-not (Test-Path $PartnerScoutScript)) {
-    throw "partner_scout.py nao encontrado."
+    if ($previous -eq $State) {
+        return
+    }
+
+    $ComponentStates[$Name] = $State
+
+    $message = "{0} => {1}" -f $Name, $State
+
+    if ($Detail) {
+        $message = "{0} | {1}" -f $message, $Detail
+    }
+
+    $level = "INFO"
+
+    if ($State -eq "DEGRADED") {
+        $level = "WARNING"
+    }
+
+    Write-SupervisorLog `
+        -Level $level `
+        -Message $message
 }
 
 
@@ -71,7 +92,7 @@ function Get-ProjectPythonProcess {
         [string]$ScriptPath
     )
 
-    $resultado = @(
+    $result = @(
         Get-CimInstance Win32_Process |
             Where-Object {
                 $_.Name -match "^python(w)?\.exe$" -and
@@ -81,7 +102,7 @@ function Get-ProjectPythonProcess {
             }
     )
 
-    return $resultado
+    return $result
 }
 
 
@@ -90,32 +111,28 @@ function Get-ProjectProcess {
         [string]$ScriptPath
     )
 
-    $processos = @(
+    $processes = @(
         Get-ProjectPythonProcess `
             -ScriptPath $ScriptPath
     )
 
-    if ($processos.Count -eq 0) {
+    if ($processes.Count -eq 0) {
         return @()
     }
 
-    $ids = @(
-        $processos.ProcessId
-    )
+    $ids = @($processes.ProcessId)
 
-    $raizesLogicas = @(
-        $processos |
+    return @(
+        $processes |
             Where-Object {
                 $_.ParentProcessId -notin $ids
             }
     )
-
-    return $raizesLogicas
 }
 
 
 function Get-ManagedProjectPythonProcess {
-    $resultado = @(
+    return @(
         Get-CimInstance Win32_Process |
             Where-Object {
                 $_.Name -match "^python(w)?\.exe$" -and
@@ -124,32 +141,26 @@ function Get-ManagedProjectPythonProcess {
                 $_.CommandLine -match $ManagedScriptRegex
             }
     )
-
-    return $resultado
 }
 
 
 function Get-ManagedProjectRootProcess {
-    $processos = @(
+    $processes = @(
         Get-ManagedProjectPythonProcess
     )
 
-    if ($processos.Count -eq 0) {
+    if ($processes.Count -eq 0) {
         return @()
     }
 
-    $ids = @(
-        $processos.ProcessId
-    )
+    $ids = @($processes.ProcessId)
 
-    $raizes = @(
-        $processos |
+    return @(
+        $processes |
             Where-Object {
                 $_.ParentProcessId -notin $ids
             }
     )
-
-    return $raizes
 }
 
 
@@ -159,91 +170,84 @@ function Stop-ProjectProcessTree {
         [string]$Description
     )
 
-    $processo = Get-CimInstance `
+    $process = Get-CimInstance `
         Win32_Process `
         -Filter "ProcessId=$ProcessId" `
         -ErrorAction SilentlyContinue
 
-    if ($null -eq $processo) {
+    if ($null -eq $process) {
         return
     }
 
-    Write-Host (
-        "Encerrando arvore antiga: {0} | PID {1}" -f
-        $Description,
-        $ProcessId
-    )
+    Write-SupervisorLog `
+        -Level "INFO" `
+        -Message (
+            "Encerrando arvore antiga: {0} | PID {1}" -f
+            $Description,
+            $ProcessId
+        )
 
-    & taskkill.exe `
-        /PID $ProcessId `
-        /T `
-        /F |
-        Out-Null
+    & taskkill.exe /PID $ProcessId /T /F | Out-Null
 }
 
 
 function Stop-StaleManagedProjectTrees {
-    Write-Host (
-        "Verificando componentes operacionais orfaos " +
-        "de execucoes anteriores."
-    )
+    Write-SupervisorLog `
+        -Level "INFO" `
+        -Message (
+            "Verificando componentes operacionais orfaos " +
+            "de execucoes anteriores."
+        )
 
-    for ($tentativa = 1; $tentativa -le 3; $tentativa++) {
-
-        $processos = @(
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        $processes = @(
             Get-ManagedProjectPythonProcess
         )
 
-        if ($processos.Count -eq 0) {
-            Write-Host (
-                "Nenhuma arvore operacional antiga permanece ativa."
-            )
+        if ($processes.Count -eq 0) {
+            Write-SupervisorLog `
+                -Level "INFO" `
+                -Message (
+                    "Nenhuma arvore operacional antiga permanece ativa."
+                )
+
             return
         }
 
-        $raizes = @(
+        $roots = @(
             Get-ManagedProjectRootProcess
         )
 
-        if ($raizes.Count -eq 0) {
+        if ($roots.Count -eq 0) {
             throw (
-                "Existem processos gerenciados antigos, mas nenhuma " +
-                "raiz segura foi identificada."
+                "Existem processos gerenciados antigos, " +
+                "mas nenhuma raiz segura foi identificada."
             )
         }
 
-        foreach ($raiz in $raizes) {
-
+        foreach ($root in $roots) {
             Stop-ProjectProcessTree `
-                -ProcessId $raiz.ProcessId `
-                -Description $raiz.CommandLine
+                -ProcessId $root.ProcessId `
+                -Description $root.CommandLine
         }
 
         Start-Sleep -Seconds 1
     }
 
-    $restantes = @(
+    $remaining = @(
         Get-ManagedProjectPythonProcess
     )
 
-    if ($restantes.Count -ne 0) {
-
-        $descricao = (
-            $restantes |
-                ForEach-Object {
-                    "PID $($_.ProcessId): $($_.CommandLine)"
-                }
-        ) -join "; "
-
+    if ($remaining.Count -ne 0) {
         throw (
-            "Nao foi possivel remover completamente as arvores " +
-            "operacionais antigas. Restantes: $descricao"
+            "Nao foi possivel remover completamente as " +
+            "arvores operacionais antigas."
         )
     }
 
-    Write-Host (
-        "Arvores operacionais antigas removidas com sucesso."
-    )
+    Write-SupervisorLog `
+        -Level "INFO" `
+        -Message "Arvores operacionais antigas removidas com sucesso."
 }
 
 
@@ -253,44 +257,32 @@ function Ensure-SingleProjectProcess {
         [string]$ScriptPath
     )
 
-    $processos = @(
+    $processes = @(
         Get-ProjectProcess `
             -ScriptPath $ScriptPath
     )
 
-    if ($processos.Count -gt 1) {
-
-        $ordenados = @(
-            $processos |
-                Sort-Object `
-                    CreationDate,
-                    ProcessId
+    if ($processes.Count -gt 1) {
+        $ordered = @(
+            $processes |
+                Sort-Object CreationDate, ProcessId
         )
 
-        $extras = @(
-            $ordenados |
-                Select-Object -Skip 1
-        )
-
-        foreach ($extra in $extras) {
-
+        foreach ($extra in @($ordered | Select-Object -Skip 1)) {
             Stop-ProjectProcessTree `
                 -ProcessId $extra.ProcessId `
-                -Description (
-                    "instancia duplicada de $ScriptName"
-                )
+                -Description "instancia duplicada de $ScriptName"
         }
 
         Start-Sleep -Seconds 1
 
-        $processos = @(
+        $processes = @(
             Get-ProjectProcess `
                 -ScriptPath $ScriptPath
         )
     }
 
-    if ($processos.Count -eq 0) {
-
+    if ($processes.Count -eq 0) {
         Start-Process `
             -FilePath $Python `
             -ArgumentList $ScriptPath `
@@ -298,13 +290,32 @@ function Ensure-SingleProjectProcess {
             -WindowStyle Hidden
 
         Start-Sleep -Seconds 2
+
+        $processes = @(
+            Get-ProjectProcess `
+                -ScriptPath $ScriptPath
+        )
+
+        if ($processes.Count -eq 0) {
+            throw (
+                "$ScriptName nao permaneceu ativo " +
+                "apos a tentativa de inicializacao."
+            )
+        }
+
+        Write-SupervisorLog `
+            -Level "INFO" `
+            -Message (
+                "Componente iniciado: {0} | PID {1}" -f
+                $ScriptName,
+                $processes[0].ProcessId
+            )
     }
 }
 
 
 function Test-Cdp {
     try {
-
         Invoke-RestMethod `
             -Uri $CdpEndpoint `
             -TimeoutSec 3 |
@@ -319,7 +330,7 @@ function Test-Cdp {
 
 
 function Get-CdpRootProcess {
-    $resultado = @(
+    return @(
         Get-CimInstance Win32_Process |
             Where-Object {
                 $_.Name -eq "chrome.exe" -and
@@ -328,8 +339,6 @@ function Get-CdpRootProcess {
                 $_.CommandLine -notlike "*--type=*"
             }
     )
-
-    return $resultado
 }
 
 
@@ -338,31 +347,22 @@ function Ensure-Cdp {
         return
     }
 
-    $processosAntigos = @(
-        Get-CdpRootProcess
-    )
-
-    foreach ($processo in $processosAntigos) {
-
-        & taskkill.exe `
-            /PID $processo.ProcessId `
-            /T `
-            /F |
-            Out-Null
+    foreach ($process in @(Get-CdpRootProcess)) {
+        & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
     }
 
     Start-Sleep -Seconds 2
 
-    $chromeCandidatos = @(
+    $chromeCandidates = @(
         "C:\Program Files\Google\Chrome\Application\chrome.exe",
         "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
     )
 
-    $Chrome = $chromeCandidatos |
-        Where-Object {
-            Test-Path $_
-        } |
-        Select-Object -First 1
+    $Chrome = (
+        $chromeCandidates |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+    )
 
     if (-not $Chrome) {
         throw "Google Chrome nao encontrado."
@@ -381,7 +381,6 @@ function Ensure-Cdp {
     $cdpOk = $false
 
     for ($i = 1; $i -le 20; $i++) {
-
         Start-Sleep -Seconds 1
 
         if (Test-Cdp) {
@@ -393,41 +392,119 @@ function Ensure-Cdp {
     if (-not $cdpOk) {
         throw "Chrome/CDP nao respondeu na porta 9222."
     }
+
+    Write-SupervisorLog `
+        -Level "INFO" `
+        -Message "Chrome/CDP iniciado e responsivo."
 }
 
 
-Stop-StaleManagedProjectTrees
+function Invoke-SupervisorStep {
+    param(
+        [string]$Name,
+        [scriptblock]$Action
+    )
 
-
-while ($true) {
     try {
+        & $Action
 
-        Ensure-Cdp
-
-        Ensure-SingleProjectProcess `
-            -ScriptName "social_scout_telegram.py" `
-            -ScriptPath $ListenerScript
-
-        Ensure-SingleProjectProcess `
-            -ScriptName "runtime.py" `
-            -ScriptPath $RuntimeScript
-
-        Ensure-SingleProjectProcess `
-            -ScriptName "node_agent.py" `
-            -ScriptPath $NodeAgentScript
-
-        Ensure-SingleProjectProcess `
-            -ScriptName "partner_scout.py" `
-            -ScriptPath $PartnerScoutScript
+        Set-ComponentState `
+            -Name $Name `
+            -State "HEALTHY"
     }
     catch {
-
-        $mensagemErro = $_.Exception.Message
-
-        Write-Warning (
-            "Supervisor encontrou falha transitoria: $mensagemErro"
-        )
+        Set-ComponentState `
+            -Name $Name `
+            -State "DEGRADED" `
+            -Detail $_.Exception.Message
     }
+}
+
+
+if (-not (Test-Path $Python)) {
+    throw "Python do projeto nao encontrado."
+}
+
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+$sessionId = (Get-Process -Id $PID).SessionId
+$bootTime = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+
+Write-SupervisorLog `
+    -Level "INFO" `
+    -Message (
+        "Supervisor iniciado | identidade={0} | " +
+        "sessao={1} | boot={2:yyyy-MM-dd HH:mm:ss}" -f
+        $identity,
+        $sessionId,
+        $bootTime
+    )
+
+try {
+    Stop-StaleManagedProjectTrees
+}
+catch {
+    Write-SupervisorLog `
+        -Level "WARNING" `
+        -Message (
+            "Limpeza inicial encontrou falha: " +
+            $_.Exception.Message
+        )
+}
+
+while ($true) {
+    Invoke-SupervisorStep `
+        -Name "node_agent" `
+        -Action {
+            if (-not (Test-Path $NodeAgentScript)) {
+                throw "node_agent.py nao encontrado."
+            }
+
+            Ensure-SingleProjectProcess `
+                -ScriptName "node_agent.py" `
+                -ScriptPath $NodeAgentScript
+        }
+
+    Invoke-SupervisorStep `
+        -Name "partner_scout" `
+        -Action {
+            if (-not (Test-Path $PartnerScoutScript)) {
+                throw "partner_scout.py nao encontrado."
+            }
+
+            Ensure-SingleProjectProcess `
+                -ScriptName "partner_scout.py" `
+                -ScriptPath $PartnerScoutScript
+        }
+
+    Invoke-SupervisorStep `
+        -Name "social_scout" `
+        -Action {
+            if (-not (Test-Path $ListenerScript)) {
+                throw "social_scout_telegram.py nao encontrado."
+            }
+
+            Ensure-SingleProjectProcess `
+                -ScriptName "social_scout_telegram.py" `
+                -ScriptPath $ListenerScript
+        }
+
+    Invoke-SupervisorStep `
+        -Name "chrome_cdp" `
+        -Action {
+            Ensure-Cdp
+        }
+
+    Invoke-SupervisorStep `
+        -Name "runtime" `
+        -Action {
+            if (-not (Test-Path $RuntimeScript)) {
+                throw "runtime.py nao encontrado."
+            }
+
+            Ensure-SingleProjectProcess `
+                -ScriptName "runtime.py" `
+                -ScriptPath $RuntimeScript
+        }
 
     Start-Sleep -Seconds 30
 }
