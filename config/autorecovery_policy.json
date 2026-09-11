@@ -1,10 +1,11 @@
-﻿{
+{
   "schema_version": 1,
   "enabled": true,
-  "mode": "observe_only",
+  "mode": "active_supervisor_recovery",
   "consecutive_degraded_cycles_before_supervisor_restart": 3,
   "supervisor_restart_limit_per_incident": 1,
   "reboot_cooldown_hours": 6,
   "max_auto_reboots_per_cooldown": 1,
-  "auto_reboot_enabled": false
+  "auto_reboot_enabled": false,
+  "supervisor_restart_enabled": true
 }

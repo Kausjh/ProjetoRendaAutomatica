@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -22,10 +22,11 @@ def _monitor() -> str:
     return MONITOR.read_text(encoding="utf-8-sig")
 
 
-def test_policy_comeca_em_observe_only():
+def test_policy_habilita_apenas_restart_do_supervisor():
     data = json.loads(POLICY.read_text(encoding="utf-8-sig"))
     assert data["enabled"] is True
-    assert data["mode"] == "observe_only"
+    assert data["mode"] == "active_supervisor_recovery"
+    assert data["supervisor_restart_enabled"] is True
     assert data["auto_reboot_enabled"] is False
     assert data["reboot_cooldown_hours"] == 6
     assert data["max_auto_reboots_per_cooldown"] == 1
@@ -62,15 +63,19 @@ def test_engine_tem_travas():
     assert "REBOOT_LOCKOUT" in texto
 
 
-def test_supervisor_integra_sem_executar_acao_agressiva():
+def test_supervisor_pode_reiniciar_apenas_a_si_mesmo():
     texto = _supervisor()
+
     assert "$AutoRecoveryLibrary =" in texto
     assert ". $AutoRecoveryLibrary" in texto
     assert "Update-AutoRecoveryController" in texto
-    assert "Register-AutoRecoveryAction" not in texto
+    assert "Register-AutoRecoveryAction" in texto
+    assert '"RESTART_SUPERVISOR"' in texto
+    assert '"RESTART_SUPERVISOR_PENDING"' in texto
+    assert "exit 1" in texto
+
     assert "shutdown.exe" not in texto
     assert "Restart-Computer" not in texto
-    assert "exit 1" not in texto
 
 
 def test_monitor_exibe_autorecovery():

@@ -1,10 +1,11 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 function New-DefaultAutoRecoveryPolicy {
     return [pscustomobject]@{
         schema_version = 1
         enabled = $false
         mode = "observe_only"
+        supervisor_restart_enabled = $false
         consecutive_degraded_cycles_before_supervisor_restart = 3
         supervisor_restart_limit_per_incident = 1
         reboot_cooldown_hours = 6
@@ -288,7 +289,10 @@ function Update-AutoRecoveryController {
         [int]$state["supervisor_restarts_this_incident"] -lt
         $restartLimit
     ) {
-        if ([string]$policy.mode -eq "observe_only") {
+        if (
+            [string]$policy.mode -eq "observe_only" -or
+            -not ([bool]$policy.supervisor_restart_enabled)
+        ) {
             $state["status"] = "WOULD_RESTART_SUPERVISOR"
         }
         else {

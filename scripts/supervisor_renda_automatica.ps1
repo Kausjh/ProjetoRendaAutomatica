@@ -826,12 +826,35 @@ while ($true) {
                 Write-SupervisorLog `
                     -Level "WARNING" `
                     -Message (
-                        "Auto-Recovery observe_only | status={0} | " +
+                        "Auto-Recovery | status={0} | " +
                         "acao={1} | degradados={2}" -f
                         $autoRecovery.status,
                         $autoRecovery.recommended_action,
-                        (@($autoRecovery.degraded_components) -join ",")
+                        (
+                            @(
+                                $autoRecovery.degraded_components
+                            ) -join ","
+                        )
                     )
+            }
+
+            if (
+                [string]$autoRecovery.status -eq "RESTART_SUPERVISOR_PENDING" -and
+                [string]$autoRecovery.recommended_action -eq "RESTART_SUPERVISOR"
+            ) {
+                $registeredRecovery = Register-AutoRecoveryAction `
+                    -Action "RESTART_SUPERVISOR" `
+                    -StatePath $AutoRecoveryStatePath
+
+                Write-SupervisorLog `
+                    -Level "ERROR" `
+                    -Message (
+                        "Auto-Recovery reiniciando supervisor | " +
+                        "tentativa_incidente={0}" -f
+                        $registeredRecovery.supervisor_restarts_this_incident
+                    )
+
+                exit 1
             }
         }
         catch {
