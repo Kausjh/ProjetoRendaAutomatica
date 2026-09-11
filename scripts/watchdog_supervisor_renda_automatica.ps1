@@ -136,14 +136,26 @@ function Write-WatchdogState {
 }
 
 function Get-SupervisorProcesses {
+    $supervisorScript = Join-Path `
+        $ProjectRoot `
+        "scripts\supervisor_renda_automatica.ps1"
+
+    $escapedSupervisorScript = [regex]::Escape(
+        $supervisorScript
+    )
+
+    $supervisorPattern = (
+        '(?i)(?:^|\s)-File\s+"?' +
+        $escapedSupervisorScript +
+        '"?(?:\s|$)'
+    )
+
     return @(
         Get-CimInstance Win32_Process |
             Where-Object {
                 $_.Name -match "^(powershell|pwsh)\.exe$" -and
                 $_.CommandLine -and
-                $_.CommandLine -like (
-                    "*supervisor_renda_automatica.ps1*"
-                )
+                $_.CommandLine -match $supervisorPattern
             }
     )
 }

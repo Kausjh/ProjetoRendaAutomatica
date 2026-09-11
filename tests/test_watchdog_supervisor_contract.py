@@ -68,3 +68,19 @@ def test_watchdog_nao_muta_codigo_do_projeto():
 
     for item in proibidos:
         assert item not in texto
+
+
+def test_watchdog_nao_confunde_o_proprio_nome_com_supervisor():
+    texto = _text()
+
+    assert "[regex]::Escape(" in texto
+    assert "$supervisorPattern" in texto
+    assert "$_ .CommandLine -match $supervisorPattern".replace("$_ ", "$_") in texto
+    assert '"*supervisor_renda_automatica.ps1*"' not in texto
+
+
+def test_watchdog_match_exige_argumento_file_do_supervisor():
+    texto = _text()
+
+    assert "(?:^|\\s)-File\\s+" in texto
+    assert "supervisor_renda_automatica.ps1" in texto
