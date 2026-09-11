@@ -1,4 +1,4 @@
-# 63.8738, -149.7525
+﻿# 63.8738, -149.7525
 
 $ErrorActionPreference = "Stop"
 
@@ -63,6 +63,9 @@ $AutoRecoveryStatePath = Join-Path `
 $NetworkAutonomyProofPath = Join-Path `
     $HealthDirectory `
     "network_autonomy_proof.json"
+
+# V1C: o reboot real permanece protegido pela policy.
+$AutoRebootDelaySeconds = 60
 
 
 Set-Location $ProjectRoot
@@ -724,6 +727,47 @@ function Invoke-SupervisorStep {
 }
 
 
+function Invoke-WindowsAutoReboot {
+    param(
+        [int]$DelaySeconds = 60
+    )
+
+    if ($DelaySeconds -lt 0) {
+        $DelaySeconds = 0
+    }
+
+    $shutdownExe = Join-Path `
+        $env:SystemRoot `
+        "System32\shutdown.exe"
+
+    if (-not (Test-Path $shutdownExe)) {
+        throw "shutdown.exe nao encontrado."
+    }
+
+    $arguments = @(
+        "/r",
+        "/t",
+        [string]$DelaySeconds,
+        "/d",
+        "p:4:1",
+        "/c",
+        (
+            "Projeto Renda Automatica: Auto-Recovery V1C " +
+            "reiniciando o Windows apos falha persistente."
+        )
+    )
+
+    & $shutdownExe @arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw (
+            "shutdown.exe recusou o reboot automatico. " +
+            "ExitCode=$LASTEXITCODE"
+        )
+    }
+}
+
+
 if (-not (Test-Path $Python)) {
     throw "Python do projeto nao encontrado."
 }
@@ -855,6 +899,43 @@ while ($true) {
                     )
 
                 exit 1
+            }
+
+            if (
+                [string]$autoRecovery.status -eq "REBOOT_PENDING" -and
+                [string]$autoRecovery.recommended_action -eq "REBOOT"
+            ) {
+                Write-SupervisorLog `
+                    -Level "ERROR" `
+                    -Message (
+                        "Auto-Recovery V1C agendando reboot do Windows | " +
+                        "delay_segundos={0}" -f
+                        $AutoRebootDelaySeconds
+                    )
+
+                Invoke-WindowsAutoReboot `
+                    -DelaySeconds $AutoRebootDelaySeconds
+
+                $registeredReboot = Register-AutoRecoveryAction `
+                    -Action "REBOOT" `
+                    -StatePath $AutoRecoveryStatePath
+
+                Write-SupervisorLog `
+                    -Level "ERROR" `
+                    -Message (
+                        "Auto-Recovery V1C reboot registrado | " +
+                        "last_auto_reboot_at={0}" -f
+                        $registeredReboot.last_auto_reboot_at
+                    )
+
+                Start-Sleep -Seconds (
+                    $AutoRebootDelaySeconds + 30
+                )
+
+                throw (
+                    "Reboot automatico foi agendado, mas o Windows " +
+                    "continuou ativo alem da janela esperada."
+                )
             }
         }
         catch {

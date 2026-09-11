@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -22,7 +22,7 @@ def _monitor() -> str:
     return MONITOR.read_text(encoding="utf-8-sig")
 
 
-def test_policy_habilita_apenas_restart_do_supervisor():
+def test_policy_v1c_continua_desarmada_ate_prova_real():
     data = json.loads(POLICY.read_text(encoding="utf-8-sig"))
     assert data["enabled"] is True
     assert data["mode"] == "active_supervisor_recovery"
@@ -63,7 +63,7 @@ def test_engine_tem_travas():
     assert "REBOOT_LOCKOUT" in texto
 
 
-def test_supervisor_pode_reiniciar_apenas_a_si_mesmo():
+def test_supervisor_v1c_modela_restart_e_reboot_real():
     texto = _supervisor()
 
     assert "$AutoRecoveryLibrary =" in texto
@@ -74,7 +74,14 @@ def test_supervisor_pode_reiniciar_apenas_a_si_mesmo():
     assert '"RESTART_SUPERVISOR_PENDING"' in texto
     assert "exit 1" in texto
 
-    assert "shutdown.exe" not in texto
+    assert '"REBOOT_PENDING"' in texto
+    assert 'recommended_action -eq "REBOOT"' in texto
+    assert "function Invoke-WindowsAutoReboot" in texto
+    assert "shutdown.exe" in texto
+    assert '"/r"' in texto
+    assert '"/t"' in texto
+    assert '-Action "REBOOT"' in texto
+    assert "$AutoRebootDelaySeconds = 60" in texto
     assert "Restart-Computer" not in texto
 
 

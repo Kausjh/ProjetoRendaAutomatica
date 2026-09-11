@@ -149,9 +149,7 @@ def test_monitor_exibe_prova_de_internet_antes_do_login():
 
 
 def test_telemetria_nao_adiciona_reboot_automatico():
-    supervisor = _supervisor().lower()
     monitor = _monitor().lower()
 
-    for texto in (supervisor, monitor):
-        assert "shutdown.exe" not in texto
-        assert "restart-computer" not in texto
+    assert "shutdown.exe" not in monitor
+    assert "restart-computer" not in monitor
