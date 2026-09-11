@@ -1,5 +1,7 @@
 import os
+from collections.abc import Iterable
 
+from models.alvo_discovery_comercial_hunter import AlvoDiscoveryComercialHunter
 from scrapers.aliexpress_scraper import AliExpressScraper
 from scrapers.base_scraper import BaseScraper
 from scrapers.kabum_scraper import KabumScraper
@@ -75,13 +77,45 @@ def _inteiro_positivo(
     return numero
 
 
-def criar_scrapers() -> list[BaseScraper]:
+def criar_scrapers(
+    *,
+    alvos_discovery_comercial: Iterable[AlvoDiscoveryComercialHunter] = (),
+) -> list[BaseScraper]:
     """Cria somente as fontes explicitamente habilitadas."""
+
+    alvos = tuple(alvos_discovery_comercial)
+
+    kabum = KabumScraper()
+
+    termos_kabum = [
+        alvo.termo_busca
+        for alvo in alvos
+        if (
+            alvo.fonte_hunter == "KabumScraper"
+            and alvo.estrategia == "buscar_termos_kabum"
+            and alvo.termo_busca
+        )
+    ]
+
+    if termos_kabum:
+        priorizar_termos = getattr(
+            kabum,
+            "priorizar_termos_discovery",
+            None,
+        )
+
+        if not callable(priorizar_termos):
+            raise TypeError("KabumScraper nao suporta priorizacao " "de termos discovery.")
+
+        priorizar_termos(
+            termos_kabum,
+            maximo=5,
+        )
 
     scrapers: list[BaseScraper] = [
         MercadoLivreScraper(),
         ShopeeScraper(),
-        KabumScraper(),
+        kabum,
         AliExpressScraper(),
     ]
 

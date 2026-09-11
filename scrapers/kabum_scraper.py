@@ -3,6 +3,7 @@
 import logging
 import re
 import time
+from collections.abc import Iterable
 from typing import Any
 from urllib.parse import quote
 
@@ -83,6 +84,63 @@ class KabumScraper(BaseScraper):
             raise ValueError("A lista de termos da KaBuM! não pode estar vazia.")
 
         self.endpoint_cdp = endpoint_cdp.strip() if endpoint_cdp else self.ENDPOINT_CDP
+
+    def priorizar_termos_discovery(
+        self,
+        termos: Iterable[str],
+        *,
+        maximo: int = 5,
+    ) -> tuple[str, ...]:
+        if isinstance(maximo, bool) or not isinstance(maximo, int) or maximo <= 0:
+            raise ValueError("maximo precisa ser inteiro positivo.")
+
+        capacidade = len(self.termos_busca)
+
+        if capacidade <= 0:
+            return ()
+
+        limite_prioridades = min(maximo, capacidade)
+        prioritarios: list[str] = []
+        vistos: set[str] = set()
+
+        for valor in termos:
+            termo = str(valor or "").strip()
+
+            if not termo:
+                continue
+
+            chave = termo.casefold()
+
+            if chave in vistos:
+                continue
+
+            vistos.add(chave)
+            prioritarios.append(termo)
+
+            if len(prioritarios) >= limite_prioridades:
+                break
+
+        if not prioritarios:
+            return ()
+
+        combinados: list[str] = []
+        chaves_combinadas: set[str] = set()
+
+        for termo in [*prioritarios, *self.termos_busca]:
+            chave = termo.casefold()
+
+            if chave in chaves_combinadas:
+                continue
+
+            chaves_combinadas.add(chave)
+            combinados.append(termo)
+
+            if len(combinados) >= capacidade:
+                break
+
+        self.termos_busca = combinados
+
+        return tuple(prioritarios)
 
     def buscar_ofertas(
         self,
