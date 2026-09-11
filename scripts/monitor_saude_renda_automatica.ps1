@@ -21,6 +21,11 @@ $HeartbeatPath = Join-Path `
     $env:ProgramData `
     "ProjetoRendaAutomatica\health\heartbeat.json"
 
+$AutoRecoveryStatePath = Join-Path `
+    $env:ProgramData `
+    "ProjetoRendaAutomatica\health\autorecovery_state.json"
+
+
 $SupervisorLogDirectory = Join-Path `
     $ProjectRoot `
     "logs\supervisor"
@@ -158,6 +163,18 @@ function Get-HeartbeatView {
         network_checked_at = $null
         network_first_online_at = $null
         network_source = "-"
+        autorecovery_status = "INITIALIZING"
+        autorecovery_mode = "-"
+        autorecovery_incident_started_at = $null
+        autorecovery_cycles = 0
+        autorecovery_supervisor_restarts = 0
+        autorecovery_degraded_components = @()
+        autorecovery_recommended_action = "NONE"
+        autorecovery_last_action = "NONE"
+        autorecovery_last_action_at = $null
+        autorecovery_last_recovered_at = $null
+        autorecovery_reboot_lockout_until = $null
+        autorecovery_network_autonomy_proven = $false
         components = [ordered]@{
             node_agent = "UNKNOWN"
             partner_scout = "UNKNOWN"
@@ -236,6 +253,43 @@ function Get-HeartbeatView {
             [string]$data.network.source
         )
 
+
+        if (Test-Path $AutoRecoveryStatePath) {
+            try {
+                $recovery = Get-Content `
+                    -LiteralPath $AutoRecoveryStatePath `
+                    -Raw |
+                    ConvertFrom-Json
+
+                $view.autorecovery_status = [string]$recovery.status
+                $view.autorecovery_mode = [string]$recovery.execution_mode
+                $view.autorecovery_cycles = [int]$recovery.consecutive_degraded_cycles
+                $view.autorecovery_supervisor_restarts = [int]$recovery.supervisor_restarts_this_incident
+                $view.autorecovery_degraded_components = @($recovery.degraded_components)
+                $view.autorecovery_recommended_action = [string]$recovery.recommended_action
+                $view.autorecovery_last_action = [string]$recovery.last_action
+                $view.autorecovery_network_autonomy_proven = [bool]$recovery.network_autonomy_proven
+
+                if ($recovery.incident_started_at) {
+                    $view.autorecovery_incident_started_at = [DateTimeOffset]::Parse([string]$recovery.incident_started_at)
+                }
+
+                if ($recovery.last_action_at) {
+                    $view.autorecovery_last_action_at = [DateTimeOffset]::Parse([string]$recovery.last_action_at)
+                }
+
+                if ($recovery.last_recovered_at) {
+                    $view.autorecovery_last_recovered_at = [DateTimeOffset]::Parse([string]$recovery.last_recovered_at)
+                }
+
+                if ($recovery.reboot_lockout_until) {
+                    $view.autorecovery_reboot_lockout_until = [DateTimeOffset]::Parse([string]$recovery.reboot_lockout_until)
+                }
+            }
+            catch {
+                $view.autorecovery_status = "STATE_INVALID"
+            }
+        }
         foreach ($name in @(
             "node_agent",
             "partner_scout",
@@ -627,6 +681,21 @@ function Update-Central {
         "Antes do login GUI:    $internetProof"
         "Fonte:                 $($view.network_source)"
         "Politica futura:       $futureRecoveryPolicy"
+        ""
+        "AUTO-RECOVERY"
+        "--------------------------------------------------"
+        "Modo:                  $($view.autorecovery_mode)"
+        "Estado:                $($view.autorecovery_status)"
+        "Ciclos degradados:     $($view.autorecovery_cycles)"
+        "Restarts supervisor:   $($view.autorecovery_supervisor_restarts)"
+        "Acao recomendada:      $($view.autorecovery_recommended_action)"
+        "Degradados:            $(@($view.autorecovery_degraded_components) -join ', ')"
+        "Incidente iniciou:     $(Format-Time $view.autorecovery_incident_started_at)"
+        "Ultima acao:           $($view.autorecovery_last_action)"
+        "Ultima acao em:        $(Format-Time $view.autorecovery_last_action_at)"
+        "Ultima recuperacao:    $(Format-Time $view.autorecovery_last_recovered_at)"
+        "Lockout reboot ate:    $(Format-Time $view.autorecovery_reboot_lockout_until)"
+        "Rede autonoma provada: $($view.autorecovery_network_autonomy_proven)"
         ""
         "COMPONENTES"
         "--------------------------------------------------"

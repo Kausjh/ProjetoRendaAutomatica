@@ -48,7 +48,30 @@ $HealthNetworkStatePath = Join-Path `
     $HealthDirectory `
     "network_boot_state.json"
 
+$AutoRecoveryLibrary = Join-Path `
+    $ProjectRoot `
+    "scripts\autorecovery_renda_automatica.ps1"
+
+$AutoRecoveryPolicyPath = Join-Path `
+    $ProjectRoot `
+    "config\autorecovery_policy.json"
+
+$AutoRecoveryStatePath = Join-Path `
+    $HealthDirectory `
+    "autorecovery_state.json"
+
+$NetworkAutonomyProofPath = Join-Path `
+    $HealthDirectory `
+    "network_autonomy_proof.json"
+
+
 Set-Location $ProjectRoot
+
+if (-not (Test-Path $AutoRecoveryLibrary)) {
+    throw "Engine Auto-Recovery nao encontrado."
+}
+
+. $AutoRecoveryLibrary
 
 New-Item `
     -ItemType Directory `
@@ -665,6 +688,8 @@ function Write-HealthHeartbeat {
             -LiteralPath $tempPath `
             -Destination $HealthHeartbeatPath `
             -Force
+
+        return [pscustomobject]$payload
     }
     catch {
         Write-SupervisorLog `
@@ -783,8 +808,41 @@ while ($true) {
                 -ScriptName "runtime.py" `
                 -ScriptPath $RuntimeScript
         }
+    $healthSnapshot = Write-HealthHeartbeat
 
-    Write-HealthHeartbeat
+    if ($null -ne $healthSnapshot) {
+        try {
+            $autoRecovery = Update-AutoRecoveryController `
+                -ComponentStates $ComponentStates `
+                -NetworkOnline ([bool]$healthSnapshot.network.online) `
+                -PolicyPath $AutoRecoveryPolicyPath `
+                -StatePath $AutoRecoveryStatePath `
+                -ProofPath $NetworkAutonomyProofPath
+
+            if (
+                [string]$autoRecovery.recommended_action -ne "NONE" -and
+                [string]$autoRecovery.recommended_action -ne "LOCAL_RECOVERY"
+            ) {
+                Write-SupervisorLog `
+                    -Level "WARNING" `
+                    -Message (
+                        "Auto-Recovery observe_only | status={0} | " +
+                        "acao={1} | degradados={2}" -f
+                        $autoRecovery.status,
+                        $autoRecovery.recommended_action,
+                        (@($autoRecovery.degraded_components) -join ",")
+                    )
+            }
+        }
+        catch {
+            Write-SupervisorLog `
+                -Level "WARNING" `
+                -Message (
+                    "Auto-Recovery falhou de forma fail-safe: " +
+                    $_.Exception.Message
+                )
+        }
+    }
 
     Start-Sleep -Seconds 30
 }
