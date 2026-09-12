@@ -68,11 +68,23 @@ def _validar_endpoint(
     if parsed.scheme != "https":
         raise ValueError("endpoint OpenAI precisa usar HTTPS")
 
-    if not parsed.hostname:
-        raise ValueError("endpoint OpenAI precisa ter host")
+    if parsed.hostname != "api.openai.com":
+        raise ValueError("endpoint OpenAI precisa usar api.openai.com")
 
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("endpoint OpenAI nao pode conter credenciais")
+
+    if parsed.port not in {
+        None,
+        443,
+    }:
+        raise ValueError("endpoint OpenAI nao pode usar porta nao padrao")
+
+    if parsed.path.rstrip("/") != "/v1/responses":
+        raise ValueError("endpoint OpenAI precisa usar /v1/responses")
+
+    if parsed.query:
+        raise ValueError("endpoint OpenAI nao pode conter query string")
 
     if parsed.fragment:
         raise ValueError("endpoint OpenAI nao pode conter fragmento")

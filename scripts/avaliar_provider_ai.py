@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +27,10 @@ from services.inteligencia_assistiva_ai import (
 from services.provedor_http_inteligencia_ai import (
     ProvedorHttpInteligenciaAI,
     criar_provedor_http_inteligencia_ai,
+)
+from services.provedor_openai_responses_ai import (
+    MODELO_OPENAI_PADRAO,
+    ProvedorOpenAIResponsesAI,
 )
 
 TAREFA_AVALIACAO = "avaliar_provider_ai"
@@ -59,6 +64,16 @@ def criar_parser() -> argparse.ArgumentParser:
             "Autoriza somente este harness a tentar uma avaliacao "
             "real. O kill switch continua sendo respeitado."
         ),
+    )
+
+    parser.add_argument(
+        "--provider-real",
+        choices=(
+            "generico",
+            "openai",
+        ),
+        default="generico",
+        help=("Seleciona o provider usado somente no caso contrato " "quando --modo real."),
     )
 
     parser.add_argument(
@@ -177,28 +192,63 @@ def _criar_controle_mock() -> ControleOperacionalInteligenciaAI:
     )
 
 
+def _buscar_openai_api_key_harness() -> str:
+    valor = os.getenv("OPENAI_API_KEY")
+
+    if valor is None or not valor.strip():
+        raise RuntimeError("OPENAI_API_KEY nao esta configurada no .env local.")
+
+    return valor.strip()
+
+
+def _buscar_openai_model_harness() -> str:
+    valor = os.getenv("OPENAI_MODEL")
+
+    if valor is None or not valor.strip():
+        return MODELO_OPENAI_PADRAO
+
+    return valor.strip()
+
+
+def _criar_provider_openai_harness() -> ProvedorOpenAIResponsesAI:
+    return ProvedorOpenAIResponsesAI(
+        api_key=_buscar_openai_api_key_harness(),
+        modelo=_buscar_openai_model_harness(),
+    )
+
+
 def _criar_provider_real(
     *,
     permitir_rede_real: bool,
+    provider_real: str = "generico",
 ) -> tuple[
-    ProvedorHttpInteligenciaAI,
+    Any,
     ControleOperacionalInteligenciaAI,
 ]:
     if not permitir_rede_real:
         raise RuntimeError("Modo real exige --permitir-rede-real.")
 
+    if provider_real not in {
+        "generico",
+        "openai",
+    }:
+        raise ValueError("provider_real precisa ser generico ou openai")
+
     configuracoes = Configuracoes()
 
-    provedor = criar_provedor_http_inteligencia_ai(
-        endpoint=configuracoes.ai_provedor_endpoint,
-        provedor=configuracoes.ai_provedor_nome,
-        modelo=configuracoes.ai_provedor_modelo,
-        auth_header_nome=(configuracoes.ai_provedor_auth_header_nome),
-        auth_header_valor=(configuracoes.ai_provedor_auth_header_valor),
-    )
+    if provider_real == "openai":
+        provedor = _criar_provider_openai_harness()
+    else:
+        provedor = criar_provedor_http_inteligencia_ai(
+            endpoint=configuracoes.ai_provedor_endpoint,
+            provedor=configuracoes.ai_provedor_nome,
+            modelo=configuracoes.ai_provedor_modelo,
+            auth_header_nome=(configuracoes.ai_provedor_auth_header_nome),
+            auth_header_valor=(configuracoes.ai_provedor_auth_header_valor),
+        )
 
-    if provedor is None:
-        raise RuntimeError("Provider AI real nao esta configurado.")
+        if provedor is None:
+            raise RuntimeError("Provider AI real nao esta configurado.")
 
     controle = ControleOperacionalInteligenciaAI(
         kill_switch_ativo=(configuracoes.ai_kill_switch_ativo),
@@ -223,6 +273,7 @@ def executar_avaliacao(
     *,
     modo: str = "mock",
     permitir_rede_real: bool = False,
+    provider_real: str = "generico",
     caminho_relatorio: Path | None = None,
 ) -> dict[str, Any]:
     if modo not in {
@@ -235,7 +286,10 @@ def executar_avaliacao(
         provedor = _criar_provider_mock()
         controle = _criar_controle_mock()
     else:
-        provedor, controle = _criar_provider_real(permitir_rede_real=(permitir_rede_real))
+        provedor, controle = _criar_provider_real(
+            permitir_rede_real=(permitir_rede_real),
+            provider_real=provider_real,
+        )
 
     solicitacao = _solicitacao_avaliacao()
 
@@ -254,6 +308,7 @@ def executar_avaliacao(
         "schema_version": 1,
         "capturado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
         "modo": modo,
+        "provider_real": (provider_real if modo == "real" else None),
         "tarefa": solicitacao.tarefa,
         "resultado": {
             "status": resultado.status,
@@ -468,6 +523,7 @@ def main() -> int:
             relatorio = executar_avaliacao(
                 modo=args.modo,
                 permitir_rede_real=(args.permitir_rede_real),
+                provider_real=(args.provider_real),
                 caminho_relatorio=(args.relatorio),
             )
         else:
@@ -478,6 +534,9 @@ def main() -> int:
                 raise RuntimeError(
                     "--permitir-rede-real nao pode ser usado " "com casos de dominio V20C."
                 )
+
+            if args.provider_real != "generico":
+                raise RuntimeError("--provider-real so pode ser usado " "com --caso contrato.")
 
             relatorio = executar_avaliacao_dominios_mock(
                 caso=args.caso,
@@ -495,6 +554,7 @@ def main() -> int:
         resultado = relatorio["resultado"]
         controle = relatorio["controle_operacional"]
 
+        print("PROVIDER_REAL=" + str(relatorio.get("provider_real")))
         print("STATUS=" + str(resultado["status"]))
         print("FALLBACK_USADO=" + str(resultado["fallback_usado"]))
         print("VALIDADA_DETERMINISTICAMENTE=" + str(resultado["validada_deterministicamente"]))

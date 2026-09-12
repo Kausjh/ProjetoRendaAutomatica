@@ -289,3 +289,25 @@ def test_adapter_nao_expoe_api_key_no_repr() -> None:
     )
 
     assert "segredo-super-secreto" not in repr(provedor)
+
+
+def test_adapter_rejeita_host_https_estranho() -> None:
+    with pytest.raises(
+        ValueError,
+        match="api.openai.com",
+    ):
+        ProvedorOpenAIResponsesAI(
+            api_key="segredo-teste",
+            endpoint=("https://example.com/v1/responses"),
+        )
+
+
+def test_adapter_rejeita_path_openai_inesperado() -> None:
+    with pytest.raises(
+        ValueError,
+        match="/v1/responses",
+    ):
+        ProvedorOpenAIResponsesAI(
+            api_key="segredo-teste",
+            endpoint=("https://api.openai.com/v1/chat/completions"),
+        )
