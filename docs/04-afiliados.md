@@ -251,6 +251,8 @@ Uma URL diferente da original não é, por si só, prova de monetização. Antes
 
 Quando a monetização obrigatória falha, o item permanece pendente, mas recebe um cooldown persistente de 15 minutos antes de voltar ao fluxo automático. Isso evita que uma única oferta sem afiliação disponível monopolize a fila e impeça outras ofertas monetizáveis de serem publicadas.
 
+A observabilidade de monetização é persistida de forma agregada no estado administrativo (`observabilidade_monetizacao_v1`). Ela contabiliza processamentos, transformações confirmadas, bloqueios fail-closed, pass-through não obrigatório e retries por origem, afiliador e dia. URLs, títulos e identificadores de produtos não são persistidos nesse snapshot.
+
 ---
 
 # Escalabilidade

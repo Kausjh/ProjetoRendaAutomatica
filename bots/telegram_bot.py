@@ -10,6 +10,7 @@ from affiliates.resultado_link_afiliado import ResultadoLinkAfiliado
 from formatters.oferta_formatter import OfertaFormatter
 from models.oferta import Oferta
 from services.historico_precos_service import ResultadoHistoricoPreco
+from services.observador_monetizacao import ObservadorMonetizacao
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +18,17 @@ logger = logging.getLogger(__name__)
 class TelegramBot:
 
     def __init__(
-        self, token: str, channel_id: str, gerador_link_afiliado: GeradorLinkAfiliado
+        self,
+        token: str,
+        channel_id: str,
+        gerador_link_afiliado: GeradorLinkAfiliado,
+        observador_monetizacao: ObservadorMonetizacao | None = None,
     ) -> None:
         self.bot = Bot(token=token)
 
         self.channel_id = channel_id
         self.gerador_link_afiliado = gerador_link_afiliado
+        self.observador_monetizacao = observador_monetizacao
         self.ultima_mensagem_publicada_id: int | None = None
 
     @staticmethod
@@ -79,8 +85,19 @@ class TelegramBot:
     ) -> ResultadoLinkAfiliado:
         self.ultima_mensagem_publicada_id = None
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
+        exige_afiliacao = self._exige_link_afiliado(oferta.link)
 
-        if self._exige_link_afiliado(oferta.link) and not resultado_link.foi_transformado:
+        observador = getattr(self, "observador_monetizacao", None)
+
+        if observador is not None:
+            observador.registrar_processamento_seguro(
+                link_original=oferta.link,
+                afiliador=resultado_link.afiliador_utilizado,
+                transformado=resultado_link.foi_transformado,
+                exige_confirmacao=exige_afiliacao,
+            )
+
+        if exige_afiliacao and not resultado_link.foi_transformado:
             raise ErroMonetizacaoObrigatoria(
                 "Publicacao bloqueada porque "
                 "o link afiliado nao pode ser gerado. "

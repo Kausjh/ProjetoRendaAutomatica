@@ -25,6 +25,7 @@ from services.controle.politica_publicacao_administrativa import (
 )
 from services.janela_publicacao import JanelaPublicacao
 from services.launcher.chrome_launcher import preparar_chrome
+from services.observador_monetizacao import ObservadorMonetizacao
 from services.radar_editorial import RadarEditorial
 from services.seletor_editorial import SeletorEditorial
 
@@ -39,17 +40,22 @@ class PublicadorFila:
     def __init__(self, configuracoes: Configuracoes) -> None:
         self.configuracoes = configuracoes
 
+        self.controle_admin = ControleAdministrativoRepository()
+        self.observador_monetizacao = ObservadorMonetizacao(
+            repositorio=self.controle_admin,
+        )
+
         gerador_link_afiliado = criar_gerador_link_afiliado(configuracoes)
 
         self.bot = TelegramBot(
             token=configuracoes.telegram_bot_token,
             channel_id=configuracoes.channel_id,
             gerador_link_afiliado=gerador_link_afiliado,
+            observador_monetizacao=self.observador_monetizacao,
         )
 
         self.fila = FilaPublicacaoRepository()
         self.publicados = PublicadosRepository()
-        self.controle_admin = ControleAdministrativoRepository()
         self.controle_admin.definir_estado(
             "intervalo_previsao_publicacao_segundos",
             str(configuracoes.publicacao_intervalo_modo_segundos),
@@ -265,6 +271,18 @@ class PublicadorFila:
             detalhe = str(erro)
 
             if item_segurado:
+                observador = getattr(
+                    self,
+                    "observador_monetizacao",
+                    None,
+                )
+
+                if observador is not None:
+                    observador.registrar_retry_seguro(
+                        link_original=item.oferta.link,
+                        minutos=self.AFILIACAO_RETRY_MINUTOS,
+                    )
+
                 detalhe = (
                     f"{detalhe} Nova tentativa liberada em cerca de "
                     f"{self.AFILIACAO_RETRY_MINUTOS} min."
