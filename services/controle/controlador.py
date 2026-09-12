@@ -25,6 +25,7 @@ from services.controle.estado import (
 from services.controle.politica_publicacao_administrativa import (
     requer_aprovacao_hibrida,
 )
+from services.gerador_alertas_monetizacao import gerar_alertas_monetizacao
 from services.launcher.chrome_launcher import cdp_esta_funcional
 
 if TYPE_CHECKING:
@@ -323,6 +324,36 @@ class ControladorAdministrativo:
             "disponivel": True,
             "schema_version": 1,
             "saude": avaliar_saude_monetizacao(snapshot),
+        }
+
+    def obter_alertas_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        dados = self.obter_saude_monetizacao()
+
+        if not dados["disponivel"]:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "alertas": None,
+            }
+
+        saude = dados.get("saude")
+
+        if not isinstance(
+            saude,
+            dict,
+        ):
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "alertas": None,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "alertas": gerar_alertas_monetizacao(saude),
         }
 
     def obter_saude(self) -> dict[str, object]:
