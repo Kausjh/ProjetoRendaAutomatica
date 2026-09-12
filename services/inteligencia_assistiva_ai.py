@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from time import perf_counter
 from typing import Any, Protocol, runtime_checkable
 
 from models.inteligencia_ai import (
     RespostaProvedorInteligenciaAI,
     ResultadoInteligenciaAssistivaAI,
     SolicitacaoInteligenciaAI,
+)
+from models.observabilidade_ai import (
+    EventoObservabilidadeInteligenciaAI,
+)
+from services.controle_operacional_ai import (
+    ControleOperacionalInteligenciaAI,
 )
 
 CONFIANCA_MINIMA_PADRAO = 0.70
@@ -34,13 +41,20 @@ def interpretar_com_inteligencia_assistiva(
     provedor: ProvedorInteligenciaAI | None = None,
     validador: ValidadorDeterministicoAI | None = None,
     confianca_minima: float = CONFIANCA_MINIMA_PADRAO,
+    controle_operacional: ControleOperacionalInteligenciaAI | None = None,
 ) -> ResultadoInteligenciaAssistivaAI:
     """Executa IA somente como camada interpretativa assistiva.
 
     A IA nunca possui autoridade para publicar, alterar budget ou
     substituir regras deterministicas. Qualquer falha retorna o
     fallback fornecido pelo chamador.
+
+    O controle operacional e opcional. Quando fornecido, ele registra
+    observabilidade e protege chamadas externas com circuit breaker.
+    Sua ausencia preserva integralmente o comportamento legado.
     """
+
+    inicio = perf_counter()
 
     if not isinstance(
         solicitacao,
@@ -54,55 +68,149 @@ def interpretar_com_inteligencia_assistiva(
     ):
         raise TypeError("fallback precisa ser um Mapping")
 
+    if controle_operacional is not None and not isinstance(
+        controle_operacional,
+        ControleOperacionalInteligenciaAI,
+    ):
+        raise TypeError(
+            "controle_operacional precisa ser " "ControleOperacionalInteligenciaAI ou None"
+        )
+
     limite = _validar_confianca_minima(confianca_minima)
 
     fallback_normalizado = dict(fallback)
 
     if not habilitado:
-        return _resultado_fallback(
-            status="desabilitado",
-            fallback=fallback_normalizado,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="desabilitado",
+                fallback=fallback_normalizado,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=False,
+            erro=False,
+            bloqueada_circuit_breaker=False,
         )
 
     if provedor is None:
-        return _resultado_fallback(
-            status="sem_provedor",
-            fallback=fallback_normalizado,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="sem_provedor",
+                fallback=fallback_normalizado,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=False,
+            erro=False,
+            bloqueada_circuit_breaker=False,
         )
 
     if validador is None:
-        return _resultado_fallback(
-            status="sem_validador_deterministico",
-            fallback=fallback_normalizado,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="sem_validador_deterministico",
+                fallback=fallback_normalizado,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=False,
+            erro=False,
+            bloqueada_circuit_breaker=False,
         )
+
+    if controle_operacional is not None:
+        try:
+            decisao = controle_operacional.avaliar_chamada_externa()
+        except Exception as erro:
+            return _finalizar(
+                resultado=_resultado_fallback(
+                    status="erro_controle_operacional",
+                    fallback=fallback_normalizado,
+                    tipo_erro=type(erro).__name__,
+                ),
+                solicitacao=solicitacao,
+                controle_operacional=controle_operacional,
+                inicio=inicio,
+                chamada_externa_realizada=False,
+                erro=True,
+                bloqueada_circuit_breaker=False,
+            )
+
+        if not decisao.permitido:
+            return _finalizar(
+                resultado=_resultado_fallback(
+                    status="circuit_breaker_bloqueado",
+                    fallback=fallback_normalizado,
+                ),
+                solicitacao=solicitacao,
+                controle_operacional=controle_operacional,
+                inicio=inicio,
+                chamada_externa_realizada=False,
+                erro=False,
+                bloqueada_circuit_breaker=True,
+            )
 
     try:
         resposta = provedor.interpretar(solicitacao)
     except Exception as erro:
-        return _resultado_fallback(
-            status="erro_provedor",
-            fallback=fallback_normalizado,
-            tipo_erro=type(erro).__name__,
+        _registrar_falha_provedor(controle_operacional)
+
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="erro_provedor",
+                fallback=fallback_normalizado,
+                tipo_erro=type(erro).__name__,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=True,
+            erro=True,
+            bloqueada_circuit_breaker=False,
         )
 
     if not isinstance(
         resposta,
         RespostaProvedorInteligenciaAI,
     ):
-        return _resultado_fallback(
-            status="resposta_provedor_invalida",
-            fallback=fallback_normalizado,
+        _registrar_falha_provedor(controle_operacional)
+
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="resposta_provedor_invalida",
+                fallback=fallback_normalizado,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=True,
+            erro=True,
+            bloqueada_circuit_breaker=False,
         )
+
+    _registrar_sucesso_provedor(controle_operacional)
 
     confianca = float(resposta.confianca)
 
     if confianca < limite:
-        return _resultado_fallback(
-            status="confianca_insuficiente",
-            fallback=fallback_normalizado,
-            provedor=resposta.provedor,
-            modelo=resposta.modelo,
-            confianca=confianca,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="confianca_insuficiente",
+                fallback=fallback_normalizado,
+                provedor=resposta.provedor,
+                modelo=resposta.modelo,
+                confianca=confianca,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=True,
+            erro=False,
+            bloqueada_circuit_breaker=False,
         )
 
     sugestao = dict(resposta.conteudo)
@@ -110,34 +218,128 @@ def interpretar_com_inteligencia_assistiva(
     try:
         valida = validador(sugestao)
     except Exception as erro:
-        return _resultado_fallback(
-            status="erro_validacao_deterministica",
-            fallback=fallback_normalizado,
-            provedor=resposta.provedor,
-            modelo=resposta.modelo,
-            confianca=confianca,
-            tipo_erro=type(erro).__name__,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="erro_validacao_deterministica",
+                fallback=fallback_normalizado,
+                provedor=resposta.provedor,
+                modelo=resposta.modelo,
+                confianca=confianca,
+                tipo_erro=type(erro).__name__,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=True,
+            erro=True,
+            bloqueada_circuit_breaker=False,
         )
 
     if valida is not True:
-        return _resultado_fallback(
-            status="rejeitado_validacao_deterministica",
-            fallback=fallback_normalizado,
-            provedor=resposta.provedor,
-            modelo=resposta.modelo,
-            confianca=confianca,
+        return _finalizar(
+            resultado=_resultado_fallback(
+                status="rejeitado_validacao_deterministica",
+                fallback=fallback_normalizado,
+                provedor=resposta.provedor,
+                modelo=resposta.modelo,
+                confianca=confianca,
+            ),
+            solicitacao=solicitacao,
+            controle_operacional=controle_operacional,
+            inicio=inicio,
+            chamada_externa_realizada=True,
+            erro=False,
+            bloqueada_circuit_breaker=False,
         )
 
-    return ResultadoInteligenciaAssistivaAI(
-        status="sugestao_ai_validada",
-        sugestao=sugestao,
-        origem="ai",
-        confianca=confianca,
-        provedor=resposta.provedor,
-        modelo=resposta.modelo,
-        fallback_usado=False,
-        validada_deterministicamente=True,
+    return _finalizar(
+        resultado=ResultadoInteligenciaAssistivaAI(
+            status="sugestao_ai_validada",
+            sugestao=sugestao,
+            origem="ai",
+            confianca=confianca,
+            provedor=resposta.provedor,
+            modelo=resposta.modelo,
+            fallback_usado=False,
+            validada_deterministicamente=True,
+        ),
+        solicitacao=solicitacao,
+        controle_operacional=controle_operacional,
+        inicio=inicio,
+        chamada_externa_realizada=True,
+        erro=False,
+        bloqueada_circuit_breaker=False,
     )
+
+
+def _finalizar(
+    *,
+    resultado: ResultadoInteligenciaAssistivaAI,
+    solicitacao: SolicitacaoInteligenciaAI,
+    controle_operacional: ControleOperacionalInteligenciaAI | None,
+    inicio: float,
+    chamada_externa_realizada: bool,
+    erro: bool,
+    bloqueada_circuit_breaker: bool,
+) -> ResultadoInteligenciaAssistivaAI:
+    if controle_operacional is None:
+        return resultado
+
+    duracao_ms = max(
+        0.0,
+        (perf_counter() - inicio) * 1000.0,
+    )
+
+    evento = EventoObservabilidadeInteligenciaAI(
+        tarefa=solicitacao.tarefa,
+        status=resultado.status,
+        duracao_ms=duracao_ms,
+        chamada_externa_realizada=(chamada_externa_realizada),
+        fallback_usado=resultado.fallback_usado,
+        resultado_ai_validado=(
+            resultado.status == "sugestao_ai_validada" and resultado.fallback_usado is False
+        ),
+        erro=erro,
+        bloqueada_circuit_breaker=(bloqueada_circuit_breaker),
+        provedor=resultado.provedor,
+        modelo=resultado.modelo,
+        tipo_erro=resultado.tipo_erro,
+        uso=None,
+    )
+
+    try:
+        controle_operacional.registrar_evento(evento)
+    except Exception:
+        # Observabilidade nunca pode quebrar o fluxo deterministico.
+        pass
+
+    return resultado
+
+
+def _registrar_sucesso_provedor(
+    controle_operacional: ControleOperacionalInteligenciaAI | None,
+) -> None:
+    if controle_operacional is None:
+        return
+
+    try:
+        controle_operacional.registrar_sucesso_provedor()
+    except Exception:
+        # Falha da camada de controle nao ganha autoridade operacional.
+        pass
+
+
+def _registrar_falha_provedor(
+    controle_operacional: ControleOperacionalInteligenciaAI | None,
+) -> None:
+    if controle_operacional is None:
+        return
+
+    try:
+        controle_operacional.registrar_falha_provedor()
+    except Exception:
+        # O pipeline deterministico deve continuar disponivel.
+        pass
 
 
 def _validar_confianca_minima(
