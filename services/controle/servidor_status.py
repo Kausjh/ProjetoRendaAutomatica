@@ -114,6 +114,11 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/monetizacao/shadow":
+                        dados = controlador.obter_recomendacao_shadow_monetizacao()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)

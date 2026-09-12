@@ -27,6 +27,7 @@ from services.controle.politica_publicacao_administrativa import (
 )
 from services.gerador_alertas_monetizacao import gerar_alertas_monetizacao
 from services.launcher.chrome_launcher import cdp_esta_funcional
+from services.recomendador_shadow_monetizacao import gerar_recomendacao_shadow_monetizacao
 
 if TYPE_CHECKING:
     from services.runtime.orquestrador import OrquestradorRuntime
@@ -354,6 +355,36 @@ class ControladorAdministrativo:
             "disponivel": True,
             "schema_version": 1,
             "alertas": gerar_alertas_monetizacao(saude),
+        }
+
+    def obter_recomendacao_shadow_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        dados = self.obter_alertas_monetizacao()
+
+        if not dados["disponivel"]:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "shadow": None,
+            }
+
+        alertas = dados.get("alertas")
+
+        if not isinstance(
+            alertas,
+            dict,
+        ):
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "shadow": None,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "shadow": gerar_recomendacao_shadow_monetizacao(alertas),
         }
 
     def obter_saude(self) -> dict[str, object]:
