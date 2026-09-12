@@ -9,6 +9,7 @@ from models.inteligencia_ai import (
     SolicitacaoInteligenciaAI,
 )
 from models.oferta import Oferta
+from services.controle_operacional_ai import ControleOperacionalInteligenciaAI
 from services.curadoria_publicacao import (
     CuradoriaPublicacao,
     ResultadoCuradoriaPublicacao,
@@ -92,6 +93,7 @@ class CuradoriaPublicacaoAssistidaAI:
         habilitado: bool = False,
         provedor: ProvedorInteligenciaAI | None = None,
         confianca_minima: float = CONFIANCA_MINIMA_PADRAO,
+        controle_operacional: ControleOperacionalInteligenciaAI | None = None,
     ) -> None:
         self.curadoria = curadoria if curadoria is not None else CuradoriaPublicacao()
 
@@ -99,6 +101,8 @@ class CuradoriaPublicacaoAssistidaAI:
 
         self.provedor = provedor
         self.confianca_minima = confianca_minima
+
+        self.controle_operacional = controle_operacional
 
     def analisar(
         self,
@@ -141,6 +145,7 @@ class CuradoriaPublicacaoAssistidaAI:
             provedor=self.provedor,
             validador=self._validar_sugestao_ai,
             confianca_minima=self.confianca_minima,
+            controle_operacional=self.controle_operacional,
         )
 
         revisao_manual_sugerida = False

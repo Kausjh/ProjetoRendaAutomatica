@@ -20,6 +20,7 @@ from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
 from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.coletor_ofertas import ColetorOfertas
+from services.controle_operacional_ai import ControleOperacionalInteligenciaAI
 from services.curadoria_publicacao import CuradoriaPublicacao
 from services.curadoria_publicacao_assistida_ai import CuradoriaPublicacaoAssistidaAI
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
@@ -97,7 +98,11 @@ async def main() -> None:
         resultado_priorizacao_learning.observabilidade
     )
 
-    classificador = ClassificadorProdutoAssistidoAI(habilitado=False)
+    controle_operacional_ai = ControleOperacionalInteligenciaAI()
+
+    classificador = ClassificadorProdutoAssistidoAI(
+        habilitado=False, controle_operacional=controle_operacional_ai
+    )
 
     coletor = ColetorOfertas(
         scrapers=scrapers,
@@ -141,6 +146,7 @@ async def main() -> None:
             ativa=configuracoes.curadoria_publicacao_ativa,
         ),
         habilitado=False,
+        controle_operacional=controle_operacional_ai,
     )
 
     detector_anomalia = DetectorAnomaliaPreco(

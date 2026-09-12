@@ -266,10 +266,7 @@ def test_main_wiring_curadoria_assistida_ai_desligada():
 
     kwargs = {keyword.arg: keyword.value for keyword in atribuicao_curadoria.keywords}
 
-    assert set(kwargs) == {
-        "curadoria",
-        "habilitado",
-    }
+    assert set(kwargs) == {"controle_operacional", "curadoria", "habilitado"}
 
     assert isinstance(
         kwargs["habilitado"],

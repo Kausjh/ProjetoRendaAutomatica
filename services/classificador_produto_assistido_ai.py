@@ -13,6 +13,7 @@ from services.classificador_produto import (
     ClassificadorProduto,
     ResultadoClassificacaoProduto,
 )
+from services.controle_operacional_ai import ControleOperacionalInteligenciaAI
 from services.inteligencia_assistiva_ai import (
     CONFIANCA_MINIMA_PADRAO,
     ProvedorInteligenciaAI,
@@ -98,6 +99,7 @@ class ClassificadorProdutoAssistidoAI:
         habilitado: bool = False,
         provedor: ProvedorInteligenciaAI | None = None,
         confianca_minima: float = CONFIANCA_MINIMA_PADRAO,
+        controle_operacional: ControleOperacionalInteligenciaAI | None = None,
     ) -> None:
         self.classificador = classificador if classificador is not None else ClassificadorProduto()
 
@@ -106,6 +108,8 @@ class ClassificadorProdutoAssistidoAI:
         self.provedor = provedor
 
         self.confianca_minima = confianca_minima
+
+        self.controle_operacional = controle_operacional
 
     def classificar(
         self,
@@ -152,6 +156,7 @@ class ClassificadorProdutoAssistidoAI:
                 )
             ),
             confianca_minima=self.confianca_minima,
+            controle_operacional=self.controle_operacional,
         )
 
         classificacao_final = classificacao
