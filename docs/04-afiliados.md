@@ -247,6 +247,8 @@ Caso ocorra erro durante a geração do link:
 
 Essa estratégia evita publicar ofertas de marketplaces monetizáveis sem confirmação de afiliação, sem derrubar o restante do pipeline.
 
+Uma URL diferente da original não é, por si só, prova de monetização. Antes de marcar uma transformação como bem-sucedida, o gerador valida a saída conforme o contrato do afiliador responsável. Mercado Livre, Shopee, Amazon e Awin possuem validações específicas para os formatos de link que cada integração realmente produz.
+
 ---
 
 # Escalabilidade

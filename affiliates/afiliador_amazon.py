@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from affiliates.base_afiliador import BaseAfiliador
 from repositories.links_afiliados_amazon_repository import (
@@ -79,3 +79,33 @@ class AfiliadorAmazon(BaseAfiliador):
             return link_original
 
         return link_afiliado
+
+    def validar_link_gerado(
+        self,
+        link_original: str,
+        link_publicacao: str,
+    ) -> bool:
+        if not super().validar_link_gerado(
+            link_original,
+            link_publicacao,
+        ):
+            return False
+
+        parsed = urlparse(link_publicacao.strip())
+        host = (parsed.hostname or "").lower()
+
+        if host.startswith("www."):
+            host = host[4:]
+
+        if host in {"amzn.to", "link.amazon"}:
+            return bool(parsed.path.strip("/"))
+
+        if host == "amazon.com.br" or host.endswith(".amazon.com.br"):
+            parametros = parse_qs(
+                parsed.query,
+                keep_blank_values=True,
+            )
+            tags = parametros.get("tag", [])
+            return any(str(tag).strip() for tag in tags)
+
+        return False

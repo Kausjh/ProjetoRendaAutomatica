@@ -65,11 +65,36 @@ class GeradorLinkAfiliado:
 
             link_publicacao = link_publicacao.strip()
 
+            try:
+                link_validado = afiliador.validar_link_gerado(
+                    link_original,
+                    link_publicacao,
+                )
+            except Exception:
+                logger.exception(
+                    "Falha ao validar o link gerado pelo afiliador '%s'. "
+                    "O link original será mantido: %s",
+                    afiliador.nome,
+                    link_original,
+                )
+                link_validado = False
+
+            if not link_validado:
+                if link_publicacao != link_original:
+                    logger.warning(
+                        "O afiliador '%s' retornou uma URL diferente, "
+                        "mas ela não passou na validação de afiliação. "
+                        "O link original será mantido: %s",
+                        afiliador.nome,
+                        link_original,
+                    )
+                link_publicacao = link_original
+
             return ResultadoLinkAfiliado(
                 link_original=link_original,
                 link_publicacao=link_publicacao,
                 afiliador_utilizado=afiliador.nome,
-                foi_transformado=(link_publicacao != link_original),
+                foi_transformado=link_validado,
             )
 
         return ResultadoLinkAfiliado(

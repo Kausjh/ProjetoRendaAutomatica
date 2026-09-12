@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
 
@@ -158,6 +158,43 @@ class AfiliadorAwin(BaseAfiliador):
         )
 
         return link_curto
+
+    def validar_link_gerado(
+        self,
+        link_original: str,
+        link_publicacao: str,
+    ) -> bool:
+        if not super().validar_link_gerado(
+            link_original,
+            link_publicacao,
+        ):
+            return False
+
+        parsed = urlparse(link_publicacao.strip())
+        host = (parsed.hostname or "").lower()
+
+        if host.startswith("www."):
+            host = host[4:]
+
+        if host == "tidd.ly":
+            return bool(parsed.path.strip("/"))
+
+        if host != "awin1.com":
+            return False
+
+        if parsed.path.rstrip("/") != "/cread.php":
+            return False
+
+        parametros = parse_qs(
+            parsed.query,
+            keep_blank_values=True,
+        )
+
+        return (
+            self.publisher_id in parametros.get("awinaffid", [])
+            and self.advertiser_id in parametros.get("awinmid", [])
+            and any(str(destino).strip() for destino in parametros.get("ued", []))
+        )
 
     def _solicitar_link_curto(
         self,

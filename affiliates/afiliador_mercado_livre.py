@@ -80,3 +80,22 @@ class AfiliadorMercadoLivre(BaseAfiliador):
         )
 
         return link_afiliado
+
+    def validar_link_gerado(
+        self,
+        link_original: str,
+        link_publicacao: str,
+    ) -> bool:
+        if not super().validar_link_gerado(
+            link_original,
+            link_publicacao,
+        ):
+            return False
+
+        parsed = urlparse(link_publicacao.strip())
+        host = (parsed.hostname or "").lower()
+
+        if host.startswith("www."):
+            host = host[4:]
+
+        return host == "meli.la" and bool(parsed.path.strip("/"))
