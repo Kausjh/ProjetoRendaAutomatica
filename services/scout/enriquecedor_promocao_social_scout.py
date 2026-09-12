@@ -13,6 +13,7 @@ from models.resultado_resolucao_social_scout import (
 from models.resultado_validacao_preco_social_scout import (
     ResultadoValidacaoPrecoSocialScout,
 )
+from services.scout.interpretador_condicoes_promocionais import interpretar_condicoes_promocionais
 from services.scout.promotion_engine_ml import (
     PromotionEngineMercadoLivre,
 )
@@ -58,13 +59,25 @@ class EnriquecedorPromocaoSocialScout:
             .casefold()
         )
 
+        condicoes_base = interpretar_condicoes_promocionais(
+            tipo_preco_oficial=validacao.tipo_preco_oficial,
+            preco_valido_ate=validacao.preco_valido_ate,
+            evidencia_oficial="",
+        )
+
         if marketplace != self.MARKETPLACE:
-            return validacao
+            return replace(
+                validacao,
+                **condicoes_base.como_campos_validacao(),
+            )
 
         # Sem indicio promocional social nao precisamos
         # consultar o Promotion Engine.
         if not deteccao.codigo_cupom and deteccao.preco_final is None:
-            return validacao
+            return replace(
+                validacao,
+                **condicoes_base.como_campos_validacao(),
+            )
 
         id_produto = str(resolucao.id_produto or "").strip()
 
@@ -75,6 +88,7 @@ class EnriquecedorPromocaoSocialScout:
                 validacao,
                 status_promocao_marketplace=("nao_consultada"),
                 motivo_promocao_marketplace=("id_produto_ausente_para_" "promotion_engine"),
+                **condicoes_base.como_campos_validacao(),
             )
 
         if not url_fonte:
@@ -82,6 +96,7 @@ class EnriquecedorPromocaoSocialScout:
                 validacao,
                 status_promocao_marketplace=("nao_consultada"),
                 motivo_promocao_marketplace=("url_fonte_ausente_para_" "promotion_engine"),
+                **condicoes_base.como_campos_validacao(),
             )
 
         try:
@@ -99,6 +114,7 @@ class EnriquecedorPromocaoSocialScout:
                 validacao,
                 status_promocao_marketplace="erro",
                 motivo_promocao_marketplace=("falha_promotion_engine:" f"{type(erro).__name__}"),
+                **condicoes_base.como_campos_validacao(),
             )
 
         finally:
@@ -127,6 +143,12 @@ class EnriquecedorPromocaoSocialScout:
                     # uma validacao/promocao ja obtida.
                     pass
 
+        condicoes = interpretar_condicoes_promocionais(
+            tipo_preco_oficial=validacao.tipo_preco_oficial,
+            preco_valido_ate=validacao.preco_valido_ate,
+            evidencia_oficial=(promocao.evidencia),
+        )
+
         return replace(
             validacao,
             status_promocao_marketplace=(promocao.status),
@@ -138,6 +160,8 @@ class EnriquecedorPromocaoSocialScout:
             preco_grupo_confere_promocao=(promocao.preco_grupo_confere),
             fonte_promocao_marketplace=(promocao.fonte_url),
             motivo_promocao_marketplace=(promocao.motivo),
+            evidencia_promocao_marketplace=(str(promocao.evidencia or "")[:1200]),
+            **condicoes.como_campos_validacao(),
             # DELIBERADO:
             # cupom_validado permanece exatamente
             # como estava antes do Promotion Engine.

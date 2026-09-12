@@ -80,6 +80,14 @@ class Oferta:
 
     fonte_promocao_marketplace: str | None = None
     motivo_promocao_marketplace: str = ""
+    evidencia_promocao_marketplace: str = ""
+
+    promocao_pix_marketplace: bool = False
+    promocao_app_only_marketplace: bool = False
+    promocao_vip_marketplace: bool = False
+    valor_minimo_compra_promocao_marketplace: float | None = None
+    expiracao_promocao_marketplace: str | None = None
+
     status_sinal_preco: str = "sem_sinal"
     confianca_sinal_preco: float = 0.0
     economia_condicional_percentual: float = 0.0

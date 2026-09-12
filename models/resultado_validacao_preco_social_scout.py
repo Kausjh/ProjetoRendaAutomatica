@@ -54,5 +54,12 @@ class ResultadoValidacaoPrecoSocialScout:
 
     fonte_promocao_marketplace: str | None = None
     motivo_promocao_marketplace: str = ""
+    evidencia_promocao_marketplace: str = ""
+
+    promocao_pix_marketplace: bool = False
+    promocao_app_only_marketplace: bool = False
+    promocao_vip_marketplace: bool = False
+    valor_minimo_compra_promocao_marketplace: float | None = None
+    expiracao_promocao_marketplace: str | None = None
 
     motivo: str = ""

@@ -159,6 +159,15 @@ class ConstrutorOfertaSocialScout:
         oferta.preco_grupo_confere_promocao = validacao.preco_grupo_confere_promocao
         oferta.fonte_promocao_marketplace = validacao.fonte_promocao_marketplace
         oferta.motivo_promocao_marketplace = validacao.motivo_promocao_marketplace
+        oferta.evidencia_promocao_marketplace = validacao.evidencia_promocao_marketplace
+
+        oferta.promocao_pix_marketplace = bool(validacao.promocao_pix_marketplace)
+        oferta.promocao_app_only_marketplace = bool(validacao.promocao_app_only_marketplace)
+        oferta.promocao_vip_marketplace = bool(validacao.promocao_vip_marketplace)
+        oferta.valor_minimo_compra_promocao_marketplace = (
+            validacao.valor_minimo_compra_promocao_marketplace
+        )
+        oferta.expiracao_promocao_marketplace = validacao.expiracao_promocao_marketplace
 
         return ResultadoConstrucaoOfertaSocialScout(
             status=self.STATUS_CRIADA,
