@@ -143,7 +143,11 @@ def interpretar_com_inteligencia_assistiva(
         if not decisao.permitido:
             return _finalizar(
                 resultado=_resultado_fallback(
-                    status="circuit_breaker_bloqueado",
+                    status=(
+                        "kill_switch_bloqueado"
+                        if decisao.motivo == "kill_switch_ativo"
+                        else "circuit_breaker_bloqueado"
+                    ),
                     fallback=fallback_normalizado,
                 ),
                 solicitacao=solicitacao,
@@ -151,7 +155,7 @@ def interpretar_com_inteligencia_assistiva(
                 inicio=inicio,
                 chamada_externa_realizada=False,
                 erro=False,
-                bloqueada_circuit_breaker=True,
+                bloqueada_circuit_breaker=(decisao.motivo != "kill_switch_ativo"),
             )
 
     try:

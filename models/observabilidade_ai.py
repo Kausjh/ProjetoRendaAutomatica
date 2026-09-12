@@ -238,3 +238,4 @@ class SnapshotCircuitBreakerAI:
 class SnapshotControleOperacionalAI:
     observabilidade: SnapshotObservabilidadeInteligenciaAI
     circuit_breaker: SnapshotCircuitBreakerAI
+    kill_switch_ativo: bool = False

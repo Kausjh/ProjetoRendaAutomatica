@@ -98,7 +98,9 @@ async def main() -> None:
         resultado_priorizacao_learning.observabilidade
     )
 
-    controle_operacional_ai = ControleOperacionalInteligenciaAI()
+    controle_operacional_ai = ControleOperacionalInteligenciaAI(
+        kill_switch_ativo=configuracoes.ai_kill_switch_ativo,
+    )
 
     classificador = ClassificadorProdutoAssistidoAI(
         habilitado=False, controle_operacional=controle_operacional_ai

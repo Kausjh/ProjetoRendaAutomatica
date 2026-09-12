@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from threading import Lock
+from threading import Lock, RLock
 from time import monotonic
 
 from models.observabilidade_ai import (
@@ -330,27 +330,71 @@ class CircuitBreakerInteligenciaAI:
 
 
 class ControleOperacionalInteligenciaAI:
+    """Compoe observabilidade, circuit breaker e kill switch operacional.
+
+    O kill switch possui precedencia absoluta sobre o circuit breaker.
+    Quando ativo, nenhuma chamada externa e permitida.
+    """
+
     def __init__(
         self,
         *,
-        limite_falhas_consecutivas: int = (LIMITE_FALHAS_CONSECUTIVAS_PADRAO),
-        cooldown_segundos: float = (COOLDOWN_CIRCUIT_BREAKER_SEGUNDOS_PADRAO),
-        agora: Callable[
-            [],
-            float,
-        ] = monotonic,
+        limite_falhas_consecutivas: int = LIMITE_FALHAS_CONSECUTIVAS_PADRAO,
+        cooldown_segundos: float = COOLDOWN_CIRCUIT_BREAKER_SEGUNDOS_PADRAO,
+        agora: Callable[[], float] = monotonic,
+        kill_switch_ativo: bool = False,
     ) -> None:
+        if not isinstance(
+            kill_switch_ativo,
+            bool,
+        ):
+            raise TypeError("kill_switch_ativo precisa ser bool")
+
+        self._lock = RLock()
+        self._kill_switch_ativo = kill_switch_ativo
+
         self.observabilidade = ObservabilidadeInteligenciaAI()
 
         self.circuit_breaker = CircuitBreakerInteligenciaAI(
-            limite_falhas_consecutivas=(limite_falhas_consecutivas),
-            cooldown_segundos=(cooldown_segundos),
+            limite_falhas_consecutivas=limite_falhas_consecutivas,
+            cooldown_segundos=cooldown_segundos,
             agora=agora,
         )
+
+    @property
+    def kill_switch_ativo(
+        self,
+    ) -> bool:
+        with self._lock:
+            return self._kill_switch_ativo
+
+    def ativar_kill_switch(
+        self,
+    ) -> None:
+        with self._lock:
+            self._kill_switch_ativo = True
+
+    def desativar_kill_switch(
+        self,
+    ) -> None:
+        with self._lock:
+            self._kill_switch_ativo = False
 
     def avaliar_chamada_externa(
         self,
     ) -> DecisaoCircuitBreakerAI:
+        with self._lock:
+            kill_switch_ativo = self._kill_switch_ativo
+
+        if kill_switch_ativo:
+            snapshot_circuito = self.circuit_breaker.snapshot()
+
+            return DecisaoCircuitBreakerAI(
+                permitido=False,
+                estado=snapshot_circuito.estado,
+                motivo="kill_switch_ativo",
+            )
+
         return self.circuit_breaker.avaliar_chamada()
 
     def registrar_sucesso_provedor(
@@ -372,7 +416,11 @@ class ControleOperacionalInteligenciaAI:
     def snapshot(
         self,
     ) -> SnapshotControleOperacionalAI:
+        with self._lock:
+            kill_switch_ativo = self._kill_switch_ativo
+
         return SnapshotControleOperacionalAI(
             observabilidade=(self.observabilidade.snapshot()),
             circuit_breaker=(self.circuit_breaker.snapshot()),
+            kill_switch_ativo=kill_switch_ativo,
         )

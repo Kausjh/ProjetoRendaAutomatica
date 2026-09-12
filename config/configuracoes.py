@@ -208,6 +208,11 @@ class Configuracoes:
             nome="PUBLICADOR_INTERVALO_VERIFICACAO_SEGUNDOS", valor_padrao=2.0
         )
 
+        self.ai_kill_switch_ativo = self._buscar_booleano(
+            nome="AI_KILL_SWITCH_ATIVO",
+            valor_padrao=True,
+        )
+
         self._validar()
 
     def _buscar_variavel_obrigatoria(self, nome: str) -> str:
