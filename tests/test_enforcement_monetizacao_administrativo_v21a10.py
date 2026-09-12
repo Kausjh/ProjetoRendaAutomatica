@@ -19,6 +19,7 @@ RECOMENDACAO_ID = (
 class RepoAuditoriaFake:
     def __init__(self):
         self.itens = []
+        self.enforcement_ids = set()
 
     def registrar_auditoria(
         self,
@@ -39,6 +40,32 @@ class RepoAuditoriaFake:
             }
         )
         return len(self.itens)
+
+    def reservar_enforcement_monetizacao(
+        self,
+        recomendacao_id,
+    ):
+        if recomendacao_id in self.enforcement_ids:
+            return False
+
+        self.enforcement_ids.add(recomendacao_id)
+        return True
+
+    def concluir_enforcement_monetizacao(
+        self,
+        recomendacao_id,
+    ):
+        return recomendacao_id in self.enforcement_ids
+
+    def liberar_enforcement_monetizacao(
+        self,
+        recomendacao_id,
+    ):
+        if recomendacao_id not in self.enforcement_ids:
+            return False
+
+        self.enforcement_ids.remove(recomendacao_id)
+        return True
 
 
 def _shadow_critico():

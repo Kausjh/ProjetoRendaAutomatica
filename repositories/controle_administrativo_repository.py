@@ -59,6 +59,13 @@ class ControleAdministrativoRepository:
 
                 CREATE INDEX IF NOT EXISTS idx_auditoria_executado_em
                 ON auditoria_administrativa(executado_em DESC);
+
+                CREATE TABLE IF NOT EXISTS enforcement_monetizacao_consumido (
+                    recomendacao_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    reservado_em TEXT NOT NULL,
+                    concluido_em TEXT
+                );
                 """)
 
     def definir_estado(
@@ -348,3 +355,104 @@ class ControleAdministrativoRepository:
             )
 
         return itens
+
+    def reservar_enforcement_monetizacao(
+        self,
+        recomendacao_id: str,
+    ) -> bool:
+        recomendacao_id = recomendacao_id.strip()
+
+        if not recomendacao_id:
+            raise ValueError("recomendacao_id nao pode ser vazio.")
+
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                INSERT OR IGNORE INTO enforcement_monetizacao_consumido (
+                    recomendacao_id,
+                    status,
+                    reservado_em,
+                    concluido_em
+                )
+                VALUES (?, 'reservado', ?, NULL)
+                """,
+                (
+                    recomendacao_id,
+                    agora,
+                ),
+            )
+
+        return cursor.rowcount == 1
+
+    def concluir_enforcement_monetizacao(
+        self,
+        recomendacao_id: str,
+    ) -> bool:
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE enforcement_monetizacao_consumido
+                SET
+                    status = 'concluido',
+                    concluido_em = ?
+                WHERE recomendacao_id = ?
+                  AND status = 'reservado'
+                """,
+                (
+                    agora,
+                    recomendacao_id,
+                ),
+            )
+
+        return cursor.rowcount == 1
+
+    def liberar_enforcement_monetizacao(
+        self,
+        recomendacao_id: str,
+    ) -> bool:
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                DELETE FROM enforcement_monetizacao_consumido
+                WHERE recomendacao_id = ?
+                  AND status = 'reservado'
+                """,
+                (recomendacao_id,),
+            )
+
+        return cursor.rowcount == 1
+
+    def obter_enforcement_monetizacao_consumido(
+        self,
+        recomendacao_id: str,
+    ) -> dict[str, str | None] | None:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT
+                    recomendacao_id,
+                    status,
+                    reservado_em,
+                    concluido_em
+                FROM enforcement_monetizacao_consumido
+                WHERE recomendacao_id = ?
+                LIMIT 1
+                """,
+                (recomendacao_id,),
+            ).fetchone()
+
+        if linha is None:
+            return None
+
+        return {
+            "recomendacao_id": str(linha["recomendacao_id"]),
+            "status": str(linha["status"]),
+            "reservado_em": str(linha["reservado_em"]),
+            "concluido_em": (
+                str(linha["concluido_em"]) if linha["concluido_em"] is not None else None
+            ),
+        }

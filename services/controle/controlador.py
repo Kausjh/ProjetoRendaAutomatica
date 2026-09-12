@@ -442,6 +442,56 @@ class ControladorAdministrativo:
 
         acao_operacional = str(decisao["acao"])
 
+        reserva_id = (
+            str(decisao["recomendacao_id"])
+            if (acao_operacional == "pausar" and decisao["recomendacao_id"] is not None)
+            else None
+        )
+
+        if reserva_id is not None:
+            if self.repositorio_admin is None:
+                return {
+                    "sucesso": False,
+                    "executado": False,
+                    "permitido": False,
+                    "manual": True,
+                    "automatico": False,
+                    "decisao": {
+                        **decisao,
+                        "permitido": False,
+                        "motivo": ("repositorio_admin_indisponivel"),
+                    },
+                }
+
+            reservado = self.repositorio_admin.reservar_enforcement_monetizacao(reserva_id)
+
+            if not reservado:
+                decisao_replay = {
+                    **decisao,
+                    "permitido": False,
+                    "motivo": ("recomendacao_ja_consumida"),
+                }
+
+                self._auditar(
+                    acao=nome_acao,
+                    alvo="publicador",
+                    detalhes={
+                        **detalhes_auditoria,
+                        "motivo": ("recomendacao_ja_consumida"),
+                    },
+                    dispositivo=dispositivo,
+                    resultado="negado_replay",
+                )
+
+                return {
+                    "sucesso": False,
+                    "executado": False,
+                    "permitido": False,
+                    "manual": True,
+                    "automatico": False,
+                    "decisao": decisao_replay,
+                }
+
         try:
             resultado = self.executar_acao_operacional(
                 componente="publicador",
@@ -449,6 +499,9 @@ class ControladorAdministrativo:
                 dispositivo=dispositivo,
             )
         except Exception as erro:
+            if reserva_id is not None and self.repositorio_admin is not None:
+                self.repositorio_admin.liberar_enforcement_monetizacao(reserva_id)
+
             self._auditar(
                 acao=nome_acao,
                 alvo="publicador",
@@ -460,6 +513,14 @@ class ControladorAdministrativo:
                 resultado="erro",
             )
             raise
+
+        if reserva_id is not None and self.repositorio_admin is not None:
+            concluido = self.repositorio_admin.concluir_enforcement_monetizacao(reserva_id)
+
+            if not concluido:
+                raise RuntimeError(
+                    "Nao foi possivel concluir a reserva " "do enforcement de monetizacao."
+                )
 
         self._auditar(
             acao=nome_acao,

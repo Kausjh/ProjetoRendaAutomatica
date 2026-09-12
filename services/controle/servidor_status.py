@@ -206,6 +206,21 @@ class ServidorStatusAdministrativo:
                 )
 
             def do_POST(self) -> None:
+                enforcement_monetizacao = self.path.startswith("/monetizacao/enforcement/")
+
+                if enforcement_monetizacao and not token_administrativo:
+                    self._responder_json(
+                        503,
+                        {
+                            "erro": (
+                                "Enforcement de monetizacao "
+                                "indisponivel sem "
+                                "RADAR_ADMIN_TOKEN."
+                            ),
+                        },
+                    )
+                    return
+
                 if token_administrativo:
                     autorizacao = self.headers.get(
                         "Authorization",
