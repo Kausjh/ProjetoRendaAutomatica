@@ -66,6 +66,16 @@ class ControleAdministrativoRepository:
                     reservado_em TEXT NOT NULL,
                     concluido_em TEXT
                 );
+
+                CREATE TABLE IF NOT EXISTS enforcement_monetizacao_segmentos (
+                    escopo TEXT NOT NULL,
+                    alvo TEXT NOT NULL,
+                    ativo INTEGER NOT NULL,
+                    recomendacao_id TEXT,
+                    atualizado_em TEXT NOT NULL,
+                    PRIMARY KEY (escopo, alvo)
+                );
+
                 """)
 
     def definir_estado(
@@ -456,3 +466,126 @@ class ControleAdministrativoRepository:
                 str(linha["concluido_em"]) if linha["concluido_em"] is not None else None
             ),
         }
+
+    @staticmethod
+    def _normalizar_segmento_monetizacao(
+        escopo: str,
+        alvo: str,
+    ) -> tuple[str, str]:
+        escopo_norm = str(escopo).strip().casefold()
+
+        alvo_norm = str(alvo).strip().casefold()
+
+        if escopo_norm not in {
+            "origem",
+            "afiliador",
+        }:
+            raise ValueError("Escopo segmentado de monetizacao invalido.")
+
+        if not alvo_norm:
+            raise ValueError("Alvo segmentado de monetizacao vazio.")
+
+        return (
+            escopo_norm,
+            alvo_norm,
+        )
+
+    def definir_enforcement_segmento_monetizacao(
+        self,
+        *,
+        escopo: str,
+        alvo: str,
+        ativo: bool,
+        recomendacao_id: str | None = None,
+    ) -> None:
+        escopo_norm, alvo_norm = self._normalizar_segmento_monetizacao(
+            escopo,
+            alvo,
+        )
+
+        agora = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        recomendacao = str(recomendacao_id).strip() if recomendacao_id is not None else None
+
+        with self._conectar() as conexao:
+            conexao.execute(
+                """
+                INSERT INTO enforcement_monetizacao_segmentos (
+                    escopo,
+                    alvo,
+                    ativo,
+                    recomendacao_id,
+                    atualizado_em
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(escopo, alvo) DO UPDATE SET
+                    ativo = excluded.ativo,
+                    recomendacao_id = excluded.recomendacao_id,
+                    atualizado_em = excluded.atualizado_em
+                """,
+                (
+                    escopo_norm,
+                    alvo_norm,
+                    1 if ativo else 0,
+                    recomendacao,
+                    agora,
+                ),
+            )
+
+    def enforcement_segmento_monetizacao_ativo(
+        self,
+        escopo: str,
+        alvo: str,
+    ) -> bool:
+        escopo_norm, alvo_norm = self._normalizar_segmento_monetizacao(
+            escopo,
+            alvo,
+        )
+
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT ativo
+                FROM enforcement_monetizacao_segmentos
+                WHERE escopo = ?
+                  AND alvo = ?
+                LIMIT 1
+                """,
+                (
+                    escopo_norm,
+                    alvo_norm,
+                ),
+            ).fetchone()
+
+        if linha is None:
+            return False
+
+        return bool(int(linha["ativo"]))
+
+    def listar_enforcement_segmentos_monetizacao(
+        self,
+    ) -> list[dict[str, object]]:
+        with self._conectar() as conexao:
+            linhas = conexao.execute("""
+                SELECT
+                    escopo,
+                    alvo,
+                    ativo,
+                    recomendacao_id,
+                    atualizado_em
+                FROM enforcement_monetizacao_segmentos
+                ORDER BY escopo, alvo
+                """).fetchall()
+
+        return [
+            {
+                "escopo": str(linha["escopo"]),
+                "alvo": str(linha["alvo"]),
+                "ativo": bool(int(linha["ativo"])),
+                "recomendacao_id": (
+                    str(linha["recomendacao_id"]) if linha["recomendacao_id"] is not None else None
+                ),
+                "atualizado_em": str(linha["atualizado_em"]),
+            }
+            for linha in linhas
+        ]

@@ -9,6 +9,7 @@ from affiliates.politica_monetizacao import PoliticaMonetizacao
 from affiliates.resultado_link_afiliado import ResultadoLinkAfiliado
 from formatters.oferta_formatter import OfertaFormatter
 from models.oferta import Oferta
+from services.enforcement_segmentado_monetizacao import EnforcementSegmentadoMonetizacao
 from services.historico_precos_service import ResultadoHistoricoPreco
 from services.observador_monetizacao import ObservadorMonetizacao
 
@@ -23,12 +24,14 @@ class TelegramBot:
         channel_id: str,
         gerador_link_afiliado: GeradorLinkAfiliado,
         observador_monetizacao: ObservadorMonetizacao | None = None,
+        enforcement_segmentado: EnforcementSegmentadoMonetizacao | None = None,
     ) -> None:
         self.bot = Bot(token=token)
 
         self.channel_id = channel_id
         self.gerador_link_afiliado = gerador_link_afiliado
         self.observador_monetizacao = observador_monetizacao
+        self.enforcement_segmentado = enforcement_segmentado
         self.ultima_mensagem_publicada_id: int | None = None
 
     @staticmethod
@@ -84,6 +87,15 @@ class TelegramBot:
         self, oferta: Oferta, resultado_historico: ResultadoHistoricoPreco | None = None
     ) -> ResultadoLinkAfiliado:
         self.ultima_mensagem_publicada_id = None
+        enforcement_segmentado = getattr(
+            self,
+            "enforcement_segmentado",
+            None,
+        )
+
+        if enforcement_segmentado is not None:
+            enforcement_segmentado.validar_origem(oferta.link)
+
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
         exige_afiliacao = self._exige_link_afiliado(oferta.link)
 
@@ -104,6 +116,9 @@ class TelegramBot:
                 "A oferta permanecera na fila "
                 "para nova tentativa."
             )
+
+        if enforcement_segmentado is not None:
+            enforcement_segmentado.validar_afiliador(resultado_link.afiliador_utilizado)
 
         logger.info(
             "Link de publicação processado para '%s'. " "Afiliador: %s. Transformado: %s.",

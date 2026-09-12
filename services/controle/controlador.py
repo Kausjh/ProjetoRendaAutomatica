@@ -25,6 +25,7 @@ from services.controle.estado import (
 from services.controle.politica_publicacao_administrativa import (
     requer_aprovacao_hibrida,
 )
+from services.enforcement_segmentado_monetizacao import avaliar_enforcement_segmentado
 from services.gerador_alertas_monetizacao import gerar_alertas_monetizacao
 from services.launcher.chrome_launcher import cdp_esta_funcional
 from services.politica_enforcement_monetizacao import avaliar_enforcement_monetizacao
@@ -541,6 +542,211 @@ class ControladorAdministrativo:
             "automatico": False,
             "decisao": decisao,
             "operacao": resultado,
+        }
+
+    def obter_enforcement_segmentos_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        if self.repositorio_admin is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "segmentos": [],
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "segmentos": (self.repositorio_admin.listar_enforcement_segmentos_monetizacao()),
+        }
+
+    def executar_enforcement_segmentado_monetizacao(
+        self,
+        *,
+        escopo: str,
+        alvo: str,
+        acao: str,
+        confirmacao: str | None,
+        recomendacao_id: str | None = None,
+        dispositivo: str | None = None,
+    ) -> dict[str, object]:
+        dados_shadow = self.obter_recomendacao_shadow_monetizacao()
+
+        shadow = dados_shadow.get("shadow")
+
+        if not isinstance(
+            shadow,
+            dict,
+        ):
+            shadow = None
+
+        decisao = avaliar_enforcement_segmentado(
+            shadow=shadow,
+            escopo=escopo,
+            alvo=alvo,
+            acao=acao,
+            confirmacao=confirmacao,
+            recomendacao_id=recomendacao_id,
+        )
+
+        escopo_norm = str(
+            decisao.get(
+                "escopo",
+                escopo,
+            )
+        )
+        alvo_norm = str(
+            decisao.get(
+                "alvo",
+                alvo,
+            )
+        )
+        acao_norm = (
+            str(
+                decisao.get(
+                    "acao",
+                    acao,
+                )
+            )
+            .strip()
+            .casefold()
+        )
+
+        nome_acao = "monetizacao.enforcement.segmento." f"{escopo_norm}.{acao_norm}"
+
+        detalhes = {
+            "motivo": decisao.get("motivo"),
+            "recomendacao_id": (decisao.get("recomendacao_id")),
+            "escopo": escopo_norm,
+            "alvo": alvo_norm,
+            "manual": True,
+            "automatico": False,
+        }
+
+        if not decisao.get("permitido"):
+            self._auditar(
+                acao=nome_acao,
+                alvo=alvo_norm,
+                detalhes=detalhes,
+                dispositivo=dispositivo,
+                resultado="negado",
+            )
+
+            return {
+                "sucesso": False,
+                "executado": False,
+                "permitido": False,
+                "manual": True,
+                "automatico": False,
+                "decisao": decisao,
+            }
+
+        if self.repositorio_admin is None:
+            return {
+                "sucesso": False,
+                "executado": False,
+                "permitido": False,
+                "manual": True,
+                "automatico": False,
+                "decisao": {
+                    **decisao,
+                    "permitido": False,
+                    "motivo": ("repositorio_admin_indisponivel"),
+                },
+            }
+
+        reserva_id = (
+            str(decisao["recomendacao_id"])
+            if acao_norm == "suspender" and decisao.get("recomendacao_id") is not None
+            else None
+        )
+
+        if reserva_id is not None:
+            reservado = self.repositorio_admin.reservar_enforcement_monetizacao(reserva_id)
+
+            if not reservado:
+                decisao_replay = {
+                    **decisao,
+                    "permitido": False,
+                    "motivo": ("recomendacao_ja_consumida"),
+                }
+
+                self._auditar(
+                    acao=nome_acao,
+                    alvo=alvo_norm,
+                    detalhes={
+                        **detalhes,
+                        "motivo": ("recomendacao_ja_consumida"),
+                    },
+                    dispositivo=dispositivo,
+                    resultado="negado_replay",
+                )
+
+                return {
+                    "sucesso": False,
+                    "executado": False,
+                    "permitido": False,
+                    "manual": True,
+                    "automatico": False,
+                    "decisao": decisao_replay,
+                }
+
+        try:
+            ativo = acao_norm == "suspender"
+
+            self.repositorio_admin.definir_enforcement_segmento_monetizacao(
+                escopo=escopo_norm,
+                alvo=alvo_norm,
+                ativo=ativo,
+                recomendacao_id=(reserva_id if ativo else None),
+            )
+        except Exception as erro:
+            if reserva_id is not None:
+                self.repositorio_admin.liberar_enforcement_monetizacao(reserva_id)
+
+            self._auditar(
+                acao=nome_acao,
+                alvo=alvo_norm,
+                detalhes={
+                    **detalhes,
+                    "erro": type(erro).__name__,
+                },
+                dispositivo=dispositivo,
+                resultado="erro",
+            )
+            raise
+
+        if reserva_id is not None:
+            concluido = self.repositorio_admin.concluir_enforcement_monetizacao(reserva_id)
+
+            if not concluido:
+                raise RuntimeError(
+                    "Nao foi possivel concluir a reserva " "do enforcement segmentado."
+                )
+
+        self._auditar(
+            acao=nome_acao,
+            alvo=alvo_norm,
+            detalhes={
+                **detalhes,
+                "ativo": ativo,
+            },
+            dispositivo=dispositivo,
+            resultado="sucesso",
+        )
+
+        return {
+            "sucesso": True,
+            "executado": True,
+            "permitido": True,
+            "manual": True,
+            "automatico": False,
+            "decisao": decisao,
+            "segmento": {
+                "escopo": escopo_norm,
+                "alvo": alvo_norm,
+                "ativo": ativo,
+            },
         }
 
     def obter_saude(self) -> dict[str, object]:

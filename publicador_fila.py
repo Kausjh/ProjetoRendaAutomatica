@@ -23,6 +23,11 @@ from services.controle.politica_publicacao_administrativa import (
     item_liberado_para_fluxo_automatico,
     requer_aprovacao_hibrida,
 )
+from services.enforcement_segmentado_monetizacao import (
+    SEGMENTO_RETRY_MINUTOS,
+    EnforcementSegmentadoMonetizacao,
+    ErroEnforcementSegmentadoMonetizacao,
+)
 from services.janela_publicacao import JanelaPublicacao
 from services.launcher.chrome_launcher import preparar_chrome
 from services.observador_monetizacao import ObservadorMonetizacao
@@ -44,6 +49,7 @@ class PublicadorFila:
         self.observador_monetizacao = ObservadorMonetizacao(
             repositorio=self.controle_admin,
         )
+        self.enforcement_segmentado = EnforcementSegmentadoMonetizacao(self.controle_admin)
 
         gerador_link_afiliado = criar_gerador_link_afiliado(configuracoes)
 
@@ -52,6 +58,7 @@ class PublicadorFila:
             channel_id=configuracoes.channel_id,
             gerador_link_afiliado=gerador_link_afiliado,
             observador_monetizacao=self.observador_monetizacao,
+            enforcement_segmentado=self.enforcement_segmentado,
         )
 
         self.fila = FilaPublicacaoRepository()
@@ -254,6 +261,40 @@ class PublicadorFila:
             )
 
             return "publicado"
+
+        except ErroEnforcementSegmentadoMonetizacao as erro:
+            try:
+                item_segurado = self.fila.segurar_item(
+                    item.id,
+                    SEGMENTO_RETRY_MINUTOS,
+                )
+            except Exception:
+                item_segurado = False
+                logger.exception(
+                    "Falha ao aplicar retencao de enforcement " "segmentado ao item %s.",
+                    item.id,
+                )
+
+            detalhe = str(erro)
+
+            if item_segurado:
+                detalhe = (
+                    f"{detalhe} Nova verificacao em cerca de " f"{SEGMENTO_RETRY_MINUTOS} min."
+                )
+
+            self._registrar_estado_fluxo(
+                "enforcement_monetizacao_segmentado",
+                detalhe,
+            )
+
+            logger.warning(
+                "Publicacao retida por enforcement " "segmentado: %s | %s=%s",
+                item.oferta.nome,
+                erro.escopo,
+                erro.alvo,
+            )
+
+            return "segmento_suspenso"
 
         except ErroMonetizacaoObrigatoria as erro:
             try:

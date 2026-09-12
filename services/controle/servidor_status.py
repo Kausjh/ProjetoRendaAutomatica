@@ -119,6 +119,11 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/monetizacao/enforcement/segmentos":
+                        dados = controlador.obter_enforcement_segmentos_monetizacao()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)
@@ -259,6 +264,62 @@ class ServidorStatusAdministrativo:
                     ).strip()[:120]
                     or None
                 )
+
+                if (
+                    len(partes) == 5
+                    and partes[0] == "monetizacao"
+                    and partes[1] == "enforcement"
+                    and partes[2] == "segmento"
+                ):
+                    escopo = partes[3]
+                    acao = partes[4]
+
+                    alvo = self.headers.get(
+                        "X-Monetizacao-Alvo",
+                        "",
+                    ).strip()
+
+                    confirmacao = (
+                        self.headers.get(
+                            "X-Monetizacao-Confirmacao",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    recomendacao_id = (
+                        self.headers.get(
+                            "X-Monetizacao-Recomendacao-Id",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    try:
+                        dados = controlador.executar_enforcement_segmentado_monetizacao(
+                            escopo=escopo,
+                            alvo=alvo,
+                            acao=acao,
+                            confirmacao=confirmacao,
+                            recomendacao_id=recomendacao_id,
+                            dispositivo=dispositivo,
+                        )
+                    except ValueError as erro:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+
+                    status = 200 if dados.get("permitido") else 409
+
+                    self._responder_json(
+                        status,
+                        dados,
+                    )
+                    return
 
                 if (
                     len(partes) == 4

@@ -236,12 +236,12 @@ def test_enforcement_nao_e_chamado_pelos_gets():
     assert "executar_enforcement_monetizacao" not in trecho_get
 
 
-def test_enforcement_nao_suporta_origem_ou_afiliador_real():
+def test_v21a10_enforcement_publicador_permanece_isolado():
     fonte = Path("services/politica_enforcement_monetizacao.py").read_text(encoding="utf-8-sig")
 
-    assert "bloquear_afiliador" not in fonte
-    assert "isolar_origem" not in fonte
-    assert "suspender_afiliador" not in fonte
+    assert "considerar_isolamento_origem" not in fonte
+    assert "considerar_suspensao_afiliador" not in fonte
+    assert "enforcement_segmentado" not in fonte
 
 
 # 63.8738, -149.7525
