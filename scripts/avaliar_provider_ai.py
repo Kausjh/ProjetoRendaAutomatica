@@ -11,8 +11,14 @@ import httpx
 
 from config.configuracoes import Configuracoes
 from models.inteligencia_ai import SolicitacaoInteligenciaAI
+from models.oferta import Oferta
+from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.controle_operacional_ai import (
     ControleOperacionalInteligenciaAI,
+)
+from services.curadoria_publicacao_assistida_ai import (
+    ACAO_REVISAO_MANUAL,
+    CuradoriaPublicacaoAssistidaAI,
 )
 from services.inteligencia_assistiva_ai import (
     interpretar_com_inteligencia_assistiva,
@@ -52,6 +58,21 @@ def criar_parser() -> argparse.ArgumentParser:
         help=(
             "Autoriza somente este harness a tentar uma avaliacao "
             "real. O kill switch continua sendo respeitado."
+        ),
+    )
+
+    parser.add_argument(
+        "--caso",
+        choices=(
+            "contrato",
+            "classificador",
+            "curadoria",
+            "dominios",
+        ),
+        default="contrato",
+        help=(
+            "contrato preserva o teste sintetico V20B. "
+            "Os casos de dominio sao exclusivos do modo mock."
         ),
     )
 
@@ -98,7 +119,20 @@ def _handler_mock(
             },
         )
 
-    if payload.get("tarefa") != TAREFA_AVALIACAO:
+    tarefa = payload.get("tarefa")
+
+    if tarefa == TAREFA_AVALIACAO:
+        conteudo = dict(SUGESTAO_ESPERADA)
+    elif tarefa == "desambiguar_categoria_produto":
+        conteudo = {
+            "categoria_sugerida": "Armazenamento",
+        }
+    elif tarefa == "interpretar_incerteza_editorial":
+        conteudo = {
+            "acao_sugerida": ACAO_REVISAO_MANUAL,
+            "motivo_curto": ("confianca de normalizacao baixa; " "revisao manual sugerida"),
+        }
+    else:
         return httpx.Response(
             400,
             json={
@@ -113,7 +147,7 @@ def _handler_mock(
         },
         json={
             "schema_version": 1,
-            "conteudo": dict(SUGESTAO_ESPERADA),
+            "conteudo": conteudo,
             "confianca": 0.99,
             "uso": {
                 "tokens_entrada": 12,
@@ -261,30 +295,229 @@ def executar_avaliacao(
     return relatorio
 
 
+def _resultado_ai_para_dict(
+    resultado: Any,
+) -> dict[str, Any] | None:
+    if resultado is None:
+        return None
+
+    return {
+        "status": resultado.status,
+        "origem": resultado.origem,
+        "confianca": resultado.confianca,
+        "provedor": resultado.provedor,
+        "modelo": resultado.modelo,
+        "fallback_usado": resultado.fallback_usado,
+        "validada_deterministicamente": (resultado.validada_deterministicamente),
+        "somente_sugestao": resultado.somente_sugestao,
+        "autoriza_publicacao": (resultado.autoriza_publicacao),
+        "autoriza_alteracao_budget": (resultado.autoriza_alteracao_budget),
+        "substitui_regras_deterministicas": (resultado.substitui_regras_deterministicas),
+        "tipo_erro": resultado.tipo_erro,
+    }
+
+
+def _criar_oferta_classificador() -> Oferta:
+    return Oferta(
+        nome="Ryzen NVMe",
+        loja="Teste",
+        preco=999.90,
+        preco_antigo=None,
+        link="https://example.com/produto",
+        imagem=None,
+        marketplace="teste",
+    )
+
+
+def _criar_oferta_curadoria() -> Oferta:
+    oferta = Oferta(
+        nome="Placa de Video RTX 4060 8GB GDDR6",
+        loja="Teste",
+        preco=2199.0,
+        preco_antigo=None,
+        link="https://example.com/produto",
+        imagem=None,
+        marketplace="teste",
+    )
+
+    oferta.categoria = "Placa de vídeo"
+    oferta.eh_nicho = True
+    oferta.relevancia_nicho = 90.0
+    oferta.confianca_normalizacao = 70.0
+
+    return oferta
+
+
+def _avaliar_caso_classificador_mock() -> dict[str, Any]:
+    controle = _criar_controle_mock()
+    provedor = _criar_provider_mock()
+
+    classificador = ClassificadorProdutoAssistidoAI(
+        habilitado=True,
+        provedor=provedor,
+        controle_operacional=controle,
+    )
+
+    resultado = classificador.classificar(_criar_oferta_classificador())
+
+    return {
+        "caso": "classificador",
+        "gate_ai_acionado": resultado.gate_ai_acionado,
+        "diagnostico": {
+            "ambiguo": resultado.diagnostico.ambiguo,
+            "motivo": resultado.diagnostico.motivo,
+            "categorias_topo": list(resultado.diagnostico.categorias_topo),
+        },
+        "categoria_deterministica": (resultado.classificacao_deterministica.categoria),
+        "categoria_final": (resultado.classificacao_final.categoria),
+        "inteligencia_ai": _resultado_ai_para_dict(resultado.inteligencia_ai),
+        "controle_operacional": asdict(controle.snapshot()),
+    }
+
+
+def _avaliar_caso_curadoria_mock() -> dict[str, Any]:
+    controle = _criar_controle_mock()
+    provedor = _criar_provider_mock()
+
+    curadoria = CuradoriaPublicacaoAssistidaAI(
+        habilitado=True,
+        provedor=provedor,
+        controle_operacional=controle,
+    )
+
+    resultado = curadoria.analisar(_criar_oferta_curadoria())
+
+    return {
+        "caso": "curadoria",
+        "gate_ai_acionado": resultado.gate_ai_acionado,
+        "diagnostico": {
+            "motivo": resultado.diagnostico.motivo,
+            "sinais": list(resultado.diagnostico.sinais),
+        },
+        "publicavel_deterministico": (resultado.curadoria_deterministica.publicavel),
+        "publicavel_final": (resultado.curadoria_final.publicavel),
+        "revisao_manual_sugerida": (resultado.revisao_manual_sugerida),
+        "inteligencia_ai": _resultado_ai_para_dict(resultado.inteligencia_ai),
+        "controle_operacional": asdict(controle.snapshot()),
+    }
+
+
+def executar_avaliacao_dominios_mock(
+    *,
+    caso: str = "dominios",
+    caminho_relatorio: Path | None = None,
+) -> dict[str, Any]:
+    if caso not in {
+        "classificador",
+        "curadoria",
+        "dominios",
+    }:
+        raise ValueError("caso de dominio precisa ser " "classificador, curadoria ou dominios")
+
+    casos: list[dict[str, Any]] = []
+
+    if caso in {
+        "classificador",
+        "dominios",
+    }:
+        casos.append(_avaliar_caso_classificador_mock())
+
+    if caso in {
+        "curadoria",
+        "dominios",
+    }:
+        casos.append(_avaliar_caso_curadoria_mock())
+
+    relatorio: dict[str, Any] = {
+        "schema_version": 1,
+        "capturado_em": (datetime.now().astimezone().isoformat(timespec="seconds")),
+        "modo": "mock",
+        "caso": caso,
+        "casos": casos,
+        "rede_real_utilizada": False,
+    }
+
+    destino = caminho_relatorio if caminho_relatorio is not None else _caminho_relatorio_padrao()
+
+    destino.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    destino.write_text(
+        json.dumps(
+            relatorio,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    relatorio["caminho_relatorio"] = str(destino)
+
+    return relatorio
+
+
 def main() -> int:
     args = criar_parser().parse_args()
 
     try:
-        relatorio = executar_avaliacao(
-            modo=args.modo,
-            permitir_rede_real=(args.permitir_rede_real),
-            caminho_relatorio=(args.relatorio),
-        )
+        if args.caso == "contrato":
+            relatorio = executar_avaliacao(
+                modo=args.modo,
+                permitir_rede_real=(args.permitir_rede_real),
+                caminho_relatorio=(args.relatorio),
+            )
+        else:
+            if args.modo != "mock":
+                raise RuntimeError("Casos de dominio V20C sao " "permitidos apenas em modo mock.")
+
+            if args.permitir_rede_real:
+                raise RuntimeError(
+                    "--permitir-rede-real nao pode ser usado " "com casos de dominio V20C."
+                )
+
+            relatorio = executar_avaliacao_dominios_mock(
+                caso=args.caso,
+                caminho_relatorio=(args.relatorio),
+            )
     except Exception as erro:
         print("AVALIACAO_PROVIDER_AI_OK=False")
         print("ERRO=" + type(erro).__name__ + ": " + str(erro))
         return 1
 
-    resultado = relatorio["resultado"]
-    controle = relatorio["controle_operacional"]
-
     print("AVALIACAO_PROVIDER_AI_OK=True")
     print("MODO=" + str(relatorio["modo"]))
-    print("STATUS=" + str(resultado["status"]))
-    print("FALLBACK_USADO=" + str(resultado["fallback_usado"]))
-    print("VALIDADA_DETERMINISTICAMENTE=" + str(resultado["validada_deterministicamente"]))
-    print("CHAMADAS_EXTERNAS_TOTAL=" + str(controle["observabilidade"]["chamadas_externas_total"]))
-    print("KILL_SWITCH_ATIVO=" + str(controle["kill_switch_ativo"]))
+
+    if args.caso == "contrato":
+        resultado = relatorio["resultado"]
+        controle = relatorio["controle_operacional"]
+
+        print("STATUS=" + str(resultado["status"]))
+        print("FALLBACK_USADO=" + str(resultado["fallback_usado"]))
+        print("VALIDADA_DETERMINISTICAMENTE=" + str(resultado["validada_deterministicamente"]))
+        print(
+            "CHAMADAS_EXTERNAS_TOTAL=" + str(controle["observabilidade"]["chamadas_externas_total"])
+        )
+        print("KILL_SWITCH_ATIVO=" + str(controle["kill_switch_ativo"]))
+    else:
+        print("CASO=" + str(relatorio["caso"]))
+        print("CASOS_TOTAL=" + str(len(relatorio["casos"])))
+        print("REDE_REAL_UTILIZADA=" + str(relatorio["rede_real_utilizada"]))
+
+        for item in relatorio["casos"]:
+            nome = str(item["caso"]).upper()
+
+            print(nome + "_GATE_AI_ACIONADO=" + str(item["gate_ai_acionado"]))
+            print(nome + "_STATUS=" + str(item["inteligencia_ai"]["status"]))
+            print(
+                nome
+                + "_CHAMADAS_EXTERNAS_TOTAL="
+                + str(item["controle_operacional"]["observabilidade"]["chamadas_externas_total"])
+            )
+
     print("RELATORIO=" + str(relatorio["caminho_relatorio"]))
 
     return 0
