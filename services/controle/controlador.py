@@ -15,6 +15,7 @@ from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
+from services.avaliador_saude_monetizacao import avaliar_saude_monetizacao
 from services.controle.estado import (
     EstadoAdministrativo,
     EstadoConectividade,
@@ -292,6 +293,36 @@ class ControladorAdministrativo:
             "disponivel": True,
             "schema_version": 1,
             "snapshot": snapshot,
+        }
+
+    def obter_saude_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        dados = self.obter_snapshot_monetizacao()
+
+        if not dados["disponivel"]:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "saude": None,
+            }
+
+        snapshot = dados.get("snapshot")
+
+        if not isinstance(
+            snapshot,
+            dict,
+        ):
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "saude": None,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "saude": avaliar_saude_monetizacao(snapshot),
         }
 
     def obter_saude(self) -> dict[str, object]:
