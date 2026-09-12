@@ -18,7 +18,7 @@ from repositories.historico_precos_repository import HistoricoPrecosRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
-from services.classificador_produto import ClassificadorProduto
+from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
@@ -96,7 +96,7 @@ async def main() -> None:
         resultado_priorizacao_learning.observabilidade
     )
 
-    classificador = ClassificadorProduto()
+    classificador = ClassificadorProdutoAssistidoAI(habilitado=False)
 
     coletor = ColetorOfertas(
         scrapers=scrapers,

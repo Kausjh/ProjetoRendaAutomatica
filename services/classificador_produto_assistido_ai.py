@@ -59,6 +59,26 @@ class ResultadoClassificacaoProdutoAssistidaAI:
     inteligencia_ai: ResultadoInteligenciaAssistivaAI | None
     gate_ai_acionado: bool
 
+    @property
+    def eh_nicho(self) -> bool:
+        return self.classificacao_final.eh_nicho
+
+    @property
+    def categoria(self) -> str | None:
+        return self.classificacao_final.categoria
+
+    @property
+    def relevancia(self) -> float:
+        return self.classificacao_final.relevancia
+
+    @property
+    def termos_encontrados(self) -> list[str]:
+        return self.classificacao_final.termos_encontrados
+
+    @property
+    def motivo(self) -> str:
+        return self.classificacao_final.motivo
+
 
 class ClassificadorProdutoAssistidoAI:
     """Desambigua apenas classificacoes deterministicamente empatadas.
