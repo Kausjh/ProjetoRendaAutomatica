@@ -400,25 +400,42 @@ class ControleAdministrativoRepository:
         self,
         recomendacao_id: str,
     ) -> bool:
+        recomendacao_id = recomendacao_id.strip()
+
+        if not recomendacao_id:
+            raise ValueError("recomendacao_id nao pode ser vazio.")
+
         agora = datetime.now().astimezone().isoformat(timespec="seconds")
 
         with self._conectar() as conexao:
             cursor = conexao.execute(
-                """
-                UPDATE enforcement_monetizacao_consumido
-                SET
-                    status = 'concluido',
-                    concluido_em = ?
-                WHERE recomendacao_id = ?
-                  AND status = 'reservado'
-                """,
+                (
+                    "UPDATE enforcement_monetizacao_consumido "
+                    "SET status = 'concluido', "
+                    "concluido_em = COALESCE(concluido_em, ?) "
+                    "WHERE recomendacao_id = ? "
+                    "AND status = 'reservado'"
+                ),
                 (
                     agora,
                     recomendacao_id,
                 ),
             )
 
-        return cursor.rowcount == 1
+            if cursor.rowcount == 1:
+                return True
+
+            linha = conexao.execute(
+                (
+                    "SELECT status "
+                    "FROM enforcement_monetizacao_consumido "
+                    "WHERE recomendacao_id = ? "
+                    "LIMIT 1"
+                ),
+                (recomendacao_id,),
+            ).fetchone()
+
+        return linha is not None and str(linha["status"]) == "concluido"
 
     def liberar_enforcement_monetizacao(
         self,
@@ -466,6 +483,90 @@ class ControleAdministrativoRepository:
                 str(linha["concluido_em"]) if linha["concluido_em"] is not None else None
             ),
         }
+
+    def listar_enforcement_monetizacao_reservados(
+        self,
+    ) -> list[dict[str, str | None]]:
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                "SELECT recomendacao_id, status, "
+                "reservado_em, concluido_em "
+                "FROM enforcement_monetizacao_consumido "
+                "WHERE status = 'reservado' "
+                "ORDER BY reservado_em, recomendacao_id"
+            ).fetchall()
+
+        return [
+            {
+                "recomendacao_id": str(linha["recomendacao_id"]),
+                "status": str(linha["status"]),
+                "reservado_em": str(linha["reservado_em"]),
+                "concluido_em": (
+                    str(linha["concluido_em"]) if linha["concluido_em"] is not None else None
+                ),
+            }
+            for linha in linhas
+        ]
+
+    def obter_enforcement_segmento_por_recomendacao(
+        self,
+        recomendacao_id: str,
+    ) -> dict[str, object] | None:
+        recomendacao_id = recomendacao_id.strip()
+
+        if not recomendacao_id:
+            return None
+
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                (
+                    "SELECT escopo, alvo, ativo, "
+                    "recomendacao_id, atualizado_em "
+                    "FROM enforcement_monetizacao_segmentos "
+                    "WHERE recomendacao_id = ? "
+                    "LIMIT 1"
+                ),
+                (recomendacao_id,),
+            ).fetchone()
+
+        if linha is None:
+            return None
+
+        return {
+            "escopo": str(linha["escopo"]),
+            "alvo": str(linha["alvo"]),
+            "ativo": bool(int(linha["ativo"])),
+            "recomendacao_id": str(linha["recomendacao_id"]),
+            "atualizado_em": str(linha["atualizado_em"]),
+        }
+
+    def existe_auditoria_sucesso_desde(
+        self,
+        *,
+        acao: str,
+        alvo: str,
+        desde: str,
+    ) -> bool:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                (
+                    "SELECT 1 "
+                    "FROM auditoria_administrativa "
+                    "WHERE acao = ? "
+                    "AND alvo = ? "
+                    "AND resultado = 'sucesso' "
+                    "AND executado_em >= ? "
+                    "ORDER BY executado_em "
+                    "LIMIT 1"
+                ),
+                (
+                    acao,
+                    alvo,
+                    desde,
+                ),
+            ).fetchone()
+
+        return linha is not None
 
     @staticmethod
     def _normalizar_segmento_monetizacao(

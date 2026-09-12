@@ -30,6 +30,11 @@ from services.gerador_alertas_monetizacao import gerar_alertas_monetizacao
 from services.launcher.chrome_launcher import cdp_esta_funcional
 from services.politica_enforcement_monetizacao import avaliar_enforcement_monetizacao
 from services.recomendador_shadow_monetizacao import gerar_recomendacao_shadow_monetizacao
+from services.reconciliador_enforcement_monetizacao import (
+    classificar_reserva_enforcement,
+    confirmacao_consumo_esperada,
+    confirmacao_reconciliacao_esperada,
+)
 
 if TYPE_CHECKING:
     from services.runtime.orquestrador import OrquestradorRuntime
@@ -558,6 +563,262 @@ class ControladorAdministrativo:
             "disponivel": True,
             "schema_version": 1,
             "segmentos": (self.repositorio_admin.listar_enforcement_segmentos_monetizacao()),
+        }
+
+    def _diagnosticar_reserva_enforcement_monetizacao(
+        self,
+        reserva: dict[str, object],
+    ) -> dict[str, object]:
+        if self.repositorio_admin is None:
+            return {
+                "schema_version": 1,
+                "recomendacao_id": reserva.get("recomendacao_id"),
+                "status": reserva.get("status"),
+                "automatico": False,
+                "ttl_automatico": False,
+                "libera_replay": False,
+                "evidencia_forte": False,
+                "pode_concluir": False,
+                "tipo_evidencia": None,
+                "motivo": "repositorio_admin_indisponivel",
+            }
+
+        recomendacao_id = str(reserva.get("recomendacao_id", "")).strip()
+
+        segmento = self.repositorio_admin.obter_enforcement_segmento_por_recomendacao(
+            recomendacao_id
+        )
+
+        publicador_pausado = self.repositorio_admin.obter_booleano(
+            "publicador_pausado",
+            False,
+        )
+
+        auditoria_pausa = self.repositorio_admin.existe_auditoria_sucesso_desde(
+            acao="operacao.publicador.pausar",
+            alvo="publicador",
+            desde=str(reserva.get("reservado_em", "")),
+        )
+
+        return classificar_reserva_enforcement(
+            reserva=reserva,
+            segmento=segmento,
+            publicador_pausado=publicador_pausado,
+            auditoria_pausa_sucesso=auditoria_pausa,
+        )
+
+    def obter_reservas_enforcement_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        if self.repositorio_admin is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "automatico": False,
+                "ttl_automatico": False,
+                "libera_replay": False,
+                "quantidade": 0,
+                "reservas": [],
+            }
+
+        reservas = self.repositorio_admin.listar_enforcement_monetizacao_reservados()
+
+        itens = [
+            {
+                **reserva,
+                "diagnostico": (self._diagnosticar_reserva_enforcement_monetizacao(reserva)),
+            }
+            for reserva in reservas
+        ]
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "automatico": False,
+            "ttl_automatico": False,
+            "libera_replay": False,
+            "quantidade": len(itens),
+            "reservas": itens,
+        }
+
+    def reconciliar_reserva_enforcement_monetizacao(
+        self,
+        *,
+        recomendacao_id: str,
+        confirmacao: str | None,
+        dispositivo: str | None = None,
+    ) -> dict[str, object]:
+        recomendacao_id = str(recomendacao_id).strip()
+        confirmacao_recebida = str(confirmacao).strip() if confirmacao is not None else ""
+
+        base = {
+            "manual": True,
+            "automatico": False,
+            "ttl_automatico": False,
+            "libera_replay": False,
+            "recomendacao_id": recomendacao_id or None,
+        }
+
+        if not recomendacao_id:
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "recomendacao_id_obrigatoria",
+            }
+
+        if confirmacao_recebida != confirmacao_reconciliacao_esperada(recomendacao_id):
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "confirmacao_reconciliacao_invalida",
+            }
+
+        if self.repositorio_admin is None:
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "repositorio_admin_indisponivel",
+            }
+
+        reserva = self.repositorio_admin.obter_enforcement_monetizacao_consumido(recomendacao_id)
+
+        if reserva is None or reserva.get("status") != "reservado":
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": ("reserva_nao_encontrada_ou_nao_reservada"),
+            }
+
+        diagnostico = self._diagnosticar_reserva_enforcement_monetizacao(reserva)
+
+        if not diagnostico.get("pode_concluir"):
+            self._auditar(
+                acao="monetizacao.enforcement.reconciliar",
+                alvo=recomendacao_id,
+                detalhes={
+                    "diagnostico": diagnostico,
+                    "manual": True,
+                    "automatico": False,
+                    "libera_replay": False,
+                },
+                dispositivo=dispositivo,
+                resultado="revisao_manual",
+            )
+
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": ("evidencia_insuficiente_revisao_manual"),
+                "diagnostico": diagnostico,
+            }
+
+        concluido = self.repositorio_admin.concluir_enforcement_monetizacao(recomendacao_id)
+
+        if not concluido:
+            raise RuntimeError("Nao foi possivel concluir a reserva " "durante a reconciliacao.")
+
+        self._auditar(
+            acao="monetizacao.enforcement.reconciliar",
+            alvo=recomendacao_id,
+            detalhes={
+                "diagnostico": diagnostico,
+                "manual": True,
+                "automatico": False,
+                "libera_replay": False,
+            },
+            dispositivo=dispositivo,
+            resultado="reconciliado",
+        )
+
+        return {
+            **base,
+            "permitido": True,
+            "executado": True,
+            "motivo": ("reserva_reconciliada_com_evidencia_forte"),
+            "diagnostico": diagnostico,
+        }
+
+    def consumir_reserva_enforcement_sem_replay(
+        self,
+        *,
+        recomendacao_id: str,
+        confirmacao: str | None,
+        dispositivo: str | None = None,
+    ) -> dict[str, object]:
+        recomendacao_id = str(recomendacao_id).strip()
+        confirmacao_recebida = str(confirmacao).strip() if confirmacao is not None else ""
+
+        base = {
+            "manual": True,
+            "automatico": False,
+            "ttl_automatico": False,
+            "libera_replay": False,
+            "recomendacao_id": recomendacao_id or None,
+        }
+
+        if not recomendacao_id:
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "recomendacao_id_obrigatoria",
+            }
+
+        if confirmacao_recebida != confirmacao_consumo_esperada(recomendacao_id):
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "confirmacao_consumo_invalida",
+            }
+
+        if self.repositorio_admin is None:
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": "repositorio_admin_indisponivel",
+            }
+
+        reserva = self.repositorio_admin.obter_enforcement_monetizacao_consumido(recomendacao_id)
+
+        if reserva is None or reserva.get("status") != "reservado":
+            return {
+                **base,
+                "permitido": False,
+                "executado": False,
+                "motivo": ("reserva_nao_encontrada_ou_nao_reservada"),
+            }
+
+        concluido = self.repositorio_admin.concluir_enforcement_monetizacao(recomendacao_id)
+
+        if not concluido:
+            raise RuntimeError("Nao foi possivel consumir a reserva " "sem replay.")
+
+        self._auditar(
+            acao=("monetizacao.enforcement.consumir_reserva"),
+            alvo=recomendacao_id,
+            detalhes={
+                "manual": True,
+                "automatico": False,
+                "ttl_automatico": False,
+                "libera_replay": False,
+                "motivo": "consumo_manual_explicito",
+            },
+            dispositivo=dispositivo,
+            resultado="consumido_sem_replay",
+        )
+
+        return {
+            **base,
+            "permitido": True,
+            "executado": True,
+            "motivo": ("reserva_consumida_sem_liberar_replay"),
         }
 
     def executar_enforcement_segmentado_monetizacao(

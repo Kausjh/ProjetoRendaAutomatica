@@ -124,6 +124,11 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/monetizacao/enforcement/reservas":
+                        dados = controlador.obter_reservas_enforcement_monetizacao()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)
@@ -264,6 +269,64 @@ class ServidorStatusAdministrativo:
                     ).strip()[:120]
                     or None
                 )
+
+                if (
+                    len(partes) == 3
+                    and partes[0] == "monetizacao"
+                    and partes[1] == "enforcement"
+                    and partes[2] == "reconciliar"
+                ):
+                    recomendacao_id = self.headers.get(
+                        "X-Monetizacao-Recomendacao-Id",
+                        "",
+                    ).strip()
+
+                    confirmacao = (
+                        self.headers.get(
+                            "X-Monetizacao-Confirmacao",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    dados = controlador.reconciliar_reserva_enforcement_monetizacao(
+                        recomendacao_id=recomendacao_id,
+                        confirmacao=confirmacao,
+                        dispositivo=dispositivo,
+                    )
+
+                    status = 200 if dados.get("executado") else 409
+                    self._responder_json(status, dados)
+                    return
+
+                if (
+                    len(partes) == 3
+                    and partes[0] == "monetizacao"
+                    and partes[1] == "enforcement"
+                    and partes[2] == "consumir-reserva"
+                ):
+                    recomendacao_id = self.headers.get(
+                        "X-Monetizacao-Recomendacao-Id",
+                        "",
+                    ).strip()
+
+                    confirmacao = (
+                        self.headers.get(
+                            "X-Monetizacao-Confirmacao",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    dados = controlador.consumir_reserva_enforcement_sem_replay(
+                        recomendacao_id=recomendacao_id,
+                        confirmacao=confirmacao,
+                        dispositivo=dispositivo,
+                    )
+
+                    status = 200 if dados.get("executado") else 409
+                    self._responder_json(status, dados)
+                    return
 
                 if (
                     len(partes) == 5
