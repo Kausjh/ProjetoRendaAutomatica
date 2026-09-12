@@ -351,6 +351,61 @@ class ProvedorHttpInteligenciaAI:
             ) from erro
 
 
+def criar_provedor_http_inteligencia_ai(
+    *,
+    endpoint: str | None,
+    provedor: str | None,
+    modelo: str | None = None,
+    auth_header_nome: str | None = None,
+    auth_header_valor: str | None = None,
+) -> ProvedorHttpInteligenciaAI | None:
+    # Esta factory apenas faz wiring/configuracao.
+    # Nenhuma chamada HTTP acontece durante a criacao.
+    endpoint_normalizado = _normalizar_texto_opcional(endpoint)
+    provedor_normalizado = _normalizar_texto_opcional(provedor)
+    modelo_normalizado = _normalizar_texto_opcional(modelo)
+    auth_nome_normalizado = _normalizar_texto_opcional(auth_header_nome)
+    auth_valor_normalizado = _normalizar_texto_opcional(auth_header_valor)
+
+    outros_campos = (
+        provedor_normalizado,
+        modelo_normalizado,
+        auth_nome_normalizado,
+        auth_valor_normalizado,
+    )
+
+    if endpoint_normalizado is None:
+        if any(valor is not None for valor in outros_campos):
+            raise ValueError(
+                "endpoint precisa ser informado quando "
+                "outra configuracao do provedor estiver definida"
+            )
+
+        return None
+
+    if provedor_normalizado is None:
+        raise ValueError("provedor precisa ser informado quando endpoint estiver definido")
+
+    if (auth_nome_normalizado is None) != (auth_valor_normalizado is None):
+        raise ValueError(
+            "nome e valor do cabecalho de autenticacao " "precisam ser informados juntos"
+        )
+
+    cabecalhos = None
+
+    if auth_nome_normalizado is not None:
+        cabecalhos = {
+            auth_nome_normalizado: auth_valor_normalizado,
+        }
+
+    return ProvedorHttpInteligenciaAI(
+        endpoint=endpoint_normalizado,
+        provedor=provedor_normalizado,
+        modelo=modelo_normalizado,
+        cabecalhos=cabecalhos,
+    )
+
+
 def _validar_endpoint(
     valor: str,
 ) -> str:

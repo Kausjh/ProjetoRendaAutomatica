@@ -33,6 +33,7 @@ from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.pontuador_oferta import PontuadorOferta
+from services.provedor_http_inteligencia_ai import criar_provedor_http_inteligencia_ai
 from services.scout.observabilidade_discovery_comercial_hunter import (
     criar_observabilidade_discovery_comercial_hunter,
 )
@@ -106,8 +107,22 @@ async def main() -> None:
         limite_custo_estimado_usd=(configuracoes.ai_limite_custo_estimado_usd),
     )
 
+    try:
+        provedor_ai = criar_provedor_http_inteligencia_ai(
+            endpoint=configuracoes.ai_provedor_endpoint,
+            provedor=configuracoes.ai_provedor_nome,
+            modelo=configuracoes.ai_provedor_modelo,
+            auth_header_nome=(configuracoes.ai_provedor_auth_header_nome),
+            auth_header_valor=(configuracoes.ai_provedor_auth_header_valor),
+        )
+    except (TypeError, ValueError):
+        logger.exception("Erro na configuracao do provedor de inteligencia AI.")
+        return
+
     classificador = ClassificadorProdutoAssistidoAI(
-        habilitado=False, controle_operacional=controle_operacional_ai
+        habilitado=False,
+        provedor=provedor_ai,
+        controle_operacional=controle_operacional_ai,
     )
 
     coletor = ColetorOfertas(
@@ -162,6 +177,7 @@ async def main() -> None:
             ativa=configuracoes.curadoria_publicacao_ativa,
         ),
         habilitado=False,
+        provedor=provedor_ai,
         controle_operacional=controle_operacional_ai,
     )
 

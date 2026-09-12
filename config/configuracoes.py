@@ -228,6 +228,16 @@ class Configuracoes:
             valor_padrao=0.5,
         )
 
+        self.ai_provedor_endpoint = self._buscar_texto_opcional("AI_PROVEDOR_ENDPOINT")
+        self.ai_provedor_nome = self._buscar_texto_opcional("AI_PROVEDOR_NOME")
+        self.ai_provedor_modelo = self._buscar_texto_opcional("AI_PROVEDOR_MODELO")
+        self.ai_provedor_auth_header_nome = self._buscar_texto_opcional(
+            "AI_PROVEDOR_AUTH_HEADER_NOME"
+        )
+        self.ai_provedor_auth_header_valor = self._buscar_texto_opcional(
+            "AI_PROVEDOR_AUTH_HEADER_VALOR"
+        )
+
         self._validar()
 
     def _buscar_variavel_obrigatoria(self, nome: str) -> str:
@@ -264,7 +274,48 @@ class Configuracoes:
         except ValueError as erro:
             raise ValueError(f"A variável {nome} precisa ser um número.") from erro
 
+    def _buscar_texto_opcional(self, nome: str) -> str | None:
+        valor = os.getenv(nome)
+
+        if valor is None:
+            return None
+
+        texto = valor.strip()
+
+        return texto or None
+
     def _validar(self) -> None:
+        provider_campos_sem_endpoint = (
+            self.ai_provedor_nome,
+            self.ai_provedor_modelo,
+            self.ai_provedor_auth_header_nome,
+            self.ai_provedor_auth_header_valor,
+        )
+
+        if self.ai_provedor_endpoint is None and any(
+            valor is not None for valor in provider_campos_sem_endpoint
+        ):
+            raise ValueError(
+                "AI_PROVEDOR_ENDPOINT precisa ser informado quando "
+                "outra configuracao de provedor AI estiver definida."
+            )
+
+        if self.ai_provedor_endpoint is not None and self.ai_provedor_nome is None:
+            raise ValueError(
+                "AI_PROVEDOR_NOME precisa ser informado quando "
+                "AI_PROVEDOR_ENDPOINT estiver definido."
+            )
+
+        auth_nome_informado = self.ai_provedor_auth_header_nome is not None
+        auth_valor_informado = self.ai_provedor_auth_header_valor is not None
+
+        if auth_nome_informado != auth_valor_informado:
+            raise ValueError(
+                "AI_PROVEDOR_AUTH_HEADER_NOME e "
+                "AI_PROVEDOR_AUTH_HEADER_VALOR precisam ser "
+                "informados juntos."
+            )
+
         if self.ai_limite_chamadas_externas <= 0:
             raise ValueError("AI_LIMITE_CHAMADAS_EXTERNAS precisa ser maior que zero.")
 
