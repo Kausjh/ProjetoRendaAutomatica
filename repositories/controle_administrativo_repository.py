@@ -105,6 +105,62 @@ class ControleAdministrativoRepository:
 
         return str(linha["valor"])
 
+    def salvar_snapshot_operacional_ai(
+        self,
+        snapshot: dict[str, Any],
+    ) -> None:
+        if not isinstance(snapshot, dict):
+            raise TypeError("snapshot precisa ser dict")
+
+        payload = {
+            "schema_version": 1,
+            "capturado_em": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "snapshot": snapshot,
+        }
+
+        self.definir_estado(
+            chave="snapshot_operacional_ai_v1",
+            valor=json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+        )
+
+    def obter_snapshot_operacional_ai(
+        self,
+    ) -> dict[str, Any] | None:
+        bruto = self.obter_estado("snapshot_operacional_ai_v1")
+
+        if bruto is None:
+            return None
+
+        try:
+            payload = json.loads(bruto)
+        except json.JSONDecodeError:
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+
+        if payload.get("schema_version") != 1:
+            return None
+
+        snapshot = payload.get("snapshot")
+        capturado_em = payload.get("capturado_em")
+
+        if not isinstance(snapshot, dict):
+            return None
+
+        if not isinstance(capturado_em, str) or not capturado_em:
+            return None
+
+        return {
+            "schema_version": 1,
+            "capturado_em": capturado_em,
+            "snapshot": snapshot,
+        }
+
     def definir_booleano(
         self,
         chave: str,

@@ -242,6 +242,32 @@ class ControladorAdministrativo:
             "itens": itens,
         }
 
+    def obter_snapshot_operacional_ai(
+        self,
+    ) -> dict[str, object]:
+        if self.repositorio_admin is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "capturado_em": None,
+                "snapshot": None,
+            }
+
+        dados = self.repositorio_admin.obter_snapshot_operacional_ai()
+
+        if dados is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "capturado_em": None,
+                "snapshot": None,
+            }
+
+        return {
+            "disponivel": True,
+            **dados,
+        }
+
     def obter_saude(self) -> dict[str, object]:
         estado = self.obter_estado()
 

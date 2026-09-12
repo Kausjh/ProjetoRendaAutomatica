@@ -94,6 +94,11 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/ia/operacional":
+                        dados = controlador.obter_snapshot_operacional_ai()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)

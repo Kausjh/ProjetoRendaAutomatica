@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from dataclasses import asdict
 
 from config.configuracoes import Configuracoes
 from config.hunter_budget_config import carregar_limites_hunter_por_fonte
@@ -278,7 +279,18 @@ async def main() -> None:
         confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),
     )
 
-    await pipeline.executar()
+    try:
+        await pipeline.executar()
+    finally:
+        try:
+            controle_administrativo_repository.salvar_snapshot_operacional_ai(
+                asdict(controle_operacional_ai.snapshot())
+            )
+        except Exception as erro:
+            logger.warning(
+                "Nao foi possivel persistir snapshot operacional AI. tipo=%s",
+                type(erro).__name__,
+            )
 
 
 if __name__ == "__main__":
