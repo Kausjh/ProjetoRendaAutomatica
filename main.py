@@ -37,6 +37,9 @@ from services.scout.wiring_alvos_discovery_comercial_hunter import (
     carregar_alvos_discovery_comercial_hunter,
 )
 from services.scout.wiring_discovery_comercial_hunter import aplicar_discovery_comercial_hunter
+from services.scout.wiring_priorizacao_learning_discovery_comercial_hunter import (
+    aplicar_priorizacao_learning_com_historico,
+)
 
 configurar_logging()
 
@@ -54,7 +57,27 @@ async def main() -> None:
 
         limites_hunter_por_fonte = resultado_discovery_comercial.como_mapping()
 
+        relatorios_repository = RelatoriosRepository()
+
+        try:
+            relatorios_learning_existentes = relatorios_repository.listar()
+        except Exception as erro:
+            logger.warning(
+                "Commercial Discovery Learning Prioritization: "
+                "falha ao ler relatorios; usando fallback. tipo=%s",
+                type(erro).__name__,
+            )
+
+            relatorios_learning_existentes = []
+
         resultado_alvos_discovery_comercial = carregar_alvos_discovery_comercial_hunter()
+
+        resultado_priorizacao_learning = aplicar_priorizacao_learning_com_historico(
+            resultado=resultado_alvos_discovery_comercial,
+            relatorios_execucao=relatorios_learning_existentes,
+        )
+
+        resultado_alvos_discovery_comercial = resultado_priorizacao_learning.resultado
 
     except ValueError:
         logger.exception("Erro nas configurações do projeto.")
@@ -68,6 +91,9 @@ async def main() -> None:
     observabilidade_discovery_comercial_hunter = criar_observabilidade_discovery_comercial_hunter(
         resultado=resultado_alvos_discovery_comercial,
         scrapers=scrapers,
+    )
+    observabilidade_discovery_comercial_hunter["priorizacao_learning"] = (
+        resultado_priorizacao_learning.observabilidade
     )
 
     classificador = ClassificadorProduto()
@@ -83,8 +109,6 @@ async def main() -> None:
     fila_publicacao_repository = FilaPublicacaoRepository()
 
     controle_administrativo_repository = ControleAdministrativoRepository()
-
-    relatorios_repository = RelatoriosRepository()
 
     historico_precos_repository = HistoricoPrecosRepository(
         caminho_arquivo=("data/historico/" "mercado_livre_precos.json")
