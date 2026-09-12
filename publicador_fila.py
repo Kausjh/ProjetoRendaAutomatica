@@ -6,9 +6,9 @@ import asyncio
 import logging
 import time
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
 
 from affiliates.erro_monetizacao_obrigatoria import ErroMonetizacaoObrigatoria
+from affiliates.politica_monetizacao import PoliticaMonetizacao
 from affiliates.registro_afiliadores import criar_gerador_link_afiliado
 from bots.telegram_bot import TelegramBot
 from config.configuracoes import Configuracoes
@@ -152,12 +152,7 @@ class PublicadorFila:
 
     @staticmethod
     def _oferta_exige_chrome_afiliacao(link: str) -> bool:
-        dominio = (urlparse(link).hostname or "").lower()
-
-        if dominio.startswith("www."):
-            dominio = dominio[4:]
-
-        return dominio == "mercadolivre.com.br" or dominio.endswith(".mercadolivre.com.br")
+        return PoliticaMonetizacao.exige_preparo_chrome_mercado_livre(link)
 
     async def _garantir_chrome_para_afiliacao(self, link: str) -> None:
         if not self._oferta_exige_chrome_afiliacao(link):

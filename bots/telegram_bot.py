@@ -1,11 +1,11 @@
 import logging
 from dataclasses import replace
-from urllib.parse import urlparse
 
 from telegram import Bot, ReplyParameters
 
 from affiliates.erro_monetizacao_obrigatoria import ErroMonetizacaoObrigatoria
 from affiliates.gerador_link_afiliado import GeradorLinkAfiliado
+from affiliates.politica_monetizacao import PoliticaMonetizacao
 from affiliates.resultado_link_afiliado import ResultadoLinkAfiliado
 from formatters.oferta_formatter import OfertaFormatter
 from models.oferta import Oferta
@@ -25,30 +25,11 @@ class TelegramBot:
         self.gerador_link_afiliado = gerador_link_afiliado
         self.ultima_mensagem_publicada_id: int | None = None
 
-    DOMINIOS_AFILIACAO_OBRIGATORIA = (
-        "mercadolivre.com.br",
-        "shopee.com.br",
-        "aliexpress.com",
-        "kabum.com.br",
-        "amazon.com.br",
-        "amzn.to",
-        "link.amazon",
-    )
-
-    @classmethod
+    @staticmethod
     def _exige_link_afiliado(
-        cls,
         link: str,
     ) -> bool:
-        dominio = (urlparse(link).hostname or "").lower()
-
-        if dominio.startswith("www."):
-            dominio = dominio[4:]
-
-        return any(
-            dominio == dominio_base or dominio.endswith(f".{dominio_base}")
-            for dominio_base in cls.DOMINIOS_AFILIACAO_OBRIGATORIA
-        )
+        return PoliticaMonetizacao.exige_confirmacao_afiliacao(link)
 
     async def enviar_mensagem(self, mensagem: str) -> None:
         await self.bot.send_message(chat_id=self.channel_id, text=mensagem)
