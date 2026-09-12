@@ -213,6 +213,21 @@ class Configuracoes:
             valor_padrao=True,
         )
 
+        self.ai_limite_chamadas_externas = self._buscar_inteiro(
+            nome="AI_LIMITE_CHAMADAS_EXTERNAS",
+            valor_padrao=25,
+        )
+
+        self.ai_limite_tokens_total = self._buscar_inteiro(
+            nome="AI_LIMITE_TOKENS_TOTAL",
+            valor_padrao=50000,
+        )
+
+        self.ai_limite_custo_estimado_usd = self._buscar_decimal(
+            nome="AI_LIMITE_CUSTO_ESTIMADO_USD",
+            valor_padrao=0.5,
+        )
+
         self._validar()
 
     def _buscar_variavel_obrigatoria(self, nome: str) -> str:
@@ -250,6 +265,15 @@ class Configuracoes:
             raise ValueError(f"A variável {nome} precisa ser um número.") from erro
 
     def _validar(self) -> None:
+        if self.ai_limite_chamadas_externas <= 0:
+            raise ValueError("AI_LIMITE_CHAMADAS_EXTERNAS precisa ser maior que zero.")
+
+        if self.ai_limite_tokens_total <= 0:
+            raise ValueError("AI_LIMITE_TOKENS_TOTAL precisa ser maior que zero.")
+
+        if self.ai_limite_custo_estimado_usd <= 0:
+            raise ValueError("AI_LIMITE_CUSTO_ESTIMADO_USD precisa ser maior que zero.")
+
         if not re.fullmatch(r"[a-z0-9_-]+", self.identificador_marca):
             raise ValueError(
                 "IDENTIFICADOR_MARCA deve conter somente "

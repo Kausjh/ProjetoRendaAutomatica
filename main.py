@@ -100,6 +100,9 @@ async def main() -> None:
 
     controle_operacional_ai = ControleOperacionalInteligenciaAI(
         kill_switch_ativo=configuracoes.ai_kill_switch_ativo,
+        limite_chamadas_externas=(configuracoes.ai_limite_chamadas_externas),
+        limite_tokens_total=(configuracoes.ai_limite_tokens_total),
+        limite_custo_estimado_usd=(configuracoes.ai_limite_custo_estimado_usd),
     )
 
     classificador = ClassificadorProdutoAssistidoAI(
