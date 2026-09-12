@@ -8,6 +8,7 @@ from config.configuracoes import Configuracoes
 from config.hunter_budget_config import carregar_limites_hunter_por_fonte
 from config.logging_config import configurar_logging
 from filters.oferta_filter import OfertaFilter
+from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
@@ -19,6 +20,7 @@ from repositories.historico_precos_repository import HistoricoPrecosRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
+from services.catalogo_canonico_service import CatalogoCanonicoService
 from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.coletor_ofertas import ColetorOfertas
 from services.controle_operacional_ai import ControleOperacionalInteligenciaAI
@@ -182,6 +184,11 @@ async def main() -> None:
 
     normalizador_produto = NormalizadorProduto()
 
+    catalogo_canonico_repository = CatalogoCanonicoRepository("database/catalogo_canonico.sqlite3")
+    catalogo_canonico_service = CatalogoCanonicoService(
+        repository=catalogo_canonico_repository,
+    )
+
     curadoria_publicacao = CuradoriaPublicacaoAssistidaAI(
         curadoria=CuradoriaPublicacao(
             nota_minima=configuracoes.nota_minima_curadoria,
@@ -312,6 +319,7 @@ async def main() -> None:
         janela_publicacao=janela_publicacao,
         detector_anomalia=detector_anomalia,
         normalizador_produto=normalizador_produto,
+        catalogo_canonico_service=catalogo_canonico_service,
         curadoria_publicacao=curadoria_publicacao,
         deduplicacao_canonica_ativa=configuracoes.deduplicacao_canonica_ativa,
         confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),

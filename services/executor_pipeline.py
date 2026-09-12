@@ -11,6 +11,7 @@ from repositories.controle_administrativo_repository import (
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
+from services.catalogo_canonico_service import CatalogoCanonicoService
 from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
@@ -73,6 +74,7 @@ class ExecutorPipeline:
         politica_marketplace: PoliticaMarketplace | None = None,
         historico_precos_efetivos_service: HistoricoPrecosEfetivosService | None = None,
         observabilidade_discovery_comercial_hunter: dict | None = None,
+        catalogo_canonico_service: CatalogoCanonicoService | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -92,6 +94,7 @@ class ExecutorPipeline:
         self.janela_publicacao = janela_publicacao or JanelaPublicacao()
         self.detector_anomalia = detector_anomalia or DetectorAnomaliaPreco()
         self.normalizador_produto = normalizador_produto or NormalizadorProduto()
+        self.catalogo_canonico_service = catalogo_canonico_service
         self.curadoria_publicacao = curadoria_publicacao or CuradoriaPublicacao()
         self.deduplicacao_canonica_ativa = deduplicacao_canonica_ativa
         self.confianca_minima_deduplicacao = confianca_minima_deduplicacao
@@ -296,6 +299,22 @@ class ExecutorPipeline:
             quantidade_aprovada_pelo_filtro += 1
 
             resultado_normalizacao = self.normalizador_produto.normalizar(oferta)
+
+            if self.catalogo_canonico_service is not None:
+                try:
+                    resultado_catalogo = self.catalogo_canonico_service.observar(oferta)
+                    logger.debug(
+                        ("Catalogo Canonico V1: %s | " "status=%s | chave=%s | marketplace=%s"),
+                        oferta.nome,
+                        resultado_catalogo.status,
+                        resultado_catalogo.chave_canonica,
+                        resultado_catalogo.marketplace,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Erro observacional ao registrar oferta no Catalogo Canonico V1: %s",
+                        oferta.nome,
+                    )
 
             logger.debug(
                 "Produto normalizado: %s -> %s | confiança=%.1f",
