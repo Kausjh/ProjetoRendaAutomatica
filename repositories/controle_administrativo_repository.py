@@ -161,6 +161,33 @@ class ControleAdministrativoRepository:
             "snapshot": snapshot,
         }
 
+    def obter_snapshot_monetizacao(
+        self,
+    ) -> dict[str, Any] | None:
+        """Le o snapshot persistido da observabilidade de monetizacao.
+
+        A camada administrativa trata o payload como snapshot opaco:
+        valida apenas JSON, objeto e schema_version. A semantica dos
+        contadores continua pertencendo ao ObservadorMonetizacao.
+        """
+        bruto = self.obter_estado("observabilidade_monetizacao_v1")
+
+        if bruto is None:
+            return None
+
+        try:
+            snapshot = json.loads(bruto)
+        except json.JSONDecodeError:
+            return None
+
+        if not isinstance(snapshot, dict):
+            return None
+
+        if snapshot.get("schema_version") != 1:
+            return None
+
+        return snapshot
+
     def definir_booleano(
         self,
         chave: str,

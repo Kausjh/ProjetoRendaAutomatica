@@ -99,6 +99,11 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/monetizacao/operacional":
+                        dados = controlador.obter_snapshot_monetizacao()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)

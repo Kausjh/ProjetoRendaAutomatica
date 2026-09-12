@@ -268,6 +268,32 @@ class ControladorAdministrativo:
             **dados,
         }
 
+    def obter_snapshot_monetizacao(
+        self,
+    ) -> dict[str, object]:
+        """Expoe o snapshot persistido sem ganhar autoridade operacional."""
+        if self.repositorio_admin is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "snapshot": None,
+            }
+
+        snapshot = self.repositorio_admin.obter_snapshot_monetizacao()
+
+        if snapshot is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "snapshot": None,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "snapshot": snapshot,
+        }
+
     def obter_saude(self) -> dict[str, object]:
         estado = self.obter_estado()
 
