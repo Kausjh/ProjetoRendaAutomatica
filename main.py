@@ -122,6 +122,16 @@ async def main() -> None:
 
     controle_administrativo_repository = ControleAdministrativoRepository()
 
+    try:
+        controle_administrativo_repository.salvar_snapshot_operacional_ai(
+            asdict(controle_operacional_ai.snapshot())
+        )
+    except Exception as erro:
+        logger.warning(
+            "Nao foi possivel persistir snapshot operacional AI inicial. tipo=%s",
+            type(erro).__name__,
+        )
+
     historico_precos_repository = HistoricoPrecosRepository(
         caminho_arquivo=("data/historico/" "mercado_livre_precos.json")
     )

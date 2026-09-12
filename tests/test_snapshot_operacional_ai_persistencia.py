@@ -175,3 +175,35 @@ def test_main_persistencia_snapshot_ai_nao_ativa_provider() -> None:
 
 
 # 63.8738, -149.7525
+
+
+def test_main_persiste_snapshot_ai_antes_de_executar_pipeline() -> None:
+    texto = Path("main.py").read_text(encoding="utf-8-sig")
+
+    indice_repo = texto.index(
+        "controle_administrativo_repository = ControleAdministrativoRepository()"
+    )
+    indice_bootstrap = texto.index("snapshot operacional AI inicial")
+    indice_execucao = texto.index("await pipeline.executar()")
+
+    assert indice_repo < indice_bootstrap < indice_execucao
+
+    trecho_bootstrap = texto[indice_repo:indice_execucao]
+
+    assert "salvar_snapshot_operacional_ai" in trecho_bootstrap
+    assert "controle_operacional_ai.snapshot()" in trecho_bootstrap
+    assert "asdict" in trecho_bootstrap
+
+
+def test_main_mantem_snapshot_final_em_finally() -> None:
+    texto = Path("main.py").read_text(encoding="utf-8-sig")
+
+    assert texto.count("salvar_snapshot_operacional_ai") >= 2
+
+    indice_execucao = texto.index("await pipeline.executar()")
+
+    trecho_final = texto[indice_execucao:]
+
+    assert "finally:" in trecho_final
+    assert "salvar_snapshot_operacional_ai" in trecho_final
+    assert "controle_operacional_ai.snapshot()" in trecho_final
