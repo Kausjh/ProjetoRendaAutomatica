@@ -242,9 +242,10 @@ Caso ocorra erro durante a geração do link:
 
 - o pipeline não deve ser interrompido;
 - o erro deve ser registrado;
-- o link original poderá ser utilizado como fallback.
+- o link original só pode ser usado quando a monetização não for obrigatória;
+- marketplaces com monetização obrigatória falham de forma fechada e permanecem na fila para nova tentativa.
 
-Essa estratégia garante que a publicação continue acontecendo mesmo quando um programa de afiliados estiver indisponível.
+Essa estratégia evita publicar ofertas de marketplaces monetizáveis sem confirmação de afiliação, sem derrubar o restante do pipeline.
 
 ---
 

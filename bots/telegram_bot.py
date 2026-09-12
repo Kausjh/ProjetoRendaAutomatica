@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from telegram import Bot, ReplyParameters
 
+from affiliates.erro_monetizacao_obrigatoria import ErroMonetizacaoObrigatoria
 from affiliates.gerador_link_afiliado import GeradorLinkAfiliado
 from affiliates.resultado_link_afiliado import ResultadoLinkAfiliado
 from formatters.oferta_formatter import OfertaFormatter
@@ -99,7 +100,7 @@ class TelegramBot:
         resultado_link = self.gerador_link_afiliado.gerar(oferta.link)
 
         if self._exige_link_afiliado(oferta.link) and not resultado_link.foi_transformado:
-            raise RuntimeError(
+            raise ErroMonetizacaoObrigatoria(
                 "Publicacao bloqueada porque "
                 "o link afiliado nao pode ser gerado. "
                 "A oferta permanecera na fila "

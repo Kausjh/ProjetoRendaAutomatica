@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+from affiliates.erro_monetizacao_obrigatoria import ErroMonetizacaoObrigatoria
 from affiliates.registro_afiliadores import criar_gerador_link_afiliado
 from bots.telegram_bot import TelegramBot
 from config.configuracoes import Configuracoes
@@ -250,6 +251,18 @@ class PublicadorFila:
             )
 
             return "publicado"
+
+        except ErroMonetizacaoObrigatoria as erro:
+            self._registrar_estado_fluxo(
+                "aguardando_afiliacao",
+                str(erro),
+            )
+            logger.warning(
+                "Publicacao adiada por monetizacao obrigatoria: %s",
+                item.oferta.nome,
+            )
+
+            return "afiliacao_pendente"
 
         except Exception:
             self._registrar_estado_fluxo(
