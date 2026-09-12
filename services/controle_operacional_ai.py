@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Callable
 from threading import Lock, RLock
@@ -46,6 +47,7 @@ class ObservabilidadeInteligenciaAI:
         ] = defaultdict(lambda: defaultdict(int))
 
         self._chamadas_com_tokens_conhecidos = 0
+        self._chamadas_com_tokens_total_conhecido = 0
         self._tokens_entrada_total = 0
         self._tokens_saida_total = 0
         self._tokens_total = 0
@@ -120,6 +122,7 @@ class ObservabilidadeInteligenciaAI:
                 self._tokens_saida_total += uso.tokens_saida
 
             if uso.tokens_total is not None:
+                self._chamadas_com_tokens_total_conhecido += 1
                 self._tokens_total += uso.tokens_total
 
             if uso.custo_estimado_usd is not None:
@@ -157,6 +160,7 @@ class ObservabilidadeInteligenciaAI:
                 tokens_total=(self._tokens_total),
                 chamadas_com_custo_conhecido=(self._chamadas_com_custo_conhecido),
                 custo_estimado_usd_total=(self._custo_estimado_usd_total),
+                chamadas_com_tokens_total_conhecido=(self._chamadas_com_tokens_total_conhecido),
             )
 
 
@@ -330,12 +334,6 @@ class CircuitBreakerInteligenciaAI:
 
 
 class ControleOperacionalInteligenciaAI:
-    """Compoe observabilidade, circuit breaker e kill switch operacional.
-
-    O kill switch possui precedencia absoluta sobre o circuit breaker.
-    Quando ativo, nenhuma chamada externa e permitida.
-    """
-
     def __init__(
         self,
         *,
@@ -343,84 +341,187 @@ class ControleOperacionalInteligenciaAI:
         cooldown_segundos: float = COOLDOWN_CIRCUIT_BREAKER_SEGUNDOS_PADRAO,
         agora: Callable[[], float] = monotonic,
         kill_switch_ativo: bool = False,
+        limite_chamadas_externas: int | None = None,
+        limite_tokens_total: int | None = None,
+        limite_custo_estimado_usd: float | None = None,
     ) -> None:
-        if not isinstance(
-            kill_switch_ativo,
-            bool,
-        ):
+        if not isinstance(kill_switch_ativo, bool):
             raise TypeError("kill_switch_ativo precisa ser bool")
+
+        self._validar_limite_inteiro(
+            limite_chamadas_externas,
+            campo="limite_chamadas_externas",
+        )
+        self._validar_limite_inteiro(
+            limite_tokens_total,
+            campo="limite_tokens_total",
+        )
+        self._validar_limite_custo(limite_custo_estimado_usd)
 
         self._lock = RLock()
         self._kill_switch_ativo = kill_switch_ativo
+        self.limite_chamadas_externas = limite_chamadas_externas
+        self.limite_tokens_total = limite_tokens_total
+        self.limite_custo_estimado_usd = (
+            float(limite_custo_estimado_usd) if limite_custo_estimado_usd is not None else None
+        )
+        self._chamadas_reservadas = 0
 
         self.observabilidade = ObservabilidadeInteligenciaAI()
-
         self.circuit_breaker = CircuitBreakerInteligenciaAI(
             limite_falhas_consecutivas=limite_falhas_consecutivas,
             cooldown_segundos=cooldown_segundos,
             agora=agora,
         )
 
+    @staticmethod
+    def _validar_limite_inteiro(
+        valor: int | None,
+        *,
+        campo: str,
+    ) -> None:
+        if valor is None:
+            return
+
+        if isinstance(valor, bool) or not isinstance(valor, int):
+            raise TypeError(f"{campo} precisa ser int positivo ou None")
+
+        if valor <= 0:
+            raise ValueError(f"{campo} precisa ser maior que zero")
+
+    @staticmethod
+    def _validar_limite_custo(
+        valor: float | None,
+    ) -> None:
+        if valor is None:
+            return
+
+        if isinstance(valor, bool):
+            raise TypeError("limite_custo_estimado_usd precisa ser numero positivo ou None")
+
+        try:
+            convertido = float(valor)
+        except (TypeError, ValueError) as erro:
+            raise TypeError(
+                "limite_custo_estimado_usd precisa ser numero positivo ou None"
+            ) from erro
+
+        if not math.isfinite(convertido) or convertido <= 0.0:
+            raise ValueError("limite_custo_estimado_usd precisa ser finito e maior que zero")
+
     @property
-    def kill_switch_ativo(
-        self,
-    ) -> bool:
+    def kill_switch_ativo(self) -> bool:
         with self._lock:
             return self._kill_switch_ativo
 
-    def ativar_kill_switch(
-        self,
-    ) -> None:
+    def ativar_kill_switch(self) -> None:
         with self._lock:
             self._kill_switch_ativo = True
 
-    def desativar_kill_switch(
-        self,
-    ) -> None:
+    def desativar_kill_switch(self) -> None:
         with self._lock:
             self._kill_switch_ativo = False
+
+    def _motivo_bloqueio_limite(
+        self,
+        observabilidade: SnapshotObservabilidadeInteligenciaAI,
+    ) -> str | None:
+        chamadas_comprometidas = observabilidade.chamadas_externas_total + self._chamadas_reservadas
+
+        if (
+            self.limite_chamadas_externas is not None
+            and chamadas_comprometidas >= self.limite_chamadas_externas
+        ):
+            return "limite_chamadas_externas_atingido"
+
+        possui_limite_medido = (
+            self.limite_tokens_total is not None or self.limite_custo_estimado_usd is not None
+        )
+
+        if possui_limite_medido and self._chamadas_reservadas > 0:
+            return "limite_medicao_em_andamento"
+
+        if self.limite_tokens_total is not None:
+            if (
+                observabilidade.chamadas_externas_total
+                > observabilidade.chamadas_com_tokens_total_conhecido
+            ):
+                return "limite_tokens_total_indeterminavel"
+
+            if observabilidade.tokens_total >= self.limite_tokens_total:
+                return "limite_tokens_total_atingido"
+
+        if self.limite_custo_estimado_usd is not None:
+            if (
+                observabilidade.chamadas_externas_total
+                > observabilidade.chamadas_com_custo_conhecido
+            ):
+                return "limite_custo_usd_indeterminavel"
+
+            if observabilidade.custo_estimado_usd_total >= self.limite_custo_estimado_usd:
+                return "limite_custo_usd_atingido"
+
+        return None
 
     def avaliar_chamada_externa(
         self,
     ) -> DecisaoCircuitBreakerAI:
         with self._lock:
-            kill_switch_ativo = self._kill_switch_ativo
+            if self._kill_switch_ativo:
+                snapshot_circuito = self.circuit_breaker.snapshot()
+                return DecisaoCircuitBreakerAI(
+                    permitido=False,
+                    estado=snapshot_circuito.estado,
+                    motivo="kill_switch_ativo",
+                )
 
-        if kill_switch_ativo:
-            snapshot_circuito = self.circuit_breaker.snapshot()
+            observabilidade = self.observabilidade.snapshot()
+            motivo_limite = self._motivo_bloqueio_limite(observabilidade)
 
-            return DecisaoCircuitBreakerAI(
-                permitido=False,
-                estado=snapshot_circuito.estado,
-                motivo="kill_switch_ativo",
-            )
+            if motivo_limite is not None:
+                snapshot_circuito = self.circuit_breaker.snapshot()
+                return DecisaoCircuitBreakerAI(
+                    permitido=False,
+                    estado=snapshot_circuito.estado,
+                    motivo=motivo_limite,
+                )
 
-        return self.circuit_breaker.avaliar_chamada()
+            decisao = self.circuit_breaker.avaliar_chamada()
 
-    def registrar_sucesso_provedor(
-        self,
-    ) -> None:
+            if decisao.permitido:
+                self._chamadas_reservadas += 1
+
+            return decisao
+
+    def registrar_sucesso_provedor(self) -> None:
         self.circuit_breaker.registrar_sucesso()
 
-    def registrar_falha_provedor(
-        self,
-    ) -> None:
+    def registrar_falha_provedor(self) -> None:
         self.circuit_breaker.registrar_falha()
 
     def registrar_evento(
         self,
         evento: EventoObservabilidadeInteligenciaAI,
     ) -> None:
-        self.observabilidade.registrar(evento)
-
-    def snapshot(
-        self,
-    ) -> SnapshotControleOperacionalAI:
         with self._lock:
-            kill_switch_ativo = self._kill_switch_ativo
+            self.observabilidade.registrar(evento)
 
-        return SnapshotControleOperacionalAI(
-            observabilidade=(self.observabilidade.snapshot()),
-            circuit_breaker=(self.circuit_breaker.snapshot()),
-            kill_switch_ativo=kill_switch_ativo,
-        )
+            if evento.chamada_externa_realizada and self._chamadas_reservadas > 0:
+                self._chamadas_reservadas -= 1
+
+    def snapshot(self) -> SnapshotControleOperacionalAI:
+        with self._lock:
+            observabilidade = self.observabilidade.snapshot()
+            motivo_limite = self._motivo_bloqueio_limite(observabilidade)
+
+            return SnapshotControleOperacionalAI(
+                observabilidade=observabilidade,
+                circuit_breaker=self.circuit_breaker.snapshot(),
+                kill_switch_ativo=self._kill_switch_ativo,
+                limite_chamadas_externas=self.limite_chamadas_externas,
+                limite_tokens_total=self.limite_tokens_total,
+                limite_custo_estimado_usd=self.limite_custo_estimado_usd,
+                chamadas_reservadas=self._chamadas_reservadas,
+                bloqueio_limite_ativo=motivo_limite is not None,
+                motivo_bloqueio_limite=motivo_limite,
+            )

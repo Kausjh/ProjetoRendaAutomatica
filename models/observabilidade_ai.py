@@ -206,6 +206,7 @@ class SnapshotObservabilidadeInteligenciaAI:
 
     chamadas_com_custo_conhecido: int
     custo_estimado_usd_total: float
+    chamadas_com_tokens_total_conhecido: int = 0
 
 
 @dataclass(
@@ -239,3 +240,9 @@ class SnapshotControleOperacionalAI:
     observabilidade: SnapshotObservabilidadeInteligenciaAI
     circuit_breaker: SnapshotCircuitBreakerAI
     kill_switch_ativo: bool = False
+    limite_chamadas_externas: int | None = None
+    limite_tokens_total: int | None = None
+    limite_custo_estimado_usd: float | None = None
+    chamadas_reservadas: int = 0
+    bloqueio_limite_ativo: bool = False
+    motivo_bloqueio_limite: str | None = None
