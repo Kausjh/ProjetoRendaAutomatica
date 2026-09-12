@@ -19,6 +19,7 @@ from services.inteligencia_assistiva_ai import (
     ProvedorInteligenciaAI,
     interpretar_com_inteligencia_assistiva,
 )
+from services.observador_shadow_ai import ObservadorShadowAI
 
 ACAO_MANTER = "manter"
 ACAO_REVISAO_MANUAL = "revisao_manual"
@@ -94,6 +95,7 @@ class CuradoriaPublicacaoAssistidaAI:
         provedor: ProvedorInteligenciaAI | None = None,
         confianca_minima: float = CONFIANCA_MINIMA_PADRAO,
         controle_operacional: ControleOperacionalInteligenciaAI | None = None,
+        observador_shadow: ObservadorShadowAI | None = None,
     ) -> None:
         self.curadoria = curadoria if curadoria is not None else CuradoriaPublicacao()
 
@@ -103,6 +105,8 @@ class CuradoriaPublicacaoAssistidaAI:
         self.confianca_minima = confianca_minima
 
         self.controle_operacional = controle_operacional
+
+        self.observador_shadow = observador_shadow
 
     def analisar(
         self,
@@ -137,6 +141,12 @@ class CuradoriaPublicacaoAssistidaAI:
                 diagnostico=diagnostico,
             ),
         )
+
+        if self.observador_shadow is not None:
+            self.observador_shadow.registrar_gate_seguro(
+                consumidor="curadoria",
+                solicitacao=solicitacao,
+            )
 
         resultado_ai = interpretar_com_inteligencia_assistiva(
             solicitacao=solicitacao,

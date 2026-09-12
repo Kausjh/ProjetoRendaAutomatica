@@ -32,6 +32,7 @@ from services.historico_precos_efetivos_service import (
 from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
+from services.observador_shadow_ai import ObservadorShadowAI
 from services.pontuador_oferta import PontuadorOferta
 from services.provedor_http_inteligencia_ai import criar_provedor_http_inteligencia_ai
 from services.scout.observabilidade_discovery_comercial_hunter import (
@@ -119,10 +120,20 @@ async def main() -> None:
         logger.exception("Erro na configuracao do provedor de inteligencia AI.")
         return
 
+    try:
+        observador_shadow_ai = ObservadorShadowAI()
+    except Exception as erro:
+        logger.warning(
+            "Nao foi possivel iniciar shadow mode AI. tipo=%s",
+            type(erro).__name__,
+        )
+        observador_shadow_ai = None
+
     classificador = ClassificadorProdutoAssistidoAI(
         habilitado=False,
         provedor=provedor_ai,
         controle_operacional=controle_operacional_ai,
+        observador_shadow=observador_shadow_ai,
     )
 
     coletor = ColetorOfertas(
@@ -179,6 +190,7 @@ async def main() -> None:
         habilitado=False,
         provedor=provedor_ai,
         controle_operacional=controle_operacional_ai,
+        observador_shadow=observador_shadow_ai,
     )
 
     detector_anomalia = DetectorAnomaliaPreco(

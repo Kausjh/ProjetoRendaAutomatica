@@ -19,6 +19,7 @@ from services.inteligencia_assistiva_ai import (
     ProvedorInteligenciaAI,
     interpretar_com_inteligencia_assistiva,
 )
+from services.observador_shadow_ai import ObservadorShadowAI
 
 
 @dataclass(
@@ -100,6 +101,7 @@ class ClassificadorProdutoAssistidoAI:
         provedor: ProvedorInteligenciaAI | None = None,
         confianca_minima: float = CONFIANCA_MINIMA_PADRAO,
         controle_operacional: ControleOperacionalInteligenciaAI | None = None,
+        observador_shadow: ObservadorShadowAI | None = None,
     ) -> None:
         self.classificador = classificador if classificador is not None else ClassificadorProduto()
 
@@ -110,6 +112,8 @@ class ClassificadorProdutoAssistidoAI:
         self.confianca_minima = confianca_minima
 
         self.controle_operacional = controle_operacional
+
+        self.observador_shadow = observador_shadow
 
     def classificar(
         self,
@@ -143,6 +147,12 @@ class ClassificadorProdutoAssistidoAI:
                 diagnostico=diagnostico,
             ),
         )
+
+        if self.observador_shadow is not None:
+            self.observador_shadow.registrar_gate_seguro(
+                consumidor="classificador",
+                solicitacao=solicitacao,
+            )
 
         resultado_ai = interpretar_com_inteligencia_assistiva(
             solicitacao=solicitacao,
