@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from numbers import Real
 from typing import Any
 
+from models.observabilidade_ai import UsoInteligenciaAI
+
 
 @dataclass(
     frozen=True,
@@ -36,6 +38,7 @@ class RespostaProvedorInteligenciaAI:
     confianca: float
     provedor: str
     modelo: str | None = None
+    uso: UsoInteligenciaAI | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -62,6 +65,12 @@ class RespostaProvedorInteligenciaAI:
 
         if not provedor:
             raise ValueError("provedor precisa ser informado")
+
+        if self.uso is not None and not isinstance(
+            self.uso,
+            UsoInteligenciaAI,
+        ):
+            raise TypeError("uso precisa ser UsoInteligenciaAI ou None")
 
 
 @dataclass(

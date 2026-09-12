@@ -12,6 +12,7 @@ from models.inteligencia_ai import (
     RespostaProvedorInteligenciaAI,
     SolicitacaoInteligenciaAI,
 )
+from models.observabilidade_ai import UsoInteligenciaAI
 
 SCHEMA_VERSION = 1
 
@@ -248,15 +249,23 @@ class ProvedorHttpInteligenciaAI:
                 "raiz da resposta precisa ser objeto JSON"
             )
 
-        campos_esperados = {
+        campos_obrigatorios = {
             "schema_version",
             "conteudo",
             "confianca",
         }
 
+        campos_opcionais = {
+            "uso",
+        }
+
         campos_recebidos = set(dados)
 
-        if campos_recebidos != campos_esperados:
+        campos_ausentes = campos_obrigatorios - campos_recebidos
+
+        campos_desconhecidos = campos_recebidos - campos_obrigatorios - campos_opcionais
+
+        if campos_ausentes or campos_desconhecidos:
             raise ContratoProvedorHttpInteligenciaAIInvalido(
                 "campos da resposta nao correspondem " "ao contrato esperado"
             )
@@ -290,12 +299,56 @@ class ProvedorHttpInteligenciaAI:
         if not 0.0 <= confianca_float <= 1.0:
             raise ContratoProvedorHttpInteligenciaAIInvalido("confianca precisa ficar entre 0 e 1")
 
+        uso = self._converter_uso(dados.get("uso"))
+
         return RespostaProvedorInteligenciaAI(
             conteudo=conteudo,
             confianca=confianca_float,
             provedor=self.provedor,
             modelo=self.modelo,
+            uso=uso,
         )
+
+    @staticmethod
+    def _converter_uso(
+        dados: Any,
+    ) -> UsoInteligenciaAI | None:
+        if dados is None:
+            return None
+
+        if not isinstance(
+            dados,
+            dict,
+        ):
+            raise ContratoProvedorHttpInteligenciaAIInvalido("uso precisa ser objeto JSON ou null")
+
+        campos_permitidos = {
+            "tokens_entrada",
+            "tokens_saida",
+            "tokens_total",
+            "custo_estimado_usd",
+        }
+
+        desconhecidos = set(dados) - campos_permitidos
+
+        if desconhecidos:
+            raise ContratoProvedorHttpInteligenciaAIInvalido("uso possui campos nao suportados")
+
+        try:
+            return UsoInteligenciaAI(
+                tokens_entrada=dados.get("tokens_entrada"),
+                tokens_saida=dados.get("tokens_saida"),
+                tokens_total=dados.get("tokens_total"),
+                custo_estimado_usd=dados.get("custo_estimado_usd"),
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ) as erro:
+            raise ContratoProvedorHttpInteligenciaAIInvalido(
+                "uso possui valores invalidos"
+            ) from erro
 
 
 def _validar_endpoint(

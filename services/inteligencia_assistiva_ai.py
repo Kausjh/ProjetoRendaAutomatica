@@ -211,6 +211,7 @@ def interpretar_com_inteligencia_assistiva(
             chamada_externa_realizada=True,
             erro=False,
             bloqueada_circuit_breaker=False,
+            uso=resposta.uso,
         )
 
     sugestao = dict(resposta.conteudo)
@@ -233,6 +234,7 @@ def interpretar_com_inteligencia_assistiva(
             chamada_externa_realizada=True,
             erro=True,
             bloqueada_circuit_breaker=False,
+            uso=resposta.uso,
         )
 
     if valida is not True:
@@ -250,6 +252,7 @@ def interpretar_com_inteligencia_assistiva(
             chamada_externa_realizada=True,
             erro=False,
             bloqueada_circuit_breaker=False,
+            uso=resposta.uso,
         )
 
     return _finalizar(
@@ -269,6 +272,7 @@ def interpretar_com_inteligencia_assistiva(
         chamada_externa_realizada=True,
         erro=False,
         bloqueada_circuit_breaker=False,
+        uso=resposta.uso,
     )
 
 
@@ -281,6 +285,7 @@ def _finalizar(
     chamada_externa_realizada: bool,
     erro: bool,
     bloqueada_circuit_breaker: bool,
+    uso: Any = None,
 ) -> ResultadoInteligenciaAssistivaAI:
     if controle_operacional is None:
         return resultado
@@ -304,7 +309,7 @@ def _finalizar(
         provedor=resultado.provedor,
         modelo=resultado.modelo,
         tipo_erro=resultado.tipo_erro,
-        uso=None,
+        uso=uso,
     )
 
     try:
