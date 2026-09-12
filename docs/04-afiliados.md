@@ -249,6 +249,8 @@ Essa estratégia evita publicar ofertas de marketplaces monetizáveis sem confir
 
 Uma URL diferente da original não é, por si só, prova de monetização. Antes de marcar uma transformação como bem-sucedida, o gerador valida a saída conforme o contrato do afiliador responsável. Mercado Livre, Shopee, Amazon e Awin possuem validações específicas para os formatos de link que cada integração realmente produz.
 
+Quando a monetização obrigatória falha, o item permanece pendente, mas recebe um cooldown persistente de 15 minutos antes de voltar ao fluxo automático. Isso evita que uma única oferta sem afiliação disponível monopolize a fila e impeça outras ofertas monetizáveis de serem publicadas.
+
 ---
 
 # Escalabilidade

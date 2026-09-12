@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 class PublicadorFila:
+    AFILIACAO_RETRY_MINUTOS = 15
+
     def __init__(self, configuracoes: Configuracoes) -> None:
         self.configuracoes = configuracoes
 
@@ -248,13 +250,34 @@ class PublicadorFila:
             return "publicado"
 
         except ErroMonetizacaoObrigatoria as erro:
+            try:
+                item_segurado = self.fila.segurar_item(
+                    item.id,
+                    self.AFILIACAO_RETRY_MINUTOS,
+                )
+            except Exception:
+                item_segurado = False
+                logger.exception(
+                    "Falha ao aplicar cooldown de afiliacao ao item %s.",
+                    item.id,
+                )
+
+            detalhe = str(erro)
+
+            if item_segurado:
+                detalhe = (
+                    f"{detalhe} Nova tentativa liberada em cerca de "
+                    f"{self.AFILIACAO_RETRY_MINUTOS} min."
+                )
+
             self._registrar_estado_fluxo(
                 "aguardando_afiliacao",
-                str(erro),
+                detalhe,
             )
             logger.warning(
-                "Publicacao adiada por monetizacao obrigatoria: %s",
+                "Publicacao adiada por monetizacao obrigatoria: %s | " "retry em ~%s min",
                 item.oferta.nome,
+                self.AFILIACAO_RETRY_MINUTOS,
             )
 
             return "afiliacao_pendente"
@@ -354,6 +377,11 @@ class PublicadorFila:
                     intervalo = self.cadencia.proximo_intervalo(
                         item_agendado.oferta.tipo_oportunidade
                     )
+                elif resultado_agendado == "afiliacao_pendente":
+                    intervalo = 60.0
+                    logger.warning(
+                        "Publicacao agendada aguardando afiliacao; " "cooldown persistente mantido."
+                    )
                 else:
                     self.fila.segurar_item(
                         item_agendado.id,
@@ -361,7 +389,7 @@ class PublicadorFila:
                     )
                     intervalo = 60.0
                     logger.warning(
-                        "Publicacao agendada falhou; nova tentativa em cerca de 60 segundos."
+                        "Publicacao agendada falhou; nova tentativa " "em cerca de 60 segundos."
                     )
 
                 proxima_publicacao = time.monotonic() + intervalo
