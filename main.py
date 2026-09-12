@@ -21,6 +21,7 @@ from scrapers.registro_scrapers import criar_scrapers
 from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
+from services.curadoria_publicacao_assistida_ai import CuradoriaPublicacaoAssistidaAI
 from services.detector_anomalia_preco import DetectorAnomaliaPreco
 from services.executor_pipeline import ExecutorPipeline
 from services.historico_precos_efetivos_service import (
@@ -134,9 +135,12 @@ async def main() -> None:
 
     normalizador_produto = NormalizadorProduto()
 
-    curadoria_publicacao = CuradoriaPublicacao(
-        nota_minima=configuracoes.nota_minima_curadoria,
-        ativa=configuracoes.curadoria_publicacao_ativa,
+    curadoria_publicacao = CuradoriaPublicacaoAssistidaAI(
+        curadoria=CuradoriaPublicacao(
+            nota_minima=configuracoes.nota_minima_curadoria,
+            ativa=configuracoes.curadoria_publicacao_ativa,
+        ),
+        habilitado=False,
     )
 
     detector_anomalia = DetectorAnomaliaPreco(
