@@ -146,10 +146,17 @@ def test_rota_get_monetizacao_operacional_existe():
     assert "controlador.obter_snapshot_monetizacao()" in fonte
 
 
-def test_v21a6_nao_cria_acao_operacional_de_monetizacao():
+def test_v21a6_rota_operacional_permanece_read_only():
     fonte = Path("services/controle/servidor_status.py").read_text(encoding="utf-8-sig")
 
-    assert 'partes[0] == "monetizacao"' not in fonte
+    inicio_get = fonte.index("            def do_GET(self) -> None:")
+    inicio_post = fonte.index("            def do_POST(self) -> None:")
+    trecho_get = fonte[inicio_get:inicio_post]
+
+    assert 'if rota == "/monetizacao/operacional":' in trecho_get
+    assert "controlador.obter_snapshot_monetizacao()" in trecho_get
+    assert "executar_enforcement_monetizacao" not in trecho_get
+    assert "executar_acao_operacional" not in trecho_get
 
 
 # 63.8738, -149.7525

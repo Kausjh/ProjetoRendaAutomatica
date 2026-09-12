@@ -91,10 +91,17 @@ def test_v21a8_preserva_rotas_anteriores():
     assert 'if rota == "/monetizacao/saude":' in fonte
 
 
-def test_v21a8_nao_cria_post_de_monetizacao():
+def test_v21a8_rota_alertas_permanece_read_only():
     fonte = Path("services/controle/servidor_status.py").read_text(encoding="utf-8-sig")
 
-    assert 'partes[0] == "monetizacao"' not in fonte
+    inicio_get = fonte.index("            def do_GET(self) -> None:")
+    inicio_post = fonte.index("            def do_POST(self) -> None:")
+    trecho_get = fonte[inicio_get:inicio_post]
+
+    assert 'if rota == "/monetizacao/alertas":' in trecho_get
+    assert "controlador.obter_alertas_monetizacao()" in trecho_get
+    assert "executar_enforcement_monetizacao" not in trecho_get
+    assert "executar_acao_operacional" not in trecho_get
 
 
 def test_gerador_nao_importa_telegram():

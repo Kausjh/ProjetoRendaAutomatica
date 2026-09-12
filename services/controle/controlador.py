@@ -27,6 +27,7 @@ from services.controle.politica_publicacao_administrativa import (
 )
 from services.gerador_alertas_monetizacao import gerar_alertas_monetizacao
 from services.launcher.chrome_launcher import cdp_esta_funcional
+from services.politica_enforcement_monetizacao import avaliar_enforcement_monetizacao
 from services.recomendador_shadow_monetizacao import gerar_recomendacao_shadow_monetizacao
 
 if TYPE_CHECKING:
@@ -385,6 +386,100 @@ class ControladorAdministrativo:
             "disponivel": True,
             "schema_version": 1,
             "shadow": gerar_recomendacao_shadow_monetizacao(alertas),
+        }
+
+    def executar_enforcement_monetizacao(
+        self,
+        *,
+        acao: str,
+        confirmacao: str | None,
+        recomendacao_id: str | None = None,
+        dispositivo: str | None = None,
+    ) -> dict[str, object]:
+        dados_shadow = self.obter_recomendacao_shadow_monetizacao()
+
+        shadow = dados_shadow.get("shadow")
+
+        if not isinstance(
+            shadow,
+            dict,
+        ):
+            shadow = None
+
+        decisao = avaliar_enforcement_monetizacao(
+            shadow=shadow,
+            acao=acao,
+            confirmacao=confirmacao,
+            recomendacao_id=recomendacao_id,
+        )
+
+        nome_acao = "monetizacao.enforcement." f"publicador.{acao}"
+
+        detalhes_auditoria = {
+            "motivo": decisao["motivo"],
+            "recomendacao_id": (decisao["recomendacao_id"]),
+            "manual": True,
+            "automatico": False,
+        }
+
+        if not decisao["permitido"]:
+            self._auditar(
+                acao=nome_acao,
+                alvo="publicador",
+                detalhes=detalhes_auditoria,
+                dispositivo=dispositivo,
+                resultado="negado",
+            )
+
+            return {
+                "sucesso": False,
+                "executado": False,
+                "permitido": False,
+                "manual": True,
+                "automatico": False,
+                "decisao": decisao,
+            }
+
+        acao_operacional = str(decisao["acao"])
+
+        try:
+            resultado = self.executar_acao_operacional(
+                componente="publicador",
+                acao=acao_operacional,
+                dispositivo=dispositivo,
+            )
+        except Exception as erro:
+            self._auditar(
+                acao=nome_acao,
+                alvo="publicador",
+                detalhes={
+                    **detalhes_auditoria,
+                    "erro": type(erro).__name__,
+                },
+                dispositivo=dispositivo,
+                resultado="erro",
+            )
+            raise
+
+        self._auditar(
+            acao=nome_acao,
+            alvo="publicador",
+            detalhes={
+                **detalhes_auditoria,
+                "resultado_operacional": (resultado.get("resultado")),
+            },
+            dispositivo=dispositivo,
+            resultado="sucesso",
+        )
+
+        return {
+            "sucesso": True,
+            "executado": True,
+            "permitido": True,
+            "manual": True,
+            "automatico": False,
+            "decisao": decisao,
+            "operacao": resultado,
         }
 
     def obter_saude(self) -> dict[str, object]:

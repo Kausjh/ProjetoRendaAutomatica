@@ -245,6 +245,52 @@ class ServidorStatusAdministrativo:
                     or None
                 )
 
+                if (
+                    len(partes) == 4
+                    and partes[0] == "monetizacao"
+                    and partes[1] == "enforcement"
+                    and partes[2] == "publicador"
+                ):
+                    confirmacao = (
+                        self.headers.get(
+                            "X-Monetizacao-Confirmacao",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    recomendacao_id = (
+                        self.headers.get(
+                            "X-Monetizacao-Recomendacao-Id",
+                            "",
+                        ).strip()
+                        or None
+                    )
+
+                    try:
+                        dados = controlador.executar_enforcement_monetizacao(
+                            acao=partes[3],
+                            confirmacao=confirmacao,
+                            recomendacao_id=recomendacao_id,
+                            dispositivo=dispositivo,
+                        )
+                    except ValueError as erro:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+
+                    status = 200 if dados.get("permitido") else 409
+
+                    self._responder_json(
+                        status,
+                        dados,
+                    )
+                    return
+
                 if len(partes) == 3 and partes[0] == "operacao":
                     try:
                         dados = controlador.executar_acao_operacional(
