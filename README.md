@@ -1,4 +1,4 @@
-<!-- 63.8738, -149.7525 -->
+﻿<!-- 63.8738, -149.7525 -->
 
 # Projeto Renda Automática
 
@@ -667,3 +667,18 @@ Consulte `LICENSE`.
 **Kauê Jhonatas**
 
 Projeto desenvolvido com foco em automação comercial, engenharia de software, inteligência de preços e arquitetura modular.
+
+## Contrato de clientes da API V1
+
+A API de aplicação possui contrato público e versionado em
+`contracts/api_v1.contract.json`. O contrato descreve as cinco operações
+read-only de `/api/v1`, paginação, autenticação e códigos de erro esperados.
+
+O cliente Python em `clients/reference_api_v1.py` é apenas uma implementação
+de referência para testes, automações e validação de compatibilidade. Ele não
+é o aplicativo final.
+
+O aplicativo Android privado deve permanecer fora deste repositório público.
+Ele deve consumir o mesmo contrato V1, sem copiar regras de negócio, lógica de
+curadoria, credenciais administrativas ou artefatos privados para este
+repositório.

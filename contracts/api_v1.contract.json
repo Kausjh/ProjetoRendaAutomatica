@@ -1,0 +1,110 @@
+{
+  "schema": "projeto-renda-automatica.client-contract",
+  "contract_version": 1,
+  "api_version": "v1",
+  "base_path": "/api/v1",
+  "transport": {
+    "protocol": "http",
+    "default_host": "127.0.0.1",
+    "default_port": 8766,
+    "remote_bind_requires_bearer_token": true,
+    "cors_required_for_native_android": false
+  },
+  "authentication": {
+    "scheme": "Bearer",
+    "optional_on_loopback": true,
+    "required_outside_loopback": true
+  },
+  "endpoints": [
+    {
+      "id": "health",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "auth": "public",
+      "response_required": [
+        "status",
+        "api_version"
+      ]
+    },
+    {
+      "id": "products",
+      "method": "GET",
+      "path": "/api/v1/produtos",
+      "auth": "data",
+      "query": [
+        "limite",
+        "offset"
+      ],
+      "response_required": [
+        "api_version",
+        "total",
+        "limite",
+        "offset",
+        "itens"
+      ]
+    },
+    {
+      "id": "product_detail",
+      "method": "GET",
+      "path": "/api/v1/produtos/{chave_canonica}",
+      "auth": "data",
+      "response_required": [
+        "api_version",
+        "produto",
+        "price_intelligence",
+        "precos_atuais",
+        "alert_engine"
+      ],
+      "errors": {
+        "404": "Produto nao encontrado."
+      }
+    },
+    {
+      "id": "product_history",
+      "method": "GET",
+      "path": "/api/v1/produtos/{chave_canonica}/historico",
+      "auth": "data",
+      "query": [
+        "limite",
+        "offset"
+      ],
+      "response_required": [
+        "api_version",
+        "chave_canonica",
+        "limite",
+        "offset",
+        "itens"
+      ],
+      "errors": {
+        "404": "Produto nao encontrado."
+      }
+    },
+    {
+      "id": "alerts",
+      "method": "GET",
+      "path": "/api/v1/alertas",
+      "auth": "data",
+      "query": [
+        "limite",
+        "offset"
+      ],
+      "response_required": [
+        "api_version",
+        "total",
+        "limite",
+        "offset",
+        "itens"
+      ]
+    }
+  ],
+  "mutating_methods": {
+    "POST": 405,
+    "PUT": 405,
+    "PATCH": 405,
+    "DELETE": 405
+  },
+  "repo_boundary": {
+    "private_android_app_in_public_repo": false,
+    "reference_client_public": true
+  }
+}
