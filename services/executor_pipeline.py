@@ -11,6 +11,7 @@ from repositories.controle_administrativo_repository import (
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
+from services.alert_engine_service import AlertEngineService
 from services.catalogo_canonico_service import CatalogoCanonicoService
 from services.coletor_ofertas import ColetorOfertas
 from services.curadoria_publicacao import CuradoriaPublicacao
@@ -77,6 +78,7 @@ class ExecutorPipeline:
         observabilidade_discovery_comercial_hunter: dict | None = None,
         catalogo_canonico_service: CatalogoCanonicoService | None = None,
         price_intelligence_service: PriceIntelligenceService | None = None,
+        alert_engine_service: AlertEngineService | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -98,6 +100,7 @@ class ExecutorPipeline:
         self.normalizador_produto = normalizador_produto or NormalizadorProduto()
         self.catalogo_canonico_service = catalogo_canonico_service
         self.price_intelligence_service = price_intelligence_service
+        self.alert_engine_service = alert_engine_service
         self.curadoria_publicacao = curadoria_publicacao or CuradoriaPublicacao()
         self.deduplicacao_canonica_ativa = deduplicacao_canonica_ativa
         self.confianca_minima_deduplicacao = confianca_minima_deduplicacao
@@ -320,6 +323,7 @@ class ExecutorPipeline:
                         oferta.nome,
                     )
 
+            resultado_price_intelligence = None
             if self.price_intelligence_service is not None and resultado_catalogo is not None:
                 try:
                     resultado_price_intelligence = self.price_intelligence_service.observar(
@@ -341,6 +345,24 @@ class ExecutorPipeline:
                 except Exception:
                     logger.exception(
                         ("Erro observacional ao registrar " "Price Intelligence V1: %s"),
+                        oferta.nome,
+                    )
+
+            if self.alert_engine_service is not None and resultado_price_intelligence is not None:
+                try:
+                    resultado_alert_engine = self.alert_engine_service.processar(
+                        resultado_price_intelligence
+                    )
+                    logger.debug(
+                        ("Alert Engine V1: %s | status=%s | " "alertas=%s | tipos=%s"),
+                        oferta.nome,
+                        resultado_alert_engine.status,
+                        resultado_alert_engine.alertas_gerados,
+                        resultado_alert_engine.tipos_gerados,
+                    )
+                except Exception:
+                    logger.exception(
+                        ("Erro observacional ao processar " "Alert Engine V1: %s"),
                         oferta.nome,
                     )
 

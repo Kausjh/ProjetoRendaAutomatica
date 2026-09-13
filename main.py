@@ -8,6 +8,7 @@ from config.configuracoes import Configuracoes
 from config.hunter_budget_config import carregar_limites_hunter_por_fonte
 from config.logging_config import configurar_logging
 from filters.oferta_filter import OfertaFilter
+from repositories.alert_engine_repository import AlertEngineRepository
 from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
@@ -21,6 +22,7 @@ from repositories.price_intelligence_repository import PriceIntelligenceReposito
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
+from services.alert_engine_service import AlertEngineService
 from services.catalogo_canonico_service import CatalogoCanonicoService
 from services.classificador_produto_assistido_ai import ClassificadorProdutoAssistidoAI
 from services.coletor_ofertas import ColetorOfertas
@@ -198,6 +200,12 @@ async def main() -> None:
         repository=price_intelligence_repository,
     )
 
+    alert_engine_repository = AlertEngineRepository("database/alert_engine.sqlite3")
+    alert_engine_service = AlertEngineService(
+        repository=alert_engine_repository,
+        price_intelligence_repository=price_intelligence_repository,
+    )
+
     curadoria_publicacao = CuradoriaPublicacaoAssistidaAI(
         curadoria=CuradoriaPublicacao(
             nota_minima=configuracoes.nota_minima_curadoria,
@@ -330,6 +338,7 @@ async def main() -> None:
         normalizador_produto=normalizador_produto,
         catalogo_canonico_service=catalogo_canonico_service,
         price_intelligence_service=price_intelligence_service,
+        alert_engine_service=alert_engine_service,
         curadoria_publicacao=curadoria_publicacao,
         deduplicacao_canonica_ativa=configuracoes.deduplicacao_canonica_ativa,
         confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),
