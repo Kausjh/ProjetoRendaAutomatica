@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Final
 
 from config.configuracoes import Configuracoes
+from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
@@ -187,6 +188,7 @@ class OrquestradorRuntime:
         self.controle_administrativo = ControladorAdministrativo(
             self,
             repositorio_admin=self.repositorio_admin,
+            catalogo_canonico_repository=CatalogoCanonicoRepository(),
         )
 
     def validar_ambiente(self) -> None:

@@ -5,9 +5,11 @@ from __future__ import annotations
 import os
 from collections import Counter
 from collections.abc import Callable
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Protocol
 
+from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     MODO_OPERACAO_PADRAO,
     MODOS_OPERACAO_PUBLICACAO,
@@ -55,11 +57,13 @@ class ControladorAdministrativo:
         fila: FilaPublicacaoRepository | None = None,
         verificador_chrome: Callable[[], bool] | None = None,
         repositorio_admin: ControleAdministrativoRepository | None = None,
+        catalogo_canonico_repository: CatalogoCanonicoRepository | None = None,
     ) -> None:
         self.orquestrador = orquestrador
         self.fila = fila or FilaPublicacaoRepository()
         self.verificador_chrome = verificador_chrome or cdp_esta_funcional
         self.repositorio_admin = repositorio_admin
+        self.catalogo_canonico_repository = catalogo_canonico_repository
 
     @staticmethod
     def _estado_processo(
@@ -250,6 +254,99 @@ class ControladorAdministrativo:
         return {
             "quantidade": len(itens),
             "itens": itens,
+        }
+
+    def listar_catalogo_canonico(
+        self,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> dict[str, object]:
+        repository = self.catalogo_canonico_repository
+        limite_norm = max(1, min(int(limite), 200))
+        offset_norm = max(0, int(offset))
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "quantidade": 0,
+                "total": 0,
+                "limite": limite_norm,
+                "offset": offset_norm,
+                "itens": [],
+            }
+
+        itens = [
+            asdict(produto)
+            for produto in repository.listar_produtos(
+                limite=limite_norm,
+                offset=offset_norm,
+            )
+        ]
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "quantidade": len(itens),
+            "total": repository.quantidade_produtos(),
+            "limite": limite_norm,
+            "offset": offset_norm,
+            "itens": itens,
+        }
+
+    def listar_conflitos_catalogo_canonico(
+        self,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> dict[str, object]:
+        repository = self.catalogo_canonico_repository
+        limite_norm = max(1, min(int(limite), 200))
+        offset_norm = max(0, int(offset))
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "quantidade": 0,
+                "total": 0,
+                "limite": limite_norm,
+                "offset": offset_norm,
+                "itens": [],
+            }
+
+        itens = repository.listar_conflitos(
+            limite=limite_norm,
+            offset=offset_norm,
+        )
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "quantidade": len(itens),
+            "total": repository.quantidade_conflitos(),
+            "limite": limite_norm,
+            "offset": offset_norm,
+            "itens": itens,
+        }
+
+    def obter_metricas_catalogo_canonico(
+        self,
+    ) -> dict[str, object]:
+        repository = self.catalogo_canonico_repository
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "metricas": None,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "metricas": repository.obter_metricas(),
         }
 
     def obter_snapshot_operacional_ai(

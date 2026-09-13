@@ -129,6 +129,47 @@ class ServidorStatusAdministrativo:
                         self._responder_json(200, dados)
                         return
 
+                    if rota == "/catalogo":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            50,
+                        )
+                        offset = self._obter_inteiro(
+                            parametros,
+                            "offset",
+                            0,
+                        )
+                        dados = controlador.listar_catalogo_canonico(
+                            limite=limite,
+                            offset=offset,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/catalogo/conflitos":
+                        limite = self._obter_inteiro(
+                            parametros,
+                            "limite",
+                            50,
+                        )
+                        offset = self._obter_inteiro(
+                            parametros,
+                            "offset",
+                            0,
+                        )
+                        dados = controlador.listar_conflitos_catalogo_canonico(
+                            limite=limite,
+                            offset=offset,
+                        )
+                        self._responder_json(200, dados)
+                        return
+
+                    if rota == "/catalogo/metricas":
+                        dados = controlador.obter_metricas_catalogo_canonico()
+                        self._responder_json(200, dados)
+                        return
+
                     if rota == "/operacao":
                         dados = controlador.obter_operacao()
                         self._responder_json(200, dados)

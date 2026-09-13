@@ -77,6 +77,35 @@ class CatalogoCanonicoRepository:
                 ON anuncios_canonicos (chave_canonica)
                 """)
 
+        with self._conectar() as conexao:
+            conexao.execute("""
+                CREATE TABLE IF NOT EXISTS conflitos_canonicos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    marketplace TEXT NOT NULL,
+                    identificador TEXT NOT NULL,
+                    chave_existente TEXT NOT NULL,
+                    chave_observada TEXT NOT NULL,
+                    nome_observado TEXT,
+                    link_observado TEXT,
+                    ocorrencias INTEGER NOT NULL DEFAULT 1,
+                    primeiro_observado_em TEXT NOT NULL,
+                    ultimo_observado_em TEXT NOT NULL,
+                    UNIQUE (
+                        marketplace,
+                        identificador,
+                        chave_existente,
+                        chave_observada
+                    )
+                )
+                """)
+            conexao.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conflitos_canonicos_ultimo
+                ON conflitos_canonicos (
+                    ultimo_observado_em DESC,
+                    id DESC
+                )
+                """)
+
     def registrar_observacao(
         self,
         *,
@@ -107,6 +136,16 @@ class CatalogoCanonicoRepository:
             ).fetchone()
 
             if existente is not None and str(existente["chave_canonica"]) != chave_canonica:
+                self._registrar_conflito(
+                    conexao=conexao,
+                    marketplace=marketplace,
+                    identificador=identificador,
+                    chave_existente=str(existente["chave_canonica"]),
+                    chave_observada=chave_canonica,
+                    nome_observado=nome_canonico,
+                    link_observado=link,
+                    observado_em=agora,
+                )
                 return "conflito_anuncio"
 
             produto_existente = conexao.execute(
@@ -275,6 +314,164 @@ class CatalogoCanonicoRepository:
         with self._conectar() as conexao:
             linha = conexao.execute("SELECT COUNT(*) AS total FROM anuncios_canonicos").fetchone()
             return int(linha["total"])
+
+    def listar_produtos(
+        self,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> list[ProdutoCatalogoCanonico]:
+        limite_norm = max(1, min(int(limite), 200))
+        offset_norm = max(0, int(offset))
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT chave_canonica
+                FROM produtos_canonicos
+                ORDER BY atualizado_em DESC, chave_canonica
+                LIMIT ? OFFSET ?
+                """,
+                (limite_norm, offset_norm),
+            ).fetchall()
+
+            produtos: list[ProdutoCatalogoCanonico] = []
+
+            for linha in linhas:
+                produto = self._obter_produto(
+                    conexao,
+                    str(linha["chave_canonica"]),
+                )
+
+                if produto is not None:
+                    produtos.append(produto)
+
+            return produtos
+
+    def listar_conflitos(
+        self,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, object]]:
+        limite_norm = max(1, min(int(limite), 200))
+        offset_norm = max(0, int(offset))
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    id,
+                    marketplace,
+                    identificador,
+                    chave_existente,
+                    chave_observada,
+                    nome_observado,
+                    link_observado,
+                    ocorrencias,
+                    primeiro_observado_em,
+                    ultimo_observado_em
+                FROM conflitos_canonicos
+                ORDER BY ultimo_observado_em DESC, id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limite_norm, offset_norm),
+            ).fetchall()
+
+            return [dict(linha) for linha in linhas]
+
+    def quantidade_conflitos(self) -> int:
+        with self._conectar() as conexao:
+            linha = conexao.execute("""
+                SELECT COUNT(*) AS total
+                FROM conflitos_canonicos
+                """).fetchone()
+
+            return int(linha["total"])
+
+    def obter_metricas(self) -> dict[str, object]:
+        with self._conectar() as conexao:
+            produtos = int(
+                conexao.execute("SELECT COUNT(*) AS total FROM produtos_canonicos").fetchone()[
+                    "total"
+                ]
+            )
+            anuncios = int(
+                conexao.execute("SELECT COUNT(*) AS total FROM anuncios_canonicos").fetchone()[
+                    "total"
+                ]
+            )
+            conflitos = int(
+                conexao.execute("SELECT COUNT(*) AS total FROM conflitos_canonicos").fetchone()[
+                    "total"
+                ]
+            )
+
+            distribuicao = conexao.execute("""
+                SELECT marketplace, COUNT(*) AS total
+                FROM anuncios_canonicos
+                GROUP BY marketplace
+                ORDER BY total DESC, marketplace
+                """).fetchall()
+
+            return {
+                "produtos": produtos,
+                "anuncios": anuncios,
+                "conflitos": conflitos,
+                "marketplaces": {
+                    str(linha["marketplace"]): int(linha["total"]) for linha in distribuicao
+                },
+            }
+
+    @staticmethod
+    def _registrar_conflito(
+        *,
+        conexao: sqlite3.Connection,
+        marketplace: str,
+        identificador: str,
+        chave_existente: str,
+        chave_observada: str,
+        nome_observado: str,
+        link_observado: str,
+        observado_em: str,
+    ) -> None:
+        conexao.execute(
+            """
+            INSERT INTO conflitos_canonicos (
+                marketplace,
+                identificador,
+                chave_existente,
+                chave_observada,
+                nome_observado,
+                link_observado,
+                ocorrencias,
+                primeiro_observado_em,
+                ultimo_observado_em
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT (
+                marketplace,
+                identificador,
+                chave_existente,
+                chave_observada
+            )
+            DO UPDATE SET
+                nome_observado = excluded.nome_observado,
+                link_observado = excluded.link_observado,
+                ocorrencias = conflitos_canonicos.ocorrencias + 1,
+                ultimo_observado_em = excluded.ultimo_observado_em
+            """,
+            (
+                marketplace,
+                identificador,
+                chave_existente,
+                chave_observada,
+                nome_observado,
+                link_observado,
+                observado_em,
+                observado_em,
+            ),
+        )
 
     def _obter_produto(
         self,
