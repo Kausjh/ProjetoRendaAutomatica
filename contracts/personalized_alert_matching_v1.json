@@ -1,0 +1,44 @@
+{
+  "schema": "projeto-renda-automatica.personalized-alert-matching",
+  "matching_version": 1,
+  "stage": "matching",
+  "network_exposure": false,
+  "delivery_enabled": false,
+  "dependencies": {
+    "alert_engine": "event semantics only",
+    "user_identity": "contracts/user_identity_v1.json",
+    "user_personalization": "contracts/user_personalization_v1.json"
+  },
+  "supported_event_types": [
+    "mudanca_preco",
+    "novo_menor_preco_historico"
+  ],
+  "matching": {
+    "watchlist_key": "canonical_key",
+    "respects_price_notifications_enabled": true,
+    "respects_preferred_marketplaces": true,
+    "target_price_reason": "target_price_reached",
+    "price_drop_reason": "price_drop_detected",
+    "historical_low_reason": "new_historical_low",
+    "price_drop_requires_direction_evidence": true
+  },
+  "persistence": {
+    "engine": "sqlite",
+    "database": "database/user_identity.sqlite3",
+    "unique_by": [
+      "evento_alerta_id",
+      "watchlist_id"
+    ],
+    "price_storage": "integer cents"
+  },
+  "boundaries": {
+    "application_api_v1_remains_read_only": true,
+    "new_http_routes": false,
+    "push_delivery": false,
+    "telegram_delivery": false,
+    "email_delivery": false,
+    "alert_engine_commercial_authority": false,
+    "good_deal_classification": false,
+    "admin_api_is_not_personalized_alert_api": true
+  }
+}

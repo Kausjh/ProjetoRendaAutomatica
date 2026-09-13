@@ -752,3 +752,20 @@ Contrato: `contracts/user_personalization_v1.json`.
 
 Documentação: `docs/14-personalizacao-watchlists.md`.
 <!-- bloco28-user-personalization-v1:end -->
+
+<!-- bloco29-personalized-alert-matching-v1:start -->
+### Personalized Alert Matching V1
+
+O Bloco 29 conecta eventos de preço às watchlists e preferências de usuários.
+
+O matching considera `canonical_key`, notificações habilitadas, marketplaces
+preferidos, preço alvo e evidência direcional de queda. As correspondências
+são persistidas e deduplicadas por evento + item de watchlist.
+
+Nesta fase não existe entrega: sem push, email, Telegram ou novas rotas HTTP.
+A Application API V1 permanece read-only.
+
+Contrato: `contracts/personalized_alert_matching_v1.json`.
+
+Documentação: `docs/15-alertas-personalizados-matching.md`.
+<!-- bloco29-personalized-alert-matching-v1:end -->

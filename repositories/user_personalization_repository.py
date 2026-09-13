@@ -289,3 +289,27 @@ class UserPersonalizationRepository:
             )
 
         return cursor.rowcount == 1
+
+    def listar_watchlists_por_canonical_key(
+        self,
+        canonical_key: str,
+    ) -> list[ItemWatchlistUsuario]:
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    id,
+                    conta_id,
+                    canonical_key,
+                    preco_alvo_centavos,
+                    notificar_queda_preco,
+                    criado_em,
+                    atualizado_em
+                FROM watchlist_usuario
+                WHERE canonical_key = ?
+                ORDER BY conta_id ASC, criado_em ASC, id ASC
+                """,
+                (canonical_key,),
+            ).fetchall()
+
+        return [self._watchlist_da_linha(linha) for linha in linhas]
