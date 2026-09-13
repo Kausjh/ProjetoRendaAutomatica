@@ -110,6 +110,100 @@ class AlertEngineService:
             motivo="Observacao canonica processada pelo Alert Engine.",
         )
 
+    def bootstrap_estado_atual(
+        self,
+        *,
+        limite_pagina: int = 200,
+    ) -> dict[str, int]:
+        """Popula baseline ausente a partir do estado atual do Price Intelligence."""
+        limite = max(1, min(int(limite_pagina), 500))
+        offset = 0
+        produtos_lidos = 0
+        produtos_inseridos = 0
+        listings_inseridos = 0
+        conflitos_identidade = 0
+        ignorados = 0
+
+        while True:
+            produtos = self.price_intelligence_repository.listar_produtos(
+                limite=limite,
+                offset=offset,
+            )
+
+            if not produtos:
+                break
+
+            for produto in produtos:
+                produtos_lidos += 1
+                chave = self._texto(produto.get("chave_canonica"))
+
+                if chave is None:
+                    ignorados += 1
+                    continue
+
+                snapshot = self.price_intelligence_repository.obter_snapshot(chave)
+                precos_atuais = self.price_intelligence_repository.listar_precos_atuais(chave)
+
+                if snapshot is None or not precos_atuais:
+                    ignorados += 1
+                    continue
+
+                menor_historico = float(snapshot.menor_preco_historico)
+
+                if not isfinite(menor_historico) or menor_historico <= 0:
+                    ignorados += 1
+                    continue
+
+                listings: list[tuple[str, str, float]] = []
+
+                for item in precos_atuais:
+                    marketplace = self._texto(item.marketplace)
+                    identificador = self._texto(item.identificador)
+                    preco_atual = float(item.preco_atual)
+
+                    if (
+                        marketplace is None
+                        or identificador is None
+                        or not isfinite(preco_atual)
+                        or preco_atual <= 0
+                    ):
+                        continue
+
+                    listings.append(
+                        (
+                            marketplace,
+                            identificador,
+                            preco_atual,
+                        )
+                    )
+
+                if not listings:
+                    ignorados += 1
+                    continue
+
+                resultado = self.repository.inicializar_baseline(
+                    chave_canonica=chave,
+                    nome_canonico=snapshot.nome_canonico,
+                    menor_preco_historico=menor_historico,
+                    listings=listings,
+                )
+                produtos_inseridos += int(resultado["produtos_inseridos"])
+                listings_inseridos += int(resultado["listings_inseridos"])
+                conflitos_identidade += int(resultado["conflitos_identidade"])
+
+            offset += len(produtos)
+
+            if len(produtos) < limite:
+                break
+
+        return {
+            "produtos_lidos": produtos_lidos,
+            "produtos_inseridos": produtos_inseridos,
+            "listings_inseridos": listings_inseridos,
+            "conflitos_identidade": conflitos_identidade,
+            "ignorados": ignorados,
+        }
+
     @staticmethod
     def _texto(valor: object) -> str | None:
         if valor is None:

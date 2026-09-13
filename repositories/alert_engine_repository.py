@@ -332,6 +332,94 @@ class AlertEngineRepository:
             "criado_em": criado_em,
         }
 
+    def inicializar_baseline(
+        self,
+        *,
+        chave_canonica: str,
+        nome_canonico: str,
+        menor_preco_historico: float,
+        listings: list[tuple[str, str, float]],
+        atualizado_em: str | None = None,
+    ) -> dict[str, int]:
+        """Inicializa apenas estado ausente, sem criar eventos retroativos."""
+        agora = atualizado_em or datetime.now(UTC).isoformat()
+        produtos_inseridos = 0
+        listings_inseridos = 0
+        conflitos_identidade = 0
+
+        with self._conectar() as conexao:
+            conexao.execute("BEGIN IMMEDIATE")
+
+            cursor_produto = conexao.execute(
+                """
+                INSERT OR IGNORE INTO alert_engine_estado_canonico (
+                    chave_canonica,
+                    nome_canonico,
+                    menor_preco_historico,
+                    versao,
+                    atualizado_em
+                )
+                VALUES (?, ?, ?, 0, ?)
+                """,
+                (
+                    chave_canonica,
+                    nome_canonico,
+                    menor_preco_historico,
+                    agora,
+                ),
+            )
+            produtos_inseridos += max(0, int(cursor_produto.rowcount))
+
+            for marketplace, identificador, preco_atual in listings:
+                existente = conexao.execute(
+                    """
+                    SELECT chave_canonica
+                    FROM alert_engine_estado_listing
+                    WHERE marketplace = ?
+                      AND identificador = ?
+                    """,
+                    (marketplace, identificador),
+                ).fetchone()
+
+                if existente is not None and str(existente["chave_canonica"]) != chave_canonica:
+                    conflitos_identidade += 1
+                    continue
+
+                cursor_listing = conexao.execute(
+                    """
+                    INSERT OR IGNORE INTO alert_engine_estado_listing (
+                        marketplace,
+                        identificador,
+                        chave_canonica,
+                        nome_canonico,
+                        preco_atual,
+                        versao,
+                        atualizado_em
+                    )
+                    VALUES (?, ?, ?, ?, ?, 0, ?)
+                    """,
+                    (
+                        marketplace,
+                        identificador,
+                        chave_canonica,
+                        nome_canonico,
+                        preco_atual,
+                        agora,
+                    ),
+                )
+                listings_inseridos += max(
+                    0,
+                    int(cursor_listing.rowcount),
+                )
+
+            conexao.commit()
+
+        return {
+            "produtos_inseridos": produtos_inseridos,
+            "listings_inseridos": listings_inseridos,
+            "conflitos_identidade": conflitos_identidade,
+        }
+
     def listar_eventos(
         self,
         *,

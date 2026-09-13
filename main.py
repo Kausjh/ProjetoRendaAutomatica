@@ -206,6 +206,20 @@ async def main() -> None:
         price_intelligence_repository=price_intelligence_repository,
     )
 
+    alert_engine_bootstrap = alert_engine_service.bootstrap_estado_atual()
+    logger.info(
+        (
+            "Alert Engine V1 baseline: produtos_lidos=%s | "
+            "produtos_inseridos=%s | listings_inseridos=%s | "
+            "conflitos=%s | ignorados=%s"
+        ),
+        alert_engine_bootstrap["produtos_lidos"],
+        alert_engine_bootstrap["produtos_inseridos"],
+        alert_engine_bootstrap["listings_inseridos"],
+        alert_engine_bootstrap["conflitos_identidade"],
+        alert_engine_bootstrap["ignorados"],
+    )
+
     curadoria_publicacao = CuradoriaPublicacaoAssistidaAI(
         curadoria=CuradoriaPublicacao(
             nota_minima=configuracoes.nota_minima_curadoria,

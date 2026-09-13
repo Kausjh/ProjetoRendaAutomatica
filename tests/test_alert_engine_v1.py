@@ -204,3 +204,71 @@ def test_wiring_pipeline_e_main():
     assert "AlertEngineRepository" in main
     assert '"database/alert_engine.sqlite3"' in main
     assert "alert_engine_service=alert_engine_service" in main
+
+
+def test_bootstrap_popula_estado_sem_eventos(tmp_path):
+    price_repo, alert_repo, service = _servico(tmp_path)
+    _registrar_pi(
+        price_repo,
+        5000,
+        instante="2026-09-13T10:00:00+00:00",
+    )
+
+    resultado = service.bootstrap_estado_atual()
+    metricas = alert_repo.obter_metricas()
+
+    assert resultado["produtos_lidos"] == 1
+    assert resultado["produtos_inseridos"] == 1
+    assert resultado["listings_inseridos"] == 1
+    assert resultado["conflitos_identidade"] == 0
+    assert metricas["produtos_monitorados"] == 1
+    assert metricas["listings_monitorados"] == 1
+    assert metricas["eventos"] == 0
+
+
+def test_bootstrap_e_idempotente_e_nao_sobrescreve_estado(tmp_path):
+    price_repo, alert_repo, service = _servico(tmp_path)
+    _registrar_pi(
+        price_repo,
+        5000,
+        instante="2026-09-13T10:00:00+00:00",
+    )
+
+    primeiro = service.bootstrap_estado_atual()
+    segundo = service.bootstrap_estado_atual()
+
+    assert primeiro["produtos_inseridos"] == 1
+    assert primeiro["listings_inseridos"] == 1
+    assert segundo["produtos_inseridos"] == 0
+    assert segundo["listings_inseridos"] == 0
+    assert alert_repo.obter_metricas()["eventos"] == 0
+
+
+def test_primeira_mudanca_futura_nao_e_perdida_apos_bootstrap(tmp_path):
+    price_repo, alert_repo, service = _servico(tmp_path)
+    _registrar_pi(
+        price_repo,
+        5000,
+        instante="2026-09-13T10:00:00+00:00",
+    )
+    service.bootstrap_estado_atual()
+
+    _registrar_pi(
+        price_repo,
+        4500,
+        instante="2026-09-13T10:05:00+00:00",
+    )
+    resultado = service.processar(_resultado(4500))
+
+    assert resultado.alertas_gerados == 2
+    assert set(resultado.tipos_gerados) == {
+        TIPO_MUDANCA_PRECO,
+        TIPO_NOVO_MENOR_PRECO_HISTORICO,
+    }
+    assert alert_repo.obter_metricas()["eventos"] == 2
+
+
+def test_main_executa_bootstrap_alert_engine():
+    fonte = Path("main.py").read_text(encoding="utf-8-sig")
+
+    assert "alert_engine_service.bootstrap_estado_atual()" in fonte
