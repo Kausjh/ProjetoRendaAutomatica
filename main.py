@@ -17,6 +17,7 @@ from repositories.historico_precos_efetivos_repository import (
     HistoricoPrecosEfetivosRepository,
 )
 from repositories.historico_precos_repository import HistoricoPrecosRepository
+from repositories.price_intelligence_repository import PriceIntelligenceRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
 from scrapers.registro_scrapers import criar_scrapers
@@ -36,6 +37,7 @@ from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.observador_shadow_ai import ObservadorShadowAI
 from services.pontuador_oferta import PontuadorOferta
+from services.price_intelligence_service import PriceIntelligenceService
 from services.provedor_http_inteligencia_ai import criar_provedor_http_inteligencia_ai
 from services.scout.observabilidade_discovery_comercial_hunter import (
     criar_observabilidade_discovery_comercial_hunter,
@@ -189,6 +191,13 @@ async def main() -> None:
         repository=catalogo_canonico_repository,
     )
 
+    price_intelligence_repository = PriceIntelligenceRepository(
+        "database/price_intelligence.sqlite3"
+    )
+    price_intelligence_service = PriceIntelligenceService(
+        repository=price_intelligence_repository,
+    )
+
     curadoria_publicacao = CuradoriaPublicacaoAssistidaAI(
         curadoria=CuradoriaPublicacao(
             nota_minima=configuracoes.nota_minima_curadoria,
@@ -320,6 +329,7 @@ async def main() -> None:
         detector_anomalia=detector_anomalia,
         normalizador_produto=normalizador_produto,
         catalogo_canonico_service=catalogo_canonico_service,
+        price_intelligence_service=price_intelligence_service,
         curadoria_publicacao=curadoria_publicacao,
         deduplicacao_canonica_ativa=configuracoes.deduplicacao_canonica_ativa,
         confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),

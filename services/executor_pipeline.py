@@ -23,6 +23,7 @@ from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.politica_marketplace import PoliticaMarketplace
 from services.pontuador_oferta import PontuadorOferta
+from services.price_intelligence_service import PriceIntelligenceService
 from services.scout.feedback_outcome_discovery_comercial_hunter import (
     criar_feedback_outcome_discovery_comercial_hunter,
 )
@@ -75,6 +76,7 @@ class ExecutorPipeline:
         historico_precos_efetivos_service: HistoricoPrecosEfetivosService | None = None,
         observabilidade_discovery_comercial_hunter: dict | None = None,
         catalogo_canonico_service: CatalogoCanonicoService | None = None,
+        price_intelligence_service: PriceIntelligenceService | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -95,6 +97,7 @@ class ExecutorPipeline:
         self.detector_anomalia = detector_anomalia or DetectorAnomaliaPreco()
         self.normalizador_produto = normalizador_produto or NormalizadorProduto()
         self.catalogo_canonico_service = catalogo_canonico_service
+        self.price_intelligence_service = price_intelligence_service
         self.curadoria_publicacao = curadoria_publicacao or CuradoriaPublicacao()
         self.deduplicacao_canonica_ativa = deduplicacao_canonica_ativa
         self.confianca_minima_deduplicacao = confianca_minima_deduplicacao
@@ -300,6 +303,7 @@ class ExecutorPipeline:
 
             resultado_normalizacao = self.normalizador_produto.normalizar(oferta)
 
+            resultado_catalogo = None
             if self.catalogo_canonico_service is not None:
                 try:
                     resultado_catalogo = self.catalogo_canonico_service.observar(oferta)
@@ -313,6 +317,30 @@ class ExecutorPipeline:
                 except Exception:
                     logger.exception(
                         "Erro observacional ao registrar oferta no Catalogo Canonico V1: %s",
+                        oferta.nome,
+                    )
+
+            if self.price_intelligence_service is not None and resultado_catalogo is not None:
+                try:
+                    resultado_price_intelligence = self.price_intelligence_service.observar(
+                        oferta=oferta,
+                        resultado_catalogo=resultado_catalogo,
+                    )
+                    logger.debug(
+                        (
+                            "Price Intelligence V1: %s | "
+                            "status=%s | chave=%s | "
+                            "marketplace=%s | preco=%s"
+                        ),
+                        oferta.nome,
+                        resultado_price_intelligence.status,
+                        resultado_price_intelligence.chave_canonica,
+                        resultado_price_intelligence.marketplace,
+                        resultado_price_intelligence.preco,
+                    )
+                except Exception:
+                    logger.exception(
+                        ("Erro observacional ao registrar " "Price Intelligence V1: %s"),
                         oferta.nome,
                     )
 
