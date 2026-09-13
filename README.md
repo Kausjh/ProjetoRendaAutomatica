@@ -769,3 +769,22 @@ Contrato: `contracts/personalized_alert_matching_v1.json`.
 
 Documentação: `docs/15-alertas-personalizados-matching.md`.
 <!-- bloco29-personalized-alert-matching-v1:end -->
+
+<!-- bloco30-personalized-notification-outbox-v1:start -->
+### Personalized Notification Outbox V1
+
+O Bloco 30 adiciona a fundação persistente de entrega para os matches
+personalizados do Bloco 29.
+
+Cada match pode originar uma intenção idempotente de canal `push`, mantida em
+outbox com estados `pending`, `processing`, `delivered` e `failed`, contador de
+tentativas e suporte a retry com disponibilidade futura.
+
+Esta fase é push-ready, mas não envia push real: não há provedor configurado,
+tokens de dispositivo, credenciais externas ou novas rotas HTTP. A Application
+API V1 permanece read-only.
+
+Contrato: `contracts/personalized_notification_outbox_v1.json`.
+
+Documentação: `docs/16-notification-outbox.md`.
+<!-- bloco30-personalized-notification-outbox-v1:end -->
