@@ -1,4 +1,4 @@
-﻿<!-- 63.8738, -149.7525 -->
+<!-- 63.8738, -149.7525 -->
 
 # Projeto Renda Automática
 
@@ -693,3 +693,26 @@ O cliente de referência aplica a política por padrão: loopback HTTP é aceito
 acesso remoto por HTTPS exige Bearer token e HTTP remoto exige token mais uma
 declaração explícita de transporte criptografado/confiável externo. A API
 administrativa da porta `8765` não faz parte do contrato de clientes.
+
+<!-- bloco26-client-transport-v1:start -->
+### Client Transport V1 — Tailscale TCP
+
+O cliente remoto da Application API usa um transporte privado sobre a tailnet:
+
+`cliente -> Tailscale IPv4:18767 -> TCP forwarder -> 127.0.0.1:8766`
+
+Regras do transporte:
+
+- a Application API continua vinculada ao loopback (`127.0.0.1:8766`);
+- o acesso remoto exige Bearer token;
+- o tráfego remoto depende de uma tailnet autenticada e criptografada;
+- MagicDNS não é requisito do cliente;
+- Tailscale Funnel não faz parte da arquitetura;
+- não há exposição da Application API à Internet pública;
+- a API administrativa (`8765`) não faz parte do contrato de transporte do cliente;
+- o aplicativo Android privado permanece fora deste repositório.
+
+Contrato legível por máquina: `contracts/client_transport_v1.json`.
+
+Documentação operacional: `docs/12-transporte-cliente-tailscale.md`.
+<!-- bloco26-client-transport-v1:end -->

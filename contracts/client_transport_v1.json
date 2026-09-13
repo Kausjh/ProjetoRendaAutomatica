@@ -1,0 +1,42 @@
+{
+  "schema": "projeto-renda-automatica.client-transport",
+  "transport_version": 1,
+  "name": "tailscale_tcp_over_trusted_tunnel",
+  "client_access_policy": {
+    "schema": "projeto-renda-automatica.client-access-policy",
+    "policy_version": 1,
+    "mode": "remote_http_over_trusted_tunnel"
+  },
+  "application_api": {
+    "backend_host": "127.0.0.1",
+    "backend_port": 8766,
+    "backend_scheme": "http",
+    "base_path": "/api/v1",
+    "backend_must_remain_loopback": true
+  },
+  "remote_endpoint": {
+    "provider": "tailscale",
+    "host_source": "tailscale_ipv4",
+    "tcp_port": 18767,
+    "client_scheme": "http",
+    "magicdns_required": false
+  },
+  "security": {
+    "tailnet_only": true,
+    "trusted_encrypted_external_transport": true,
+    "bearer_required_for_data_routes": true,
+    "health_route_may_be_unauthenticated": true,
+    "tailscale_funnel_allowed": false,
+    "public_internet_exposure": false
+  },
+  "boundaries": {
+    "admin_api_port_8765_is_client_transport": false,
+    "admin_control_plane_is_client_api": false,
+    "private_android_app_in_public_repository": false,
+    "client_transport_may_publish_or_mutate": false
+  },
+  "operational": {
+    "apply_script": "scripts/client_transport_tailscale.ps1",
+    "expected_forward": "tailscale_ipv4:18767 -> 127.0.0.1:8766"
+  }
+}
