@@ -734,3 +734,21 @@ Contrato: `contracts/user_identity_v1.json`.
 
 Documentação: `docs/13-identidade-usuarios.md`.
 <!-- bloco27-user-identity-v1:end -->
+
+<!-- bloco28-user-personalization-v1:start -->
+### User Personalization & Watchlists V1
+
+O Bloco 28 adiciona preferências persistentes e watchlists por conta sobre a
+fundação de identidade do Bloco 27.
+
+As preferências V1 controlam notificações de preço e marketplaces preferidos.
+As watchlists acompanham produtos por `canonical_key`, com preço alvo opcional
+persistido em centavos e configuração para futura notificação de queda.
+
+Nesta fase não são criadas novas rotas HTTP e não existe entrega de alertas
+personalizados. A Application API V1 permanece read-only.
+
+Contrato: `contracts/user_personalization_v1.json`.
+
+Documentação: `docs/14-personalizacao-watchlists.md`.
+<!-- bloco28-user-personalization-v1:end -->

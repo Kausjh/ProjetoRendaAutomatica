@@ -1,0 +1,42 @@
+{
+  "schema": "projeto-renda-automatica.user-personalization",
+  "personalization_version": 1,
+  "stage": "foundation",
+  "network_exposure": false,
+  "identity_dependency": {
+    "contract": "contracts/user_identity_v1.json",
+    "active_account_required": true
+  },
+  "storage": {
+    "engine": "sqlite",
+    "database": "database/user_identity.sqlite3",
+    "canonical_product_reference": "opaque canonical_key",
+    "target_price_storage": "integer cents"
+  },
+  "preferences": {
+    "price_notifications_enabled": true,
+    "preferred_marketplaces": true,
+    "marketplace_limit": 20
+  },
+  "watchlists": {
+    "unique_per_user_and_canonical_key": true,
+    "optional_target_price": true,
+    "price_drop_notification_flag": true
+  },
+  "boundaries": {
+    "application_api_v1_remains_read_only": true,
+    "new_http_routes": false,
+    "personalized_alert_delivery": false,
+    "admin_api_is_not_personalization_api": true,
+    "infrastructure_bearer_is_not_user_identity": true,
+    "private_android_admin_app_is_not_public_user_app": true
+  },
+  "future_consumers": [
+    "personalized alert subscriptions",
+    "personalized feed",
+    "push notifications",
+    "public app",
+    "web interface",
+    "browser extension"
+  ]
+}
