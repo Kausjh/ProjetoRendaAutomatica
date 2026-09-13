@@ -1,0 +1,258 @@
+﻿from __future__ import annotations
+
+import hmac
+import ipaddress
+import json
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, unquote, urlparse
+
+from dotenv import load_dotenv
+
+from services.api_aplicacao.controlador import ControladorApiAplicacao
+
+
+class ServidorApiAplicacao:
+    def __init__(
+        self,
+        controlador: ControladorApiAplicacao,
+        *,
+        host: str | None = None,
+        porta: int | None = None,
+        token: str | None = None,
+    ) -> None:
+        load_dotenv()
+
+        host_ambiente = os.getenv("API_APLICACAO_HOST", "").strip()
+        porta_ambiente = os.getenv("API_APLICACAO_PORTA", "").strip()
+        token_ambiente = os.getenv("API_APLICACAO_TOKEN", "").strip()
+
+        self.controlador = controlador
+        self.host = host.strip() if host is not None else host_ambiente or "127.0.0.1"
+        self.porta = self._resolver_porta(
+            porta=porta,
+            porta_ambiente=porta_ambiente,
+        )
+        self.token = token.strip() if token is not None else token_ambiente
+
+        if not self._host_loopback(self.host) and not self.token:
+            raise ValueError("API_APLICACAO_TOKEN e obrigatorio para bind " "fora de loopback.")
+
+        self._servidor: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+
+    @staticmethod
+    def _resolver_porta(
+        *,
+        porta: int | None,
+        porta_ambiente: str,
+    ) -> int:
+        if porta is not None:
+            valor = int(porta)
+        elif porta_ambiente:
+            try:
+                valor = int(porta_ambiente)
+            except ValueError as erro:
+                raise ValueError("API_APLICACAO_PORTA precisa ser um inteiro.") from erro
+        else:
+            valor = 8766
+
+        if valor < 0 or valor > 65535:
+            raise ValueError("API_APLICACAO_PORTA precisa estar entre 0 e 65535.")
+
+        return valor
+
+    @staticmethod
+    def _host_loopback(host: str) -> bool:
+        normalizado = host.strip().lower()
+        if normalizado == "localhost":
+            return True
+
+        try:
+            return ipaddress.ip_address(normalizado).is_loopback
+        except ValueError:
+            return False
+
+    @property
+    def endereco(self) -> tuple[str, int] | None:
+        servidor = self._servidor
+        if servidor is None:
+            return None
+
+        host, porta = servidor.server_address[:2]
+        return str(host), int(porta)
+
+    def iniciar(self) -> None:
+        if self._servidor is not None:
+            return
+
+        controlador = self.controlador
+        token_api = self.token
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                url = urlparse(self.path)
+                rota = url.path.rstrip("/") or "/"
+                query = parse_qs(url.query)
+
+                if rota == "/api/v1/health":
+                    self._responder_json(
+                        200,
+                        controlador.health(),
+                    )
+                    return
+
+                if token_api and not self._autorizado(token_api):
+                    self._responder_json(
+                        401,
+                        {"erro": "Nao autorizado."},
+                    )
+                    return
+
+                if rota == "/api/v1/produtos":
+                    dados = controlador.listar_produtos(
+                        limite=query.get("limite", ["50"])[0],
+                        offset=query.get("offset", ["0"])[0],
+                    )
+                    self._responder_json(200, dados)
+                    return
+
+                if rota == "/api/v1/alertas":
+                    dados = controlador.listar_alertas(
+                        limite=query.get("limite", ["50"])[0],
+                        offset=query.get("offset", ["0"])[0],
+                    )
+                    self._responder_json(200, dados)
+                    return
+
+                partes = [unquote(parte) for parte in rota.split("/") if parte]
+
+                if len(partes) == 4 and partes[:3] == ["api", "v1", "produtos"]:
+                    dados = controlador.obter_produto(partes[3])
+                    if dados is None:
+                        self._responder_json(
+                            404,
+                            {"erro": "Produto nao encontrado."},
+                        )
+                        return
+
+                    self._responder_json(200, dados)
+                    return
+
+                if (
+                    len(partes) == 5
+                    and partes[:3] == ["api", "v1", "produtos"]
+                    and partes[4] == "historico"
+                ):
+                    dados = controlador.listar_historico_produto(
+                        partes[3],
+                        limite=query.get("limite", ["50"])[0],
+                        offset=query.get("offset", ["0"])[0],
+                    )
+                    if dados is None:
+                        self._responder_json(
+                            404,
+                            {"erro": "Produto nao encontrado."},
+                        )
+                        return
+
+                    self._responder_json(200, dados)
+                    return
+
+                self._responder_json(
+                    404,
+                    {"erro": "Rota nao encontrada."},
+                )
+
+            def do_POST(self) -> None:
+                self._metodo_nao_permitido()
+
+            def do_PUT(self) -> None:
+                self._metodo_nao_permitido()
+
+            def do_PATCH(self) -> None:
+                self._metodo_nao_permitido()
+
+            def do_DELETE(self) -> None:
+                self._metodo_nao_permitido()
+
+            def _metodo_nao_permitido(self) -> None:
+                self._responder_json(
+                    405,
+                    {"erro": "Metodo nao permitido."},
+                )
+
+            def _autorizado(self, esperado: str) -> bool:
+                autorizacao = self.headers.get(
+                    "Authorization",
+                    "",
+                )
+                prefixo = "Bearer "
+                recebido = (
+                    autorizacao[len(prefixo) :].strip() if autorizacao.startswith(prefixo) else ""
+                )
+                return hmac.compare_digest(
+                    recebido,
+                    esperado,
+                )
+
+            def _responder_json(
+                self,
+                status: int,
+                payload: object,
+            ) -> None:
+                corpo = json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+
+                self.send_response(status)
+                self.send_header(
+                    "Content-Type",
+                    "application/json; charset=utf-8",
+                )
+                self.send_header(
+                    "Content-Length",
+                    str(len(corpo)),
+                )
+                self.send_header(
+                    "Cache-Control",
+                    "no-store",
+                )
+                self.end_headers()
+                self.wfile.write(corpo)
+
+            def log_message(
+                self,
+                format: str,
+                *args: object,
+            ) -> None:
+                return
+
+        self._servidor = ThreadingHTTPServer(
+            (self.host, self.porta),
+            Handler,
+        )
+        self._thread = threading.Thread(
+            target=self._servidor.serve_forever,
+            name="servidor-api-aplicacao",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def encerrar(self) -> None:
+        servidor = self._servidor
+        if servidor is None:
+            return
+
+        servidor.shutdown()
+        servidor.server_close()
+        self._servidor = None
+
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=5)
+
+        self._thread = None

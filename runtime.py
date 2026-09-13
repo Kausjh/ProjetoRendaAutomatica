@@ -1,4 +1,4 @@
-# 63.8738, -149.7525
+﻿# 63.8738, -149.7525
 
 """Ponto único de inicialização do Projeto Renda Automática.
 
@@ -16,6 +16,8 @@ import logging
 import os
 
 from config.logging_config import configurar_logging
+from services.api_aplicacao.controlador import ControladorApiAplicacao
+from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
 from services.runtime.orquestrador import (
@@ -57,9 +59,14 @@ def main() -> int:
     servidor_status = ServidorStatusAdministrativo(
         controlador=orquestrador.controle_administrativo,
     )
-    servidor_status.iniciar()
+    controlador_api = ControladorApiAplicacao()
+    servidor_api = ServidorApiAplicacao(
+        controlador=controlador_api,
+    )
 
     try:
+        servidor_status.iniciar()
+        servidor_api.iniciar()
         orquestrador.executar()
         return 0
 
@@ -73,6 +80,7 @@ def main() -> int:
         return 1
 
     finally:
+        servidor_api.encerrar()
         servidor_status.encerrar()
         orquestrador.encerrar()
 
