@@ -586,10 +586,10 @@ O Social Scout utiliza conta autorizada apenas como listener passivo.
 | Observabilidade Social Scout | Ativa |
 | Supervisor | Ativo |
 | Autostart Windows | Ativo |
-| Canonical Catalog | Roadmap |
-| Alert Engine | Roadmap |
-| API pública | Roadmap |
-| App público | Roadmap |
+| Canonical Catalog | Ativo |
+| Alert Engine | Ativo |
+| API pública | Ativa — V1 read-only |
+| App público | Fase 2 — planejado |
 
 ---
 

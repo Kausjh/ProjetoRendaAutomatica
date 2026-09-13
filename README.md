@@ -788,3 +788,26 @@ Contrato: `contracts/personalized_notification_outbox_v1.json`.
 
 Documentação: `docs/16-notification-outbox.md`.
 <!-- bloco30-personalized-notification-outbox-v1:end -->
+
+<!-- fase2-roadmap:start -->
+## Roadmap — Fase 2
+
+A Fase 1 foi concluída com 30/30 blocos.
+
+A Fase 2 transforma a infraestrutura construída em produto utilizável por
+usuários finais.
+
+Ordem oficial:
+
+1. User-Facing API V1
+2. Public App MVP
+3. Device Registration V1
+4. Push Dispatcher V1
+5. Personalized Feed V1
+6. Web / Extensão / Growth Surfaces
+
+O primeiro passo é estabilizar o contrato e a fronteira de autenticação da
+User-Facing API antes de abrir novas rotas.
+
+Documentação completa: `docs/17-roadmap-fase-2.md`.
+<!-- fase2-roadmap:end -->
