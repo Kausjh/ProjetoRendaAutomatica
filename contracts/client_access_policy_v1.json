@@ -1,0 +1,38 @@
+{
+  "schema": "projeto-renda-automatica.client-access-policy",
+  "policy_version": 1,
+  "api_contract": "contracts/api_v1.contract.json",
+  "principles": {
+    "api_application_read_only": true,
+    "admin_control_plane_exposed_to_clients": false,
+    "private_android_app_in_public_repo": false
+  },
+  "modes": {
+    "loopback_http": {
+      "allowed": true,
+      "bearer_token_required": false,
+      "external_transport_assurance_required": false
+    },
+    "remote_https": {
+      "allowed": true,
+      "bearer_token_required": true,
+      "external_transport_assurance_required": false
+    },
+    "remote_http_over_trusted_tunnel": {
+      "allowed": true,
+      "bearer_token_required": true,
+      "external_transport_assurance_required": true
+    },
+    "remote_plain_http": {
+      "allowed": false,
+      "bearer_token_required": true,
+      "external_transport_assurance_required": false
+    }
+  },
+  "forbidden": [
+    "direct_client_access_to_admin_port_8765",
+    "remote_plain_http_without_trusted_transport",
+    "remote_access_without_bearer_token",
+    "embedding_private_android_app_in_public_repository"
+  ]
+}

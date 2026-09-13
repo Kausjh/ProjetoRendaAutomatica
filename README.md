@@ -682,3 +682,14 @@ O aplicativo Android privado deve permanecer fora deste repositório público.
 Ele deve consumir o mesmo contrato V1, sem copiar regras de negócio, lógica de
 curadoria, credenciais administrativas ou artefatos privados para este
 repositório.
+
+## Política de acesso seguro de clientes V1
+
+Além do contrato `/api/v1`, o repositório mantém
+`contracts/client_access_policy_v1.json` e
+`docs/11-acesso-clientes.md`.
+
+O cliente de referência aplica a política por padrão: loopback HTTP é aceito,
+acesso remoto por HTTPS exige Bearer token e HTTP remoto exige token mais uma
+declaração explícita de transporte criptografado/confiável externo. A API
+administrativa da porta `8765` não faz parte do contrato de clientes.

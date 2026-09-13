@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -28,10 +29,54 @@ class ClienteApiAplicacaoV1:
         *,
         token: str | None = None,
         timeout: float = 5.0,
+        transporte_confiavel: bool = False,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = (token or "").strip()
         self.timeout = float(timeout)
+        self.transporte_confiavel = bool(transporte_confiavel)
+        self._validar_politica_acesso()
+
+    @staticmethod
+    def _host_loopback(host: str) -> bool:
+        if host.strip().lower() == "localhost":
+            return True
+
+        try:
+            return ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            return False
+
+    def _validar_politica_acesso(self) -> None:
+        parsed = urlsplit(self.base_url)
+
+        if parsed.scheme not in {"http", "https"}:
+            raise ValueError("base_url deve usar http ou https.")
+
+        if not parsed.hostname:
+            raise ValueError("base_url precisa possuir host.")
+
+        if parsed.username or parsed.password:
+            raise ValueError("Credenciais na URL nao sao permitidas.")
+
+        if parsed.query or parsed.fragment:
+            raise ValueError("base_url nao pode conter query ou fragment.")
+
+        if parsed.path not in {"", "/"}:
+            raise ValueError("base_url deve apontar para a origem da API.")
+
+        remoto = not self._host_loopback(parsed.hostname)
+
+        if not remoto:
+            return
+
+        if not self.token:
+            raise ValueError("Acesso remoto exige Bearer token.")
+
+        if parsed.scheme == "http" and not self.transporte_confiavel:
+            raise ValueError(
+                "HTTP remoto exige transporte_confiavel=True " "e uma camada externa criptografada."
+            )
 
     def health(self) -> dict[str, Any]:
         return self._get("/api/v1/health")
