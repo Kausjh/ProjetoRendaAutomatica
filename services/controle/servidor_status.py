@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hmac
 import json
@@ -52,6 +52,49 @@ class ServidorStatusAdministrativo:
                 price_url = urlparse(self.path)
                 price_rota = price_url.path.rstrip("/") or "/"
                 price_query = parse_qs(price_url.query)
+
+                alert_url = urlparse(self.path)
+                alert_rota = alert_url.path.rstrip("/") or "/"
+                alert_query = parse_qs(alert_url.query)
+
+                if alert_rota == "/alert-engine/metricas":
+                    dados = controlador.obter_metricas_alert_engine()
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                if alert_rota == "/alert-engine/eventos":
+                    dados = controlador.listar_eventos_alert_engine(
+                        limite=alert_query.get(
+                            "limite",
+                            ["50"],
+                        )[0],
+                        offset=alert_query.get(
+                            "offset",
+                            ["0"],
+                        )[0],
+                    )
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                alert_partes = [unquote(parte) for parte in alert_rota.split("/") if parte]
+
+                if (
+                    len(alert_partes) == 3
+                    and alert_partes[0] == "alert-engine"
+                    and alert_partes[1] == "produtos"
+                ):
+                    dados = controlador.obter_estado_produto_alert_engine(alert_partes[2])
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
 
                 if price_rota == "/price-intelligence/metricas":
                     dados = controlador.obter_metricas_price_intelligence()

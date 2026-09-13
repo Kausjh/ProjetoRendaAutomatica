@@ -1,4 +1,4 @@
-# 63.8738, -149.7525
+﻿# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Protocol
 
+from repositories.alert_engine_repository import AlertEngineRepository
 from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     MODO_OPERACAO_PADRAO,
@@ -60,8 +61,10 @@ class ControladorAdministrativo:
         repositorio_admin: ControleAdministrativoRepository | None = None,
         catalogo_canonico_repository: CatalogoCanonicoRepository | None = None,
         price_intelligence_repository: PriceIntelligenceRepository | None = None,
+        alert_engine_repository: AlertEngineRepository | None = None,
     ) -> None:
         self.price_intelligence_repository = price_intelligence_repository
+        self.alert_engine_repository = alert_engine_repository
         self.orquestrador = orquestrador
         self.fila = fila or FilaPublicacaoRepository()
         self.verificador_chrome = verificador_chrome or cdp_esta_funcional
@@ -1682,6 +1685,134 @@ class ControladorAdministrativo:
             conectividade=conectividade,
             coletado_em=datetime.now().astimezone().isoformat(timespec="seconds"),
         )
+
+    @staticmethod
+    def _normalizar_paginacao_alert_engine(
+        *,
+        limite,
+        offset,
+    ) -> tuple[int, int]:
+        try:
+            limite_norm = int(limite)
+        except (TypeError, ValueError):
+            limite_norm = 50
+
+        try:
+            offset_norm = int(offset)
+        except (TypeError, ValueError):
+            offset_norm = 0
+
+        return (
+            max(1, min(limite_norm, 200)),
+            max(0, offset_norm),
+        )
+
+    def obter_metricas_alert_engine(
+        self,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "alert_engine_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "motivo": "alert_engine_indisponivel",
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            **repository.obter_metricas(),
+        }
+
+    def listar_eventos_alert_engine(
+        self,
+        *,
+        limite=50,
+        offset=0,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "alert_engine_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "total": 0,
+                "limite": 0,
+                "offset": 0,
+                "itens": [],
+                "motivo": "alert_engine_indisponivel",
+            }
+
+        limite_norm, offset_norm = self._normalizar_paginacao_alert_engine(
+            limite=limite,
+            offset=offset,
+        )
+        metricas = repository.obter_metricas()
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "total": int(metricas["eventos"]),
+            "limite": limite_norm,
+            "offset": offset_norm,
+            "itens": repository.listar_eventos(
+                limite=limite_norm,
+                offset=offset_norm,
+            ),
+        }
+
+    def obter_estado_produto_alert_engine(
+        self,
+        chave_canonica: str,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "alert_engine_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "schema_version": 1,
+                "encontrado": False,
+                "motivo": "alert_engine_indisponivel",
+            }
+
+        chave = str(chave_canonica or "").strip()
+        if not chave:
+            return {
+                "disponivel": True,
+                "schema_version": 1,
+                "encontrado": False,
+                "motivo": "chave_canonica_obrigatoria",
+            }
+
+        estado = repository.obter_estado_produto(chave)
+        if estado is None:
+            return {
+                "disponivel": True,
+                "schema_version": 1,
+                "encontrado": False,
+                "chave_canonica": chave,
+            }
+
+        return {
+            "disponivel": True,
+            "schema_version": 1,
+            "encontrado": True,
+            "chave_canonica": chave,
+            **estado,
+        }
 
     @staticmethod
     def _normalizar_paginacao_price_intelligence(

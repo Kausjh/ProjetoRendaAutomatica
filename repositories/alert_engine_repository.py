@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
@@ -418,6 +418,88 @@ class AlertEngineRepository:
             "produtos_inseridos": produtos_inseridos,
             "listings_inseridos": listings_inseridos,
             "conflitos_identidade": conflitos_identidade,
+        }
+
+    def obter_estado_produto(
+        self,
+        chave_canonica: str,
+        *,
+        limite_eventos: int = 20,
+    ) -> dict[str, object] | None:
+        chave = str(chave_canonica or "").strip()
+        if not chave:
+            return None
+
+        limite_eventos = max(1, min(int(limite_eventos), 100))
+
+        with self._conectar() as conexao:
+            produto = conexao.execute(
+                """
+                SELECT
+                    chave_canonica,
+                    nome_canonico,
+                    menor_preco_historico,
+                    versao,
+                    atualizado_em
+                FROM alert_engine_estado_canonico
+                WHERE chave_canonica = ?
+                """,
+                (chave,),
+            ).fetchone()
+
+            if produto is None:
+                return None
+
+            listings = [
+                dict(linha)
+                for linha in conexao.execute(
+                    """
+                    SELECT
+                        marketplace,
+                        identificador,
+                        chave_canonica,
+                        nome_canonico,
+                        preco_atual,
+                        versao,
+                        atualizado_em
+                    FROM alert_engine_estado_listing
+                    WHERE chave_canonica = ?
+                    ORDER BY marketplace, identificador
+                    """,
+                    (chave,),
+                ).fetchall()
+            ]
+
+            total_eventos = int(
+                conexao.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM alert_engine_eventos
+                    WHERE chave_canonica = ?
+                    """,
+                    (chave,),
+                ).fetchone()[0]
+            )
+
+            eventos_recentes = [
+                dict(linha)
+                for linha in conexao.execute(
+                    """
+                    SELECT *
+                    FROM alert_engine_eventos
+                    WHERE chave_canonica = ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (chave, limite_eventos),
+                ).fetchall()
+            ]
+
+        return {
+            "produto": dict(produto),
+            "listings": listings,
+            "eventos_total": total_eventos,
+            "eventos_recentes": eventos_recentes,
         }
 
     def listar_eventos(

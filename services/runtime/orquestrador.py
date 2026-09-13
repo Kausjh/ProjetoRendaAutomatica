@@ -1,4 +1,4 @@
-# 63.8738, -149.7525
+﻿# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Final
 
 from config.configuracoes import Configuracoes
+from repositories.alert_engine_repository import AlertEngineRepository
 from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
@@ -191,6 +192,7 @@ class OrquestradorRuntime:
             repositorio_admin=self.repositorio_admin,
             catalogo_canonico_repository=CatalogoCanonicoRepository(),
             price_intelligence_repository=PriceIntelligenceRepository(),
+            alert_engine_repository=AlertEngineRepository(),
         )
 
     def validar_ambiente(self) -> None:
