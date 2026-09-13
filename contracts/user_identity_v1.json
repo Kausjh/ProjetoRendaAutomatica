@@ -1,0 +1,40 @@
+{
+  "schema": "projeto-renda-automatica.user-identity",
+  "identity_version": 1,
+  "stage": "foundation",
+  "network_exposure": false,
+  "purpose": "persistent end-user identity and session primitives for the future public platform",
+  "storage": {
+    "engine": "sqlite",
+    "default_runtime_path": "database/user_identity.sqlite3",
+    "plaintext_passwords_allowed": false,
+    "plaintext_session_tokens_allowed": false
+  },
+  "credentials": {
+    "password_hash": {
+      "algorithm": "scrypt",
+      "salt_per_account": true
+    },
+    "session_token": {
+      "generation": "cryptographically_random",
+      "stored_as": "sha256",
+      "default_ttl_days": 30
+    }
+  },
+  "boundaries": {
+    "application_api_v1_remains_read_only": true,
+    "admin_api_is_not_user_identity": true,
+    "infrastructure_bearer_is_not_user_session": true,
+    "telegram_publication_authority": false,
+    "private_android_admin_app_is_not_public_user_app": true
+  },
+  "future_consumers": [
+    "user preferences",
+    "watchlists",
+    "personalized feed",
+    "push notifications",
+    "public app",
+    "web interface",
+    "browser extension"
+  ]
+}

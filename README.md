@@ -716,3 +716,21 @@ Contrato legível por máquina: `contracts/client_transport_v1.json`.
 
 Documentação operacional: `docs/12-transporte-cliente-tailscale.md`.
 <!-- bloco26-client-transport-v1:end -->
+
+<!-- bloco27-user-identity-v1:start -->
+### User Identity Foundation V1
+
+O Bloco 27 introduz a fundação persistente de contas e sessões para a futura
+plataforma pública.
+
+A identidade de usuário é deliberadamente separada do Bearer de
+infraestrutura da Application API e do control plane administrativo.
+
+Nesta fase não são criadas novas rotas HTTP: `/api/v1` continua read-only.
+A camada fornece hashing de senha com `scrypt`, salt individual, sessões
+aleatórias, persistência somente do hash do token, expiração e revogação.
+
+Contrato: `contracts/user_identity_v1.json`.
+
+Documentação: `docs/13-identidade-usuarios.md`.
+<!-- bloco27-user-identity-v1:end -->
