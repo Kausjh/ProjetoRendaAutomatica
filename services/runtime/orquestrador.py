@@ -18,6 +18,7 @@ from repositories.catalogo_canonico_repository import CatalogoCanonicoRepository
 from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
+from repositories.price_intelligence_repository import PriceIntelligenceRepository
 from services.controle.controlador import ControladorAdministrativo
 from services.launcher.chrome_launcher import (
     encerrar_chrome_automacao,
@@ -189,6 +190,7 @@ class OrquestradorRuntime:
             self,
             repositorio_admin=self.repositorio_admin,
             catalogo_canonico_repository=CatalogoCanonicoRepository(),
+            price_intelligence_repository=PriceIntelligenceRepository(),
         )
 
     def validar_ambiente(self) -> None:

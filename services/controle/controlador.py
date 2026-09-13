@@ -17,6 +17,7 @@ from repositories.controle_administrativo_repository import (
     ControleAdministrativoRepository,
 )
 from repositories.fila_publicacao_repository import FilaPublicacaoRepository
+from repositories.price_intelligence_repository import PriceIntelligenceRepository
 from services.avaliador_saude_monetizacao import avaliar_saude_monetizacao
 from services.controle.estado import (
     EstadoAdministrativo,
@@ -58,7 +59,9 @@ class ControladorAdministrativo:
         verificador_chrome: Callable[[], bool] | None = None,
         repositorio_admin: ControleAdministrativoRepository | None = None,
         catalogo_canonico_repository: CatalogoCanonicoRepository | None = None,
+        price_intelligence_repository: PriceIntelligenceRepository | None = None,
     ) -> None:
+        self.price_intelligence_repository = price_intelligence_repository
         self.orquestrador = orquestrador
         self.fila = fila or FilaPublicacaoRepository()
         self.verificador_chrome = verificador_chrome or cdp_esta_funcional
@@ -1679,3 +1682,179 @@ class ControladorAdministrativo:
             conectividade=conectividade,
             coletado_em=datetime.now().astimezone().isoformat(timespec="seconds"),
         )
+
+    @staticmethod
+    def _normalizar_paginacao_price_intelligence(
+        *,
+        limite,
+        offset,
+    ) -> tuple[int, int]:
+        try:
+            limite_norm = int(limite)
+        except (TypeError, ValueError):
+            limite_norm = 50
+
+        try:
+            offset_norm = int(offset)
+        except (TypeError, ValueError):
+            offset_norm = 0
+
+        return (
+            max(
+                1,
+                min(
+                    limite_norm,
+                    200,
+                ),
+            ),
+            max(
+                0,
+                offset_norm,
+            ),
+        )
+
+    def obter_metricas_price_intelligence(
+        self,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "price_intelligence_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "motivo": "price_intelligence_indisponivel",
+            }
+
+        return {
+            "disponivel": True,
+            **repository.obter_metricas(),
+        }
+
+    def listar_price_intelligence(
+        self,
+        *,
+        limite=50,
+        offset=0,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "price_intelligence_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "motivo": "price_intelligence_indisponivel",
+                "itens": [],
+            }
+
+        limite_norm, offset_norm = self._normalizar_paginacao_price_intelligence(
+            limite=limite,
+            offset=offset,
+        )
+
+        return {
+            "disponivel": True,
+            "total": repository.quantidade_produtos(),
+            "limite": limite_norm,
+            "offset": offset_norm,
+            "itens": repository.listar_produtos(
+                limite=limite_norm,
+                offset=offset_norm,
+            ),
+        }
+
+    def obter_price_intelligence(
+        self,
+        chave_canonica: str,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "price_intelligence_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "motivo": "price_intelligence_indisponivel",
+                "encontrado": False,
+            }
+
+        chave = str(chave_canonica or "").strip()
+
+        if not chave:
+            return {
+                "disponivel": True,
+                "encontrado": False,
+                "motivo": "chave_canonica_obrigatoria",
+            }
+
+        snapshot = repository.obter_snapshot(chave)
+
+        if snapshot is None:
+            return {
+                "disponivel": True,
+                "encontrado": False,
+                "chave_canonica": chave,
+            }
+
+        return {
+            "disponivel": True,
+            "encontrado": True,
+            "snapshot": asdict(snapshot),
+            "precos_atuais": [asdict(item) for item in repository.listar_precos_atuais(chave)],
+        }
+
+    def listar_historico_price_intelligence(
+        self,
+        chave_canonica: str,
+        *,
+        limite=50,
+        offset=0,
+    ) -> dict[str, object]:
+        repository = getattr(
+            self,
+            "price_intelligence_repository",
+            None,
+        )
+
+        if repository is None:
+            return {
+                "disponivel": False,
+                "motivo": "price_intelligence_indisponivel",
+                "itens": [],
+            }
+
+        chave = str(chave_canonica or "").strip()
+
+        if not chave:
+            return {
+                "disponivel": True,
+                "chave_canonica": "",
+                "limite": 0,
+                "offset": 0,
+                "itens": [],
+                "motivo": "chave_canonica_obrigatoria",
+            }
+
+        limite_norm, offset_norm = self._normalizar_paginacao_price_intelligence(
+            limite=limite,
+            offset=offset,
+        )
+
+        return {
+            "disponivel": True,
+            "chave_canonica": chave,
+            "limite": limite_norm,
+            "offset": offset_norm,
+            "itens": repository.listar_historico_paginado(
+                chave,
+                limite=limite_norm,
+                offset=offset_norm,
+            ),
+        }

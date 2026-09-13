@@ -446,3 +446,138 @@ class PriceIntelligenceRepository:
                 str(linha["marketplace"]): int(linha["total"]) for linha in distribuicao
             },
         }
+
+    def listar_produtos(
+        self,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, object]]:
+        limite_norm = max(
+            1,
+            min(
+                int(limite),
+                200,
+            ),
+        )
+        offset_norm = max(
+            0,
+            int(offset),
+        )
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    estado.chave_canonica AS chave_canonica,
+                    MAX(estado.nome_canonico) AS nome_canonico,
+                    COUNT(*) AS anuncios_observados,
+                    COUNT(
+                        DISTINCT estado.marketplace
+                    ) AS marketplaces_observados,
+                    MIN(
+                        estado.preco_atual
+                    ) AS preco_minimo_atual,
+                    MAX(
+                        estado.preco_atual
+                    ) AS preco_maximo_atual,
+                    MAX(
+                        estado.ultimo_observado_em
+                    ) AS atualizado_em,
+                    (
+                        SELECT melhor.marketplace
+                        FROM price_intelligence_estado AS melhor
+                        WHERE
+                            melhor.chave_canonica
+                            = estado.chave_canonica
+                        ORDER BY
+                            melhor.preco_atual ASC,
+                            melhor.marketplace ASC,
+                            melhor.identificador ASC
+                        LIMIT 1
+                    ) AS marketplace_melhor_preco,
+                    (
+                        SELECT melhor.identificador
+                        FROM price_intelligence_estado AS melhor
+                        WHERE
+                            melhor.chave_canonica
+                            = estado.chave_canonica
+                        ORDER BY
+                            melhor.preco_atual ASC,
+                            melhor.marketplace ASC,
+                            melhor.identificador ASC
+                        LIMIT 1
+                    ) AS identificador_melhor_preco
+                FROM price_intelligence_estado AS estado
+                GROUP BY estado.chave_canonica
+                ORDER BY
+                    atualizado_em DESC,
+                    estado.chave_canonica ASC
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    limite_norm,
+                    offset_norm,
+                ),
+            ).fetchall()
+
+        return [
+            {
+                "chave_canonica": str(linha["chave_canonica"]),
+                "nome_canonico": str(linha["nome_canonico"]),
+                "anuncios_observados": int(linha["anuncios_observados"]),
+                "marketplaces_observados": int(linha["marketplaces_observados"]),
+                "preco_minimo_atual": float(linha["preco_minimo_atual"]),
+                "preco_maximo_atual": float(linha["preco_maximo_atual"]),
+                "marketplace_melhor_preco": str(linha["marketplace_melhor_preco"]),
+                "identificador_melhor_preco": str(linha["identificador_melhor_preco"]),
+                "atualizado_em": str(linha["atualizado_em"]),
+            }
+            for linha in linhas
+        ]
+
+    def listar_historico_paginado(
+        self,
+        chave_canonica: str,
+        *,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> list[dict[str, object]]:
+        limite_norm = max(
+            1,
+            min(
+                int(limite),
+                200,
+            ),
+        )
+        offset_norm = max(
+            0,
+            int(offset),
+        )
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    id,
+                    chave_canonica,
+                    marketplace,
+                    identificador,
+                    nome_canonico,
+                    preco,
+                    observado_em
+                FROM price_intelligence_historico
+                WHERE chave_canonica = ?
+                ORDER BY
+                    observado_em DESC,
+                    id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    chave_canonica,
+                    limite_norm,
+                    offset_norm,
+                ),
+            ).fetchall()
+
+        return [dict(linha) for linha in linhas]

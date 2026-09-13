@@ -9,7 +9,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from dotenv import load_dotenv
 
@@ -49,6 +49,71 @@ class ServidorStatusAdministrativo:
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
+                price_url = urlparse(self.path)
+                price_rota = price_url.path.rstrip("/") or "/"
+                price_query = parse_qs(price_url.query)
+
+                if price_rota == "/price-intelligence/metricas":
+                    dados = controlador.obter_metricas_price_intelligence()
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                if price_rota == "/price-intelligence/produtos":
+                    dados = controlador.listar_price_intelligence(
+                        limite=price_query.get(
+                            "limite",
+                            ["50"],
+                        )[0],
+                        offset=price_query.get(
+                            "offset",
+                            ["0"],
+                        )[0],
+                    )
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                price_partes = [unquote(parte) for parte in price_rota.split("/") if parte]
+
+                if (
+                    len(price_partes) == 3
+                    and price_partes[0] == "price-intelligence"
+                    and price_partes[1] == "produtos"
+                ):
+                    dados = controlador.obter_price_intelligence(price_partes[2])
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
+
+                if (
+                    len(price_partes) == 4
+                    and price_partes[0] == "price-intelligence"
+                    and price_partes[1] == "produtos"
+                    and price_partes[3] == "historico"
+                ):
+                    dados = controlador.listar_historico_price_intelligence(
+                        price_partes[2],
+                        limite=price_query.get(
+                            "limite",
+                            ["50"],
+                        )[0],
+                        offset=price_query.get(
+                            "offset",
+                            ["0"],
+                        )[0],
+                    )
+                    self._responder_json(
+                        200,
+                        dados,
+                    )
+                    return
                 if token_administrativo:
                     autorizacao = self.headers.get(
                         "Authorization",
