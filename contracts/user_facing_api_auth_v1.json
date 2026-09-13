@@ -1,0 +1,134 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-auth",
+  "auth_contract_version": 1,
+  "stage": "contract-foundation",
+  "implemented_routes": false,
+  "layers": {
+    "infrastructure_access": {
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "credential_source": "API_APLICACAO_TOKEN",
+      "purpose": "protect application API transport/infrastructure access",
+      "optional_on_loopback": true,
+      "required_outside_loopback": true,
+      "must_not_identify_end_user": true
+    },
+    "end_user_session": {
+      "header": "X-User-Session",
+      "scheme": "opaque",
+      "token_prefix": "pra_usr_v1_",
+      "purpose": "identify authenticated end user",
+      "required_for_authenticated_user_routes": true,
+      "must_not_replace_infrastructure_guard": true,
+      "plaintext_persistence": false,
+      "supports_expiration": true,
+      "supports_revocation": true
+    }
+  },
+  "route_policy": {
+    "public_user_routes": [
+      {
+        "method": "POST",
+        "path": "/api/v1/auth/register",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": false
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": false
+      }
+    ],
+    "authenticated_user_routes": [
+      {
+        "method": "POST",
+        "path": "/api/v1/auth/logout",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/me",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/me/preferences",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/v1/me/preferences",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/me/watchlist",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/me/watchlist/{canonical_key}",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/me/watchlist/{canonical_key}",
+        "requires_infrastructure_access": "according_to_transport_policy",
+        "requires_user_session": true
+      }
+    ]
+  },
+  "session_semantics": {
+    "source_contract": "contracts/user_identity_v1.json",
+    "token_is_opaque": true,
+    "session_resolved_server_side": true,
+    "account_id_never_accepted_from_client_for_me_routes": true,
+    "logout_revokes_only_current_user_session": true,
+    "inactive_account_fails_closed": true,
+    "expired_session_fails_closed": true,
+    "revoked_session_fails_closed": true
+  },
+  "error_semantics": {
+    "missing_or_invalid_infrastructure_credential": 401,
+    "missing_or_invalid_user_session": 401,
+    "cross_user_resource_access": 404,
+    "duplicate_email_on_register": 409,
+    "invalid_request_payload": 400,
+    "unsupported_method": 405
+  },
+  "security": {
+    "cookies_used_for_user_session": false,
+    "csrf_token_required": false,
+    "reason_csrf_not_required": "user session is transported in an explicit non-cookie header",
+    "password_or_session_token_in_logs": false,
+    "password_or_session_token_in_urls": false,
+    "provider_or_admin_credentials_exposed_to_client": false,
+    "constant_time_password_verification": true,
+    "server_side_session_revocation": true
+  },
+  "boundaries": {
+    "admin_control_plane_is_separate": true,
+    "infrastructure_bearer_is_not_user_identity": true,
+    "user_session_is_not_infrastructure_bearer": true,
+    "private_android_admin_app_is_not_public_user_app": true,
+    "existing_read_only_data_routes_keep_current_auth_policy": true,
+    "no_routes_added_by_this_contract_block": true
+  },
+  "implementation_order": [
+    "request parsing and response envelope",
+    "user session extraction and resolution",
+    "register and login",
+    "logout and me",
+    "preferences",
+    "watchlist",
+    "authorization isolation tests",
+    "rate limiting / abuse controls"
+  ]
+}

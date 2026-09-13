@@ -811,3 +811,23 @@ User-Facing API antes de abrir novas rotas.
 
 Documentação completa: `docs/17-roadmap-fase-2.md`.
 <!-- fase2-roadmap:end -->
+
+<!-- fase2-user-facing-auth-contract-v1:start -->
+### Fase 2 — User-Facing API V1: Auth Contract
+
+A fronteira de autenticação da User-Facing API usa duas camadas independentes:
+
+- `Authorization: Bearer <API_APLICACAO_TOKEN>` protege o acesso à
+  infraestrutura conforme a política de transporte existente;
+- `X-User-Session: pra_usr_v1_<token>` identifica a sessão do usuário final.
+
+O Bearer de infraestrutura nunca representa uma conta e a sessão do usuário
+nunca substitui a proteção de infraestrutura.
+
+Este estágio formaliza somente o contrato; as novas rotas ainda não são
+implementadas.
+
+Contrato: `contracts/user_facing_api_auth_v1.json`.
+
+Documentação: `docs/18-user-facing-api-auth-v1.md`.
+<!-- fase2-user-facing-auth-contract-v1:end -->
