@@ -473,6 +473,35 @@ class CatalogoCanonicoRepository:
             ),
         )
 
+    def existe_conflito(
+        self,
+        *,
+        marketplace: str,
+        identificador: str,
+        chave_existente: str,
+        chave_observada: str,
+    ) -> bool:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT 1
+                FROM conflitos_canonicos
+                WHERE marketplace = ?
+                  AND identificador = ?
+                  AND chave_existente = ?
+                  AND chave_observada = ?
+                LIMIT 1
+                """,
+                (
+                    marketplace,
+                    identificador,
+                    chave_existente,
+                    chave_observada,
+                ),
+            ).fetchone()
+
+            return linha is not None
+
     def _obter_produto(
         self,
         conexao: sqlite3.Connection,
