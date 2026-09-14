@@ -1,0 +1,54 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-abuse-controls",
+  "abuse_controls_version": 1,
+  "scope": {
+    "protected_routes": [
+      "POST /api/v1/auth/register",
+      "POST /api/v1/auth/login"
+    ],
+    "authenticated_me_routes_rate_limited": false,
+    "logout_rate_limited": false
+  },
+  "algorithm": {
+    "type": "in-memory-sliding-window",
+    "thread_safe": true,
+    "distributed": false,
+    "clock": "monotonic",
+    "bounded_bucket_count": 4096
+  },
+  "register": {
+    "key": "client-address",
+    "default_limit": 5,
+    "default_window_seconds": 3600
+  },
+  "login": {
+    "keys": [
+      "client-address",
+      "normalized-email-subject"
+    ],
+    "default_client_limit": 20,
+    "default_subject_limit": 10,
+    "default_window_seconds": 300,
+    "generic_invalid_credentials_preserved": true
+  },
+  "http": {
+    "limited_status": 429,
+    "retry_after_header": true,
+    "error_code": "limite_requisicoes_excedido",
+    "infrastructure_guard_runs_before_rate_limit": true
+  },
+  "configuration": {
+    "API_USER_REGISTER_RATE_LIMIT": 5,
+    "API_USER_REGISTER_RATE_WINDOW_SECONDS": 3600,
+    "API_USER_LOGIN_RATE_LIMIT": 20,
+    "API_USER_LOGIN_SUBJECT_RATE_LIMIT": 10,
+    "API_USER_LOGIN_RATE_WINDOW_SECONDS": 300
+  },
+  "boundaries": {
+    "no_external_dependency": true,
+    "no_persistent_rate_limit_state": true,
+    "no_multi_process_coordination": true,
+    "no_reverse_proxy_headers_trusted": true
+  },
+  "next_step": "user-facing-api-stage1-final-audit"
+}

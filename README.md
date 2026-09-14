@@ -930,3 +930,17 @@ Contrato: `contracts/user_facing_api_watchlist_v1.json`.
 
 Documentação: `docs/23-user-facing-api-watchlist-v1.md`.
 <!-- fase2-user-facing-watchlist-v1:end -->
+
+<!-- fase2-user-facing-abuse-controls-v1:start -->
+### Fase 2 — User-Facing API V1: Abuse Controls
+
+`register` e `login` agora possuem rate limiting V1 em memória, thread-safe e
+sem dependência externa.
+
+Quando o limite é atingido, a API responde `429` com `Retry-After`.
+
+Defaults e variáveis de ambiente estão documentados em
+`docs/24-user-facing-api-abuse-controls-v1.md`.
+
+Contrato: `contracts/user_facing_api_abuse_controls_v1.json`.
+<!-- fase2-user-facing-abuse-controls-v1:end -->

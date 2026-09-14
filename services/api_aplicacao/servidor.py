@@ -12,6 +12,10 @@ from urllib.parse import parse_qs, unquote, urlparse
 from dotenv import load_dotenv
 
 from services.api_aplicacao.controlador import ControladorApiAplicacao
+from services.api_aplicacao.user_facing_abuse_controls import (
+    DecisaoAbuseControl,
+    UserFacingAbuseControls,
+)
 from services.api_aplicacao.user_facing_auth import UserFacingAuthController
 from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
@@ -42,6 +46,7 @@ class ServidorApiAplicacao:
         token: str | None = None,
         user_identity_service: UserIdentityService | None = None,
         user_personalization_service: UserPersonalizationService | None = None,
+        user_facing_abuse_controls: UserFacingAbuseControls | None = None,
     ) -> None:
         load_dotenv()
 
@@ -67,6 +72,11 @@ class ServidorApiAplicacao:
         )
         self.user_facing_watchlist = UserFacingWatchlistController(
             user_personalization_service,
+        )
+        self.user_facing_abuse_controls = (
+            user_facing_abuse_controls
+            if user_facing_abuse_controls is not None
+            else UserFacingAbuseControls.from_env()
         )
 
         if not self._host_loopback(self.host) and not self.token:
@@ -126,6 +136,7 @@ class ServidorApiAplicacao:
         user_facing_auth = self.user_facing_auth
         user_facing_preferences = self.user_facing_preferences
         user_facing_watchlist = self.user_facing_watchlist
+        abuse_controls = self.user_facing_abuse_controls
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -309,6 +320,14 @@ class ServidorApiAplicacao:
                 if payload is None:
                     return
 
+                decisao_abuse = self._avaliar_abuse_user_facing(
+                    rota,
+                    payload,
+                )
+                if not decisao_abuse.permitido:
+                    self._responder_abuse_limit(decisao_abuse)
+                    return
+
                 try:
                     if rota == "/api/v1/auth/register":
                         status, dados = user_facing_auth.registrar(payload)
@@ -442,6 +461,44 @@ class ServidorApiAplicacao:
                     user_facing_http.sucesso(dados),
                 )
 
+            def _client_key_user_facing(self) -> str:
+                return str(self.client_address[0])
+
+            def _avaliar_abuse_user_facing(
+                self,
+                rota: str,
+                payload: dict[str, object],
+            ) -> DecisaoAbuseControl:
+                client_key = self._client_key_user_facing()
+
+                if rota == "/api/v1/auth/register":
+                    return abuse_controls.avaliar_register(client_key)
+
+                if rota == "/api/v1/auth/login":
+                    email = payload.get("email")
+                    subject = email if isinstance(email, str) else None
+                    return abuse_controls.avaliar_login(
+                        client_key,
+                        subject=subject,
+                    )
+
+                return DecisaoAbuseControl(permitido=True)
+
+            def _responder_abuse_limit(
+                self,
+                decisao: DecisaoAbuseControl,
+            ) -> None:
+                erro = ErroHttpUserFacing(
+                    429,
+                    "limite_requisicoes_excedido",
+                    "Muitas tentativas. Tente novamente mais tarde.",
+                )
+                self._responder_json(
+                    429,
+                    erro.payload(),
+                    headers_adicionais={"Retry-After": str(decisao.retry_after_seconds)},
+                )
+
             def _metodo_nao_permitido(self) -> None:
                 self._responder_json(
                     405,
@@ -498,6 +555,8 @@ class ServidorApiAplicacao:
                 self,
                 status: int,
                 payload: object,
+                *,
+                headers_adicionais: dict[str, str] | None = None,
             ) -> None:
                 corpo = json.dumps(
                     payload,
@@ -518,6 +577,9 @@ class ServidorApiAplicacao:
                     "Cache-Control",
                     "no-store",
                 )
+                if headers_adicionais:
+                    for nome, valor in headers_adicionais.items():
+                        self.send_header(nome, valor)
                 self.end_headers()
                 self.wfile.write(corpo)
 
