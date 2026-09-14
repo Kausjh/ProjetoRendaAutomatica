@@ -963,3 +963,24 @@ Contrato: `contracts/public_app_mvp_architecture_v1.json`.
 
 Documentação: `docs/25-public-app-mvp-architecture.md`.
 <!-- fase2-public-app-mvp-architecture-v1:end -->
+
+<!-- fase2-public-app-mvp-bootstrap-v1:start -->
+### Fase 2 — Public App MVP: Bootstrap V1
+
+O primeiro código do app público Android vive em `apps/public-mobile/`.
+
+Bootstrap ativo:
+
+- React Native + Expo;
+- Expo Router;
+- TypeScript estrito;
+- TanStack Query;
+- Expo Secure Store.
+
+Nenhum segredo de infraestrutura é embutido no app. O próximo bloco implementa
+o API client e a abstração efetiva de transporte.
+
+Contrato: `contracts/public_app_mvp_bootstrap_v1.json`.
+
+Documentação: `docs/26-public-app-mvp-bootstrap-v1.md`.
+<!-- fase2-public-app-mvp-bootstrap-v1:end -->

@@ -1,0 +1,18 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.DS_Store
+
+# Android/local build artifacts
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
+
+# Segredos/configuração local do alpha
+.env
+.env.*
+!.env.example
+runtime.local.json

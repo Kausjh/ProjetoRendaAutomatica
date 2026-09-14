@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Renda Automática",
+    "slug": "renda-automatica-public",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "rendaautomatica",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "com.rendaautomatica.app"
+    }
+  }
+}

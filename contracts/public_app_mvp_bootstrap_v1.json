@@ -1,0 +1,37 @@
+{
+  "schema": "projeto-renda-automatica.public-app-mvp-bootstrap",
+  "bootstrap_version": 1,
+  "source_root": "apps/public-mobile",
+  "platform": "android",
+  "framework": "react-native",
+  "toolchain": "expo",
+  "language": "typescript",
+  "foundation": {
+    "expo_router": true,
+    "typescript_strict": true,
+    "tanstack_query": true,
+    "expo_secure_store": true,
+    "runtime_config_abstraction": true,
+    "api_client_implemented": false
+  },
+  "secrets": {
+    "infrastructure_token_hardcoded": false,
+    "infrastructure_token_committed": false,
+    "expo_public_secret_allowed": false,
+    "local_runtime_config": true
+  },
+  "validation": {
+    "npm_install": true,
+    "expo_install_check": true,
+    "typescript_no_emit": true,
+    "expo_public_config": true
+  },
+  "boundaries": {
+    "admin_port_8765_used": false,
+    "private_admin_app_in_repository": false,
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false
+  },
+  "next_step": "public-app-mvp-api-client-transport-v1"
+}

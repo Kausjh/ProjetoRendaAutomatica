@@ -98,6 +98,5 @@ def test_readme_e_stack_refletem_decisao():
 
     assert "<!-- fase2-public-app-mvp-architecture-v1:start -->" in readme
     assert "React Native + Expo + TypeScript" in readme
-    assert (
-        "| App público | Fase 2 — arquitetura MVP definida; " "implementação pendente |"
-    ) in stack
+
+    assert "| App público | Fase 2 —" in stack
