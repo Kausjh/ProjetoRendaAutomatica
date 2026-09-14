@@ -50,6 +50,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="alerts"
+              options={{
+                title: "Alertas",
+              }}
+            />
+            <Stack.Screen
               name="account"
               options={{
                 title: "Conta",

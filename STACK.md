@@ -589,7 +589,7 @@ O Social Scout utiliza conta autorizada apenas como listener passivo.
 | Canonical Catalog | Ativo |
 | Alert Engine | Ativo |
 | API pública | Ativa — V1 read-only |
-| App público | Fase 2 — Account/Preferences V1 ativo; alertas UI pendente |
+| App público | Fase 2 — MVP funcional completo em código; smoke Android pendente |
 
 ---
 

@@ -71,6 +71,14 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             style={styles.compactButton}
+            onPress={() => router.push("/alerts")}
+          >
+            <Text style={styles.compactButtonText}>Alertas</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            style={styles.compactButton}
             onPress={() => router.push("/account")}
           >
             <Text style={styles.compactButtonText}>Conta</Text>
@@ -238,6 +246,7 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   eyebrow: {

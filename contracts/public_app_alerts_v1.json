@@ -1,0 +1,44 @@
+{
+  "schema": "projeto-renda-automatica.public-app-alerts",
+  "alerts_ui_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "route": "/alerts",
+  "api": {
+    "list": "GET /api/v1/alertas",
+    "mode": "read-only-raw-json",
+    "requires_user_session": false,
+    "infrastructure_guard_still_applies": true
+  },
+  "features": {
+    "list_alerts": true,
+    "presentation_adapter": true,
+    "pull_to_refresh": true,
+    "loading_state": true,
+    "error_state": true,
+    "empty_state": true,
+    "product_navigation_when_canonical_key_exists": true,
+    "price_transition_when_available": true,
+    "timestamp_format_pt_br": true
+  },
+  "screen_access": {
+    "app_auth_guard": true,
+    "screen_requires_authenticated_snapshot": true
+  },
+  "semantics": {
+    "personalized_feed": false,
+    "push_delivery": false,
+    "device_registration": false,
+    "source": "Alert Engine read-only API"
+  },
+  "security": {
+    "transport_headers_managed_by_ui": false,
+    "credentials_rendered": false
+  },
+  "boundaries": {
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false
+  },
+  "next_step": "public-app-mvp-android-smoke-v1"
+}

@@ -1103,3 +1103,21 @@ Contrato: `contracts/public_app_account_preferences_v1.json`.
 
 Documentação: `docs/32-public-app-account-preferences-v1.md`.
 <!-- fase2-public-app-account-preferences-v1:end -->
+
+<!-- fase2-public-app-alerts-v1:start -->
+### Fase 2 — Public App MVP: Alerts V1
+
+O app público agora possui tela de alertas conectada ao Alert Engine read-only:
+
+- lista de alertas;
+- adapter de apresentação;
+- loading/erro/vazio;
+- pull-to-refresh;
+- navegação para produto quando existe chave canônica.
+
+Esta tela ainda não representa Personalized Feed nem Push Dispatcher.
+
+Contrato: `contracts/public_app_alerts_v1.json`.
+
+Documentação: `docs/33-public-app-alerts-v1.md`.
+<!-- fase2-public-app-alerts-v1:end -->
