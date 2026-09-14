@@ -39,8 +39,14 @@ export default function RootLayout() {
             <Stack.Screen
               name="home"
               options={{
-                title: "Início",
+                title: "Ofertas",
                 headerBackVisible: false,
+              }}
+            />
+            <Stack.Screen
+              name="product/[canonicalKey]"
+              options={{
+                title: "Produto",
               }}
             />
           </Stack>

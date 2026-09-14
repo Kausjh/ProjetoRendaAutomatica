@@ -1043,3 +1043,23 @@ Contrato: `contracts/public_app_auth_ui_v1.json`.
 
 Documentação: `docs/29-public-app-auth-ui-v1.md`.
 <!-- fase2-public-app-auth-ui-v1:end -->
+
+<!-- fase2-public-app-offers-v1:start -->
+### Fase 2 — Public App MVP: Offers V1
+
+O app público agora consome o catálogo read-only real:
+
+- lista de produtos;
+- detalhe por chave canônica;
+- histórico de preço;
+- retry;
+- pull-to-refresh;
+- estados de loading, erro e lista vazia.
+
+A UI passa por uma camada de apresentação em `src/offers/`, sem se acoplar
+diretamente ao JSON bruto do backend.
+
+Contrato: `contracts/public_app_offers_v1.json`.
+
+Documentação: `docs/30-public-app-offers-v1.md`.
+<!-- fase2-public-app-offers-v1:end -->

@@ -1,26 +1,27 @@
-import { Alert } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
 import { useAuthSession } from "@/src/auth";
-
-function accountEmail(
-  account: Readonly<Record<string, unknown>> | null,
-): string {
-  const email = account?.email;
-  return typeof email === "string" ? email : "Conta autenticada";
-}
+import {
+  ProductCard,
+  formatPrice,
+  useProductList,
+} from "@/src/offers";
 
 export default function HomeScreen() {
   const { logout, snapshot } = useAuthSession();
   const [loggingOut, setLoggingOut] = useState(false);
+  const products = useProductList(50, 0);
 
   if (snapshot.status === "restoring") {
     return (
@@ -52,116 +53,300 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>ÁREA AUTENTICADA</Text>
-      <Text style={styles.title}>Public App MVP</Text>
-      <Text style={styles.body}>
-        A autenticação está funcionando. O próximo bloco começa a
-        conectar as telas de ofertas e dados do produto.
-      </Text>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>OFERTAS</Text>
+          <Text style={styles.title}>Produtos monitorados</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Conta</Text>
-        <Text style={styles.cardValue}>
-          {accountEmail(snapshot.account)}
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.compactButton}
+          onPress={() => router.push("/connection")}
+        >
+          <Text style={styles.compactButtonText}>Conexão</Text>
+        </Pressable>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        style={styles.secondaryButton}
-        onPress={() => router.push("/connection")}
-      >
-        <Text style={styles.secondaryButtonText}>
-          Configuração da conexão
-        </Text>
-      </Pressable>
+      {products.isPending ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.body}>Carregando produtos...</Text>
+        </View>
+      ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        disabled={loggingOut}
-        style={[
-          styles.primaryButton,
-          loggingOut && styles.disabledButton,
-        ]}
-        onPress={() => {
-          void performLogout();
-        }}
-      >
-        <Text style={styles.primaryButtonText}>
-          {loggingOut ? "Saindo..." : "Sair"}
-        </Text>
-      </Pressable>
+      {products.isError ? (
+        <View style={styles.centerState}>
+          <Text style={styles.stateTitle}>
+            Não foi possível carregar os produtos
+          </Text>
+          <Text style={styles.body}>
+            {products.error instanceof Error
+              ? products.error.message
+              : "Falha desconhecida."}
+          </Text>
+
+          <Pressable
+            accessibilityRole="button"
+            style={styles.primaryButton}
+            onPress={() => {
+              void products.refetch();
+            }}
+          >
+            <Text style={styles.primaryButtonText}>
+              Tentar novamente
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {products.data ? (
+        <FlatList
+          data={[...products.data.items]}
+          keyExtractor={(item) => item.canonicalKey}
+          contentContainerStyle={[
+            styles.listContent,
+            products.data.items.length === 0 &&
+              styles.emptyListContent,
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={products.isRefetching}
+              onRefresh={() => {
+                void products.refetch();
+              }}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.centerState}>
+              <Text style={styles.stateTitle}>
+                Nenhum produto encontrado
+              </Text>
+              <Text style={styles.body}>
+                A API respondeu normalmente, mas não retornou produtos.
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <ProductCardView
+              item={item}
+              onPress={() =>
+                router.push({
+                  pathname: "/product/[canonicalKey]",
+                  params: {
+                    canonicalKey: item.canonicalKey,
+                  },
+                })
+              }
+            />
+          )}
+          ListFooterComponent={
+            <Pressable
+              accessibilityRole="button"
+              disabled={loggingOut}
+              style={[
+                styles.logoutButton,
+                loggingOut && styles.disabledButton,
+              ]}
+              onPress={() => {
+                void performLogout();
+              }}
+            >
+              <Text style={styles.logoutButtonText}>
+                {loggingOut ? "Saindo..." : "Sair da conta"}
+              </Text>
+            </Pressable>
+          }
+        />
+      ) : null}
     </View>
   );
 }
 
+function ProductCardView({
+  item,
+  onPress,
+}: Readonly<{
+  item: ProductCard;
+  onPress: () => void;
+}>) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={styles.card}
+      onPress={onPress}
+    >
+      <View style={styles.cardTopRow}>
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+
+        {item.discountPercent !== null ? (
+          <Text style={styles.discount}>
+            -{Math.round(item.discountPercent)}%
+          </Text>
+        ) : null}
+      </View>
+
+      <Text style={styles.price}>
+        {formatPrice(item.currentPrice)}
+      </Text>
+
+      {item.originalPrice !== null ? (
+        <Text style={styles.originalPrice}>
+          De {formatPrice(item.originalPrice)}
+        </Text>
+      ) : null}
+
+      <View style={styles.metaRow}>
+        <Text style={styles.meta}>
+          {item.marketplace ?? "Marketplace não informado"}
+        </Text>
+        <Text style={styles.openLabel}>Ver detalhes →</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  container: {
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerCopy: {
     flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    gap: 16,
+    gap: 4,
   },
   eyebrow: {
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1.5,
-    opacity: 0.6,
+    opacity: 0.55,
   },
   title: {
-    fontSize: 34,
+    fontSize: 27,
     fontWeight: "800",
   },
   body: {
-    fontSize: 16,
-    lineHeight: 24,
-    opacity: 0.75,
+    fontSize: 15,
+    lineHeight: 22,
+    opacity: 0.7,
+    textAlign: "center",
   },
-  card: {
+  compactButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    padding: 18,
-    gap: 6,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  cardLabel: {
-    fontSize: 12,
+  compactButtonText: {
+    fontSize: 13,
     fontWeight: "700",
-    opacity: 0.55,
-    textTransform: "uppercase",
   },
-  cardValue: {
-    fontSize: 17,
-    fontWeight: "700",
+  centerState: {
+    flex: 1,
+    minHeight: 250,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    padding: 24,
+  },
+  stateTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    textAlign: "center",
   },
   primaryButton: {
-    minHeight: 52,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 14,
     backgroundColor: "#111111",
+    paddingHorizontal: 18,
   },
-  secondaryButton: {
-    minHeight: 52,
+  primaryButtonText: {
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  listContent: {
+    padding: 16,
+    gap: 12,
+    paddingBottom: 32,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+  },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: 16,
+    gap: 8,
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  cardTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "700",
+  },
+  discount: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  price: {
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  originalPrice: {
+    fontSize: 13,
+    textDecorationLine: "line-through",
+    opacity: 0.5,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 4,
+  },
+  meta: {
+    flex: 1,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  openLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  logoutButton: {
+    minHeight: 50,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 12,
+  },
+  logoutButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

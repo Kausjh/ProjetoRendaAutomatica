@@ -1,0 +1,39 @@
+{
+  "schema": "projeto-renda-automatica.public-app-offers",
+  "offers_ui_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "routes": {
+    "list": "/home",
+    "detail": "/product/[canonicalKey]"
+  },
+  "data_sources": {
+    "list": "GET /api/v1/produtos",
+    "detail": "GET /api/v1/produtos/{canonical_key}",
+    "history": "GET /api/v1/produtos/{canonical_key}/historico"
+  },
+  "presentation": {
+    "adapter_tolerates_optional_fields": true,
+    "raw_backend_payload_bound_directly_to_ui": false,
+    "price_locale": "pt-BR",
+    "currency": "BRL",
+    "pull_to_refresh": true,
+    "loading_state": true,
+    "error_state": true,
+    "empty_state": true
+  },
+  "authentication": {
+    "list_screen_requires_authenticated_snapshot": true,
+    "detail_screen_requires_authenticated_snapshot": true,
+    "backend_read_only_routes_require_user_session": false
+  },
+  "boundaries": {
+    "external_product_link_opening": false,
+    "watchlist_ui": false,
+    "preferences_ui": false,
+    "alerts_ui": false,
+    "device_registration": false,
+    "push_delivery": false
+  },
+  "next_step": "public-app-mvp-watchlist-v1"
+}
