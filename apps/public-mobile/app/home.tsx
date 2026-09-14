@@ -71,9 +71,9 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             style={styles.compactButton}
-            onPress={() => router.push("/connection")}
+            onPress={() => router.push("/account")}
           >
-            <Text style={styles.compactButtonText}>Conexão</Text>
+            <Text style={styles.compactButtonText}>Conta</Text>
           </Pressable>
         </View>
       </View>

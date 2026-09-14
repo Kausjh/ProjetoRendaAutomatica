@@ -50,6 +50,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="account"
+              options={{
+                title: "Conta",
+              }}
+            />
+            <Stack.Screen
               name="product/[canonicalKey]"
               options={{
                 title: "Produto",

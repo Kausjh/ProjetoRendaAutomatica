@@ -1,0 +1,40 @@
+{
+  "schema": "projeto-renda-automatica.public-app-account-preferences",
+  "account_preferences_ui_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "route": "/account",
+  "api": {
+    "account_refresh": "GET /api/v1/me",
+    "preferences_get": "GET /api/v1/me/preferences",
+    "preferences_patch": "PATCH /api/v1/me/preferences",
+    "requires_user_session": true
+  },
+  "account": {
+    "uses_authenticated_snapshot": true,
+    "manual_refresh": true,
+    "email_visible_when_available": true,
+    "account_identifier_visible_when_available": true,
+    "session_token_visible": false
+  },
+  "preferences": {
+    "price_notifications_toggle": true,
+    "preferred_marketplaces_input": "comma-separated",
+    "preferred_marketplaces_normalized": true,
+    "preferred_marketplaces_deduplicated": true,
+    "empty_marketplaces_means_unrestricted": true,
+    "cache_invalidated_after_patch": true
+  },
+  "security": {
+    "account_id_sent_by_client": false,
+    "transport_headers_managed_by_ui": false,
+    "credentials_rendered": false
+  },
+  "boundaries": {
+    "alerts_ui": false,
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false
+  },
+  "next_step": "public-app-mvp-alerts-v1"
+}

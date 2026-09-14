@@ -1083,3 +1083,23 @@ Contrato: `contracts/public_app_watchlist_v1.json`.
 
 Documentação: `docs/31-public-app-watchlist-v1.md`.
 <!-- fase2-public-app-watchlist-v1:end -->
+
+<!-- fase2-public-app-account-preferences-v1:start -->
+### Fase 2 — Public App MVP: Account / Preferences V1
+
+O app público agora possui uma tela de conta com:
+
+- dados da conta autenticada;
+- refresh de `/me`;
+- notificações de preço;
+- marketplaces preferidos;
+- configuração local da conexão;
+- logout.
+
+As preferências usam `GET/PATCH /me/preferences` e o cache é invalidado após
+salvar.
+
+Contrato: `contracts/public_app_account_preferences_v1.json`.
+
+Documentação: `docs/32-public-app-account-preferences-v1.md`.
+<!-- fase2-public-app-account-preferences-v1:end -->
