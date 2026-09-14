@@ -1,0 +1,63 @@
+{
+  "schema": "projeto-renda-automatica.public-app-api-client-transport",
+  "client_transport_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "source_root": "apps/public-mobile/src/api",
+  "transport": {
+    "implementation": "fetch",
+    "timeout": "AbortController",
+    "runtime_config_source": "expo-secure-store",
+    "ui_knows_transport_details": false,
+    "api_base_url_requires_suffix": "/api/v1",
+    "admin_port_8765_allowed": false
+  },
+  "authentication": {
+    "infrastructure_header": "Authorization",
+    "infrastructure_scheme": "Bearer",
+    "user_session_header": "X-User-Session",
+    "user_session_only_when_required": true,
+    "credentials_logged": false
+  },
+  "response_modes": {
+    "read_only_data_routes": "raw-json",
+    "user_facing_routes": "user-facing-envelope"
+  },
+  "errors": {
+    "http_status_preserved": true,
+    "user_facing_error_code_preserved": true,
+    "retry_after_preserved": true,
+    "timeout_mapped": true,
+    "network_failure_mapped": true
+  },
+  "routes": {
+    "read_only": [
+      "GET /health",
+      "GET /produtos",
+      "GET /produtos/{canonical_key}",
+      "GET /produtos/{canonical_key}/historico",
+      "GET /alertas"
+    ],
+    "auth": [
+      "POST /auth/register",
+      "POST /auth/login",
+      "POST /auth/logout"
+    ],
+    "authenticated": [
+      "GET /me",
+      "GET /me/preferences",
+      "PATCH /me/preferences",
+      "GET /me/watchlist",
+      "PUT /me/watchlist/{canonical_key}",
+      "DELETE /me/watchlist/{canonical_key}"
+    ]
+  },
+  "boundaries": {
+    "ui_changes": false,
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false,
+    "private_admin_app": false
+  },
+  "next_step": "public-app-mvp-auth-session-v1"
+}

@@ -984,3 +984,23 @@ Contrato: `contracts/public_app_mvp_bootstrap_v1.json`.
 
 Documentação: `docs/26-public-app-mvp-bootstrap-v1.md`.
 <!-- fase2-public-app-mvp-bootstrap-v1:end -->
+
+<!-- fase2-public-app-api-client-transport-v1:start -->
+### Fase 2 — Public App MVP: API Client / Transport V1
+
+O app público possui uma camada HTTP própria em `apps/public-mobile/src/api/`.
+
+A camada separa:
+
+- Bearer de infraestrutura;
+- sessão `X-User-Session`;
+- respostas read-only em JSON bruto;
+- envelopes da User-Facing API;
+- timeout, falha de rede e `Retry-After`.
+
+A UI não conhece Tailscale, IP, porta ou headers de autenticação.
+
+Contrato: `contracts/public_app_api_client_transport_v1.json`.
+
+Documentação: `docs/27-public-app-api-client-transport-v1.md`.
+<!-- fase2-public-app-api-client-transport-v1:end -->
