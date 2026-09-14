@@ -308,7 +308,7 @@ def test_runtime_injeta_personalizacao_no_mesmo_banco():
     assert ("user_personalization_service=" "user_personalization_service") in source
 
 
-def test_watchlist_ainda_nao_foi_aberta():
+def test_watchlist_foi_aberta_pelo_bloco_posterior():
     source = (ROOT / "services" / "api_aplicacao" / "servidor.py").read_text(encoding="utf-8")
 
-    assert "/api/v1/me/watchlist" not in source
+    assert "/api/v1/me/watchlist" in source

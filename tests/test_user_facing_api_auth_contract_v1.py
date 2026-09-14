@@ -114,7 +114,7 @@ def test_documentacao_declara_headers_e_fronteiras():
     assert "Rotas sob `/me` nunca aceitam `conta_id`" in text
 
 
-def test_contrato_auth_e_compativel_com_preferences_posteriores():
+def test_contrato_auth_e_compativel_com_watchlist_posterior():
     source = SERVER.read_text(encoding="utf-8")
 
     implementadas = (
@@ -123,8 +123,7 @@ def test_contrato_auth_e_compativel_com_preferences_posteriores():
         "/api/v1/auth/logout",
         'rota == "/api/v1/me"',
         "/api/v1/me/preferences",
+        "/api/v1/me/watchlist",
     )
-    ainda_futuras = ("/api/v1/me/watchlist",)
 
     assert all(route in source for route in implementadas)
-    assert all(route not in source for route in ainda_futuras)

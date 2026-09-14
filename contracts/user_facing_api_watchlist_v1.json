@@ -1,0 +1,42 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-watchlist",
+  "watchlist_http_version": 1,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/me/watchlist",
+      "requires_user_session": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/me/watchlist/{canonical_key}",
+      "requires_user_session": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/me/watchlist/{canonical_key}",
+      "requires_user_session": true
+    }
+  ],
+  "put_semantics": {
+    "upsert": true,
+    "preco_alvo_default": null,
+    "notificar_queda_preco_default": true,
+    "body_cannot_override_account_id": true,
+    "body_cannot_override_canonical_key": true
+  },
+  "delete_semantics": {
+    "missing_item_status": 404,
+    "cross_user_item_isolated": true
+  },
+  "serialization": {
+    "preco_alvo": "decimal-string-or-null",
+    "conta_id_exposed": false,
+    "internal_watchlist_id_exposed": false
+  },
+  "security": {
+    "identity_source": "X-User-Session",
+    "infrastructure_access_policy_preserved": true
+  },
+  "next_step": "user-facing-api-abuse-controls-v1"
+}

@@ -244,8 +244,8 @@ def test_me_preserva_bearer_de_infraestrutura(
         servidor.encerrar()
 
 
-def test_preferences_abertas_e_watchlist_ainda_fechada():
+def test_preferences_e_watchlist_estao_abertas():
     source = (ROOT / "services" / "api_aplicacao" / "servidor.py").read_text(encoding="utf-8")
 
     assert "/api/v1/me/preferences" in source
-    assert "/api/v1/me/watchlist" not in source
+    assert "/api/v1/me/watchlist" in source

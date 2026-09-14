@@ -911,3 +911,22 @@ Contrato: `contracts/user_facing_api_preferences_v1.json`.
 
 Documentação: `docs/22-user-facing-api-preferences-v1.md`.
 <!-- fase2-user-facing-preferences-v1:end -->
+
+<!-- fase2-user-facing-watchlist-v1:start -->
+### Fase 2 — User-Facing API V1: Watchlist HTTP
+
+A watchlist autenticada está disponível em:
+
+- `GET /api/v1/me/watchlist`;
+- `PUT /api/v1/me/watchlist/{canonical_key}`;
+- `DELETE /api/v1/me/watchlist/{canonical_key}`.
+
+A identidade vem somente de `X-User-Session`. `conta_id`, `canonical_key` no
+body e ids internos não são aceitos como override.
+
+`preco_alvo` é retornado como string decimal ou `null`.
+
+Contrato: `contracts/user_facing_api_watchlist_v1.json`.
+
+Documentação: `docs/23-user-facing-api-watchlist-v1.md`.
+<!-- fase2-user-facing-watchlist-v1:end -->

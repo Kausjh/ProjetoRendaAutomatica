@@ -20,6 +20,9 @@ from services.api_aplicacao.user_facing_http import (
 from services.api_aplicacao.user_facing_preferences import (
     UserFacingPreferencesController,
 )
+from services.api_aplicacao.user_facing_watchlist import (
+    UserFacingWatchlistController,
+)
 
 if TYPE_CHECKING:
     from models.user_identity import ContaUsuario
@@ -60,6 +63,9 @@ class ServidorApiAplicacao:
             user_identity_service,
         )
         self.user_facing_preferences = UserFacingPreferencesController(
+            user_personalization_service,
+        )
+        self.user_facing_watchlist = UserFacingWatchlistController(
             user_personalization_service,
         )
 
@@ -119,6 +125,7 @@ class ServidorApiAplicacao:
         user_facing_http = self.user_facing_http
         user_facing_auth = self.user_facing_auth
         user_facing_preferences = self.user_facing_preferences
+        user_facing_watchlist = self.user_facing_watchlist
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -137,6 +144,7 @@ class ServidorApiAplicacao:
                     if rota in {
                         "/api/v1/me",
                         "/api/v1/me/preferences",
+                        "/api/v1/me/watchlist",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -150,6 +158,23 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/watchlist":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_watchlist.listar(conta)
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/preferences":
@@ -299,7 +324,46 @@ class ServidorApiAplicacao:
                 )
 
             def do_PUT(self) -> None:
-                self._metodo_nao_permitido()
+                url = urlparse(self.path)
+                rota = url.path.rstrip("/") or "/"
+                partes = [unquote(parte) for parte in rota.split("/") if parte]
+
+                if not (len(partes) == 5 and partes[:4] == ["api", "v1", "me", "watchlist"]):
+                    self._metodo_nao_permitido()
+                    return
+
+                if token_api and not self._autorizado(token_api):
+                    self._responder_erro_user_facing(
+                        ErroHttpUserFacing(
+                            401,
+                            "infraestrutura_nao_autorizada",
+                            "Nao autorizado.",
+                        )
+                    )
+                    return
+
+                conta = self._resolver_usuario_user_facing()
+                if conta is None:
+                    return
+
+                payload = self._ler_json_user_facing()
+                if payload is None:
+                    return
+
+                try:
+                    status, dados = user_facing_watchlist.salvar(
+                        conta,
+                        partes[4],
+                        payload,
+                    )
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return
+
+                self._responder_json(
+                    status,
+                    user_facing_http.sucesso(dados),
+                )
 
             def do_PATCH(self) -> None:
                 url = urlparse(self.path)
@@ -342,7 +406,41 @@ class ServidorApiAplicacao:
                 )
 
             def do_DELETE(self) -> None:
-                self._metodo_nao_permitido()
+                url = urlparse(self.path)
+                rota = url.path.rstrip("/") or "/"
+                partes = [unquote(parte) for parte in rota.split("/") if parte]
+
+                if not (len(partes) == 5 and partes[:4] == ["api", "v1", "me", "watchlist"]):
+                    self._metodo_nao_permitido()
+                    return
+
+                if token_api and not self._autorizado(token_api):
+                    self._responder_erro_user_facing(
+                        ErroHttpUserFacing(
+                            401,
+                            "infraestrutura_nao_autorizada",
+                            "Nao autorizado.",
+                        )
+                    )
+                    return
+
+                conta = self._resolver_usuario_user_facing()
+                if conta is None:
+                    return
+
+                try:
+                    status, dados = user_facing_watchlist.remover(
+                        conta,
+                        partes[4],
+                    )
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return
+
+                self._responder_json(
+                    status,
+                    user_facing_http.sucesso(dados),
+                )
 
             def _metodo_nao_permitido(self) -> None:
                 self._responder_json(

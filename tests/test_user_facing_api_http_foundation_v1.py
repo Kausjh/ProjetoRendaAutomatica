@@ -290,7 +290,7 @@ def test_servidor_expoe_foundation_sem_mudar_construtor_basico():
     )
 
 
-def test_http_foundation_e_compativel_com_preferences_posteriores():
+def test_http_foundation_e_compativel_com_watchlist_posterior():
     source = SERVER.read_text(encoding="utf-8")
 
     implementadas = (
@@ -299,8 +299,7 @@ def test_http_foundation_e_compativel_com_preferences_posteriores():
         "/api/v1/auth/logout",
         'rota == "/api/v1/me"',
         "/api/v1/me/preferences",
+        "/api/v1/me/watchlist",
     )
-    ainda_futuras = ("/api/v1/me/watchlist",)
 
     assert all(route in source for route in implementadas)
-    assert all(route not in source for route in ainda_futuras)
