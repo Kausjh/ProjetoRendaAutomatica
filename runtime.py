@@ -17,6 +17,9 @@ import os
 
 from config.logging_config import configurar_logging
 from repositories.user_identity_repository import UserIdentityRepository
+from repositories.user_personalization_repository import (
+    UserPersonalizationRepository,
+)
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
@@ -28,6 +31,7 @@ from services.runtime.orquestrador import (
     TravaRuntime,
 )
 from services.user_identity_service import UserIdentityService
+from services.user_personalization_service import UserPersonalizationService
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +76,21 @@ def main() -> int:
     user_identity_service = UserIdentityService(
         user_identity_repository,
     )
+    user_personalization_repository = UserPersonalizationRepository(
+        os.path.join(
+            DIRETORIO_PROJETO,
+            "database",
+            "user_identity.sqlite3",
+        )
+    )
+    user_personalization_service = UserPersonalizationService(
+        user_personalization_repository,
+        user_identity_repository,
+    )
     servidor_api = ServidorApiAplicacao(
         controlador=controlador_api,
         user_identity_service=user_identity_service,
+        user_personalization_service=user_personalization_service,
     )
 
     try:

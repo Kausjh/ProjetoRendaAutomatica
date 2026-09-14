@@ -890,3 +890,24 @@ Contrato: `contracts/user_facing_api_logout_me_v1.json`.
 
 Documentação: `docs/21-user-facing-api-logout-me-v1.md`.
 <!-- fase2-user-facing-logout-me-v1:end -->
+
+<!-- fase2-user-facing-preferences-v1:start -->
+### Fase 2 — User-Facing API V1: Preferences HTTP
+
+Preferências autenticadas estão disponíveis em:
+
+- `GET /api/v1/me/preferences`;
+- `PATCH /api/v1/me/preferences`.
+
+O PATCH é parcial: campos omitidos preservam o valor atual. A conta é derivada
+somente de `X-User-Session`, e `conta_id` enviado pelo cliente não é aceito.
+
+O runtime injeta `UserPersonalizationService` usando o mesmo
+`database/user_identity.sqlite3` da identidade.
+
+A watchlist continua fora da API HTTP neste subbloco.
+
+Contrato: `contracts/user_facing_api_preferences_v1.json`.
+
+Documentação: `docs/22-user-facing-api-preferences-v1.md`.
+<!-- fase2-user-facing-preferences-v1:end -->

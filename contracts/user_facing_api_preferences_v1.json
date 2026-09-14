@@ -1,0 +1,67 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-preferences",
+  "preferences_http_version": 1,
+  "stage": "user-facing-personalization-http",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/me/preferences",
+      "requires_user_session": true,
+      "success_status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/me/preferences",
+      "requires_user_session": true,
+      "success_status": 200
+    }
+  ],
+  "fields": {
+    "notificacoes_preco_habilitadas": {
+      "type": "boolean",
+      "default": true
+    },
+    "marketplaces_preferidos": {
+      "type": "array[string]",
+      "default": [],
+      "normalized_server_side": true,
+      "deduplicated_server_side": true,
+      "max_items": 20
+    },
+    "atualizado_em": {
+      "read_only": true
+    }
+  },
+  "patch_semantics": {
+    "partial": true,
+    "omitted_fields_preserve_current_values": true,
+    "empty_payload_status": 400,
+    "unknown_fields_status": 400,
+    "client_account_id_accepted": false
+  },
+  "identity": {
+    "source": "X-User-Session",
+    "account_resolved_server_side": true,
+    "cross_account_selection_from_payload_or_query": false
+  },
+  "runtime": {
+    "database": "database/user_identity.sqlite3",
+    "repository": "UserPersonalizationRepository",
+    "service": "UserPersonalizationService",
+    "shares_identity_database": true,
+    "identity_repository_reused_for_account_validation": true
+  },
+  "security": {
+    "infrastructure_access_policy_preserved": true,
+    "missing_or_invalid_user_session_status": 401,
+    "infrastructure_failure_status": 401
+  },
+  "boundaries": {
+    "watchlist_http_implemented": false,
+    "device_registration_implemented": false,
+    "push_delivery_implemented": false,
+    "existing_read_only_data_routes_unchanged": true,
+    "admin_control_plane_unchanged": true
+  },
+  "next_step": "watchlist-http-v1"
+}

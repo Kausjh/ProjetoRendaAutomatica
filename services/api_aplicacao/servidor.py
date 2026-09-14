@@ -17,10 +17,16 @@ from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
     UserFacingHttpFoundation,
 )
+from services.api_aplicacao.user_facing_preferences import (
+    UserFacingPreferencesController,
+)
 
 if TYPE_CHECKING:
     from models.user_identity import ContaUsuario
     from services.user_identity_service import UserIdentityService
+    from services.user_personalization_service import (
+        UserPersonalizationService,
+    )
 
 
 class ServidorApiAplicacao:
@@ -32,6 +38,7 @@ class ServidorApiAplicacao:
         porta: int | None = None,
         token: str | None = None,
         user_identity_service: UserIdentityService | None = None,
+        user_personalization_service: UserPersonalizationService | None = None,
     ) -> None:
         load_dotenv()
 
@@ -51,6 +58,9 @@ class ServidorApiAplicacao:
         )
         self.user_facing_auth = UserFacingAuthController(
             user_identity_service,
+        )
+        self.user_facing_preferences = UserFacingPreferencesController(
+            user_personalization_service,
         )
 
         if not self._host_loopback(self.host) and not self.token:
@@ -108,6 +118,7 @@ class ServidorApiAplicacao:
         token_api = self.token
         user_facing_http = self.user_facing_http
         user_facing_auth = self.user_facing_auth
+        user_facing_preferences = self.user_facing_preferences
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -123,7 +134,10 @@ class ServidorApiAplicacao:
                     return
 
                 if token_api and not self._autorizado(token_api):
-                    if rota == "/api/v1/me":
+                    if rota in {
+                        "/api/v1/me",
+                        "/api/v1/me/preferences",
+                    }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
                                 401,
@@ -136,6 +150,23 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/preferences":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_preferences.obter(conta)
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me":
@@ -271,7 +302,44 @@ class ServidorApiAplicacao:
                 self._metodo_nao_permitido()
 
             def do_PATCH(self) -> None:
-                self._metodo_nao_permitido()
+                url = urlparse(self.path)
+                rota = url.path.rstrip("/") or "/"
+
+                if rota != "/api/v1/me/preferences":
+                    self._metodo_nao_permitido()
+                    return
+
+                if token_api and not self._autorizado(token_api):
+                    self._responder_erro_user_facing(
+                        ErroHttpUserFacing(
+                            401,
+                            "infraestrutura_nao_autorizada",
+                            "Nao autorizado.",
+                        )
+                    )
+                    return
+
+                conta = self._resolver_usuario_user_facing()
+                if conta is None:
+                    return
+
+                payload = self._ler_json_user_facing()
+                if payload is None:
+                    return
+
+                try:
+                    status, dados = user_facing_preferences.atualizar(
+                        conta,
+                        payload,
+                    )
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return
+
+                self._responder_json(
+                    status,
+                    user_facing_http.sucesso(dados),
+                )
 
             def do_DELETE(self) -> None:
                 self._metodo_nao_permitido()
