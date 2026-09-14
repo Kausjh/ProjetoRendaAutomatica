@@ -7,6 +7,7 @@ import {
   AuthSessionBootstrap,
   AuthSessionProvider,
 } from "@/src/auth";
+import { DeviceRegistrationBootstrap } from "@/src/device";
 import { AppBottomNav, appTheme } from "@/src/ui";
 
 export default function RootLayout() {
@@ -16,7 +17,8 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthSessionProvider>
         <AuthSessionBootstrap>
-          <Stack
+          <DeviceRegistrationBootstrap>
+            <Stack
             screenOptions={{
               headerTitleAlign: "center",
               headerStyle: {
@@ -82,8 +84,9 @@ export default function RootLayout() {
             />
           </Stack>
 
-          <AppBottomNav />
-          <StatusBar style="light" />
+            <AppBottomNav />
+            <StatusBar style="light" />
+          </DeviceRegistrationBootstrap>
         </AuthSessionBootstrap>
       </AuthSessionProvider>
     </QueryClientProvider>

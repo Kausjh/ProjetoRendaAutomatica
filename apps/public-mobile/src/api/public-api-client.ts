@@ -22,6 +22,11 @@ export type WatchlistPutInput = Readonly<{
   notificar_queda_preco?: boolean;
 }>;
 
+export type DeviceRegistrationPutInput = Readonly<{
+  plataforma: "android" | "ios";
+  push_token: string;
+}>;
+
 export class PublicApiClient {
   constructor(private readonly transport: HttpApiTransport) {}
 
@@ -152,6 +157,36 @@ export class PublicApiClient {
     return this.transport.request<T>({
       method: "DELETE",
       path: `/me/watchlist/${encodeURIComponent(canonicalKey)}`,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  listDevices<T = unknown>(): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/devices",
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  putDevice<T = unknown>(
+    installationId: string,
+    input: DeviceRegistrationPutInput,
+  ): Promise<T> {
+    return this.transport.request<T>({
+      method: "PUT",
+      path: `/me/devices/${encodeURIComponent(installationId)}`,
+      body: input,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  deleteDevice<T = unknown>(installationId: string): Promise<T> {
+    return this.transport.request<T>({
+      method: "DELETE",
+      path: `/me/devices/${encodeURIComponent(installationId)}`,
       requiresUserSession: true,
       responseMode: "user-facing-envelope",
     });

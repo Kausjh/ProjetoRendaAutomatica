@@ -13,6 +13,7 @@ import {
   RegisterInput,
 } from "@/src/api/public-api-client";
 import { createPublicApiClient } from "@/src/api/create-public-api-client";
+import { revokeCurrentDeviceRegistration } from "@/src/device/device-registration-service";
 import {
   AuthSessionSnapshot,
   LoginResult,
@@ -141,6 +142,12 @@ export function AuthSessionProvider({
     let serverError: unknown = null;
 
     try {
+      try {
+        await revokeCurrentDeviceRegistration();
+      } catch {
+        // Logout local nunca fica bloqueado por falha de revogacao do device.
+      }
+
       await api.logout();
     } catch (error) {
       serverError = error;
