@@ -14,37 +14,64 @@ O projeto começou como uma automação de links de afiliado e evoluiu para um m
 
 ## Estado atual
 
-O projeto está em desenvolvimento ativo.
+O Projeto Renda Automática está em desenvolvimento ativo e já funciona como
+uma plataforma modular de descoberta, validação, inteligência de preços,
+monetização, alertas e aplicações cliente.
 
-### Social Scout
+### Operação e descoberta
 
-- pipeline habilitado;
-- processador atual: **V10**;
-- **Shadow Mode** habilitado;
-- listener Telegram passivo e autorizado;
-- processamento persistente;
-- fingerprints, cooldowns e TTL de retry;
-- resolução específica por marketplace;
-- validação de identidade e preço;
-- allowlist de nicho;
-- proteções fail-closed;
-- observabilidade sem depender de payloads privados.
+- runtime principal automatizado;
+- supervisor, watchdog e mecanismos de auto-recovery;
+- Social Scout ativo;
+- Partner Scout ativo;
+- coleta própria em múltiplos marketplaces;
+- resolução e validação específica por marketplace;
+- persistência, retries, cooldowns e deduplicação;
+- controles fail-closed para identidade, preço e publicação.
 
-O Shadow Mode permite executar o fluxo real sem liberar automaticamente todas as decisões do Social Scout para publicação. A saída desse modo depende de evidência operacional suficiente.
+### Inteligência e produto
+
+| Componente | Estado |
+| --- | --- |
+| Pipeline de curadoria | Ativo |
+| Canonical Catalog | Ativo |
+| Price Intelligence | Ativo |
+| Alert Engine | Ativo |
+| Alertas personalizados | Ativos |
+| Notification Outbox | Implementada |
+| Monetização / afiliados | Ativa |
+| Application API V1 | Ativa |
+| Contas e sessões | Ativas |
+| Preferências de usuário | Ativas |
+| Watchlist | Ativa |
+
+### Public App
+
+O Public App Android está em MVP funcional.
+
+Já existem fluxos de:
+
+- conexão com a Application API;
+- registro e login;
+- sessão autenticada;
+- listagem de produtos;
+- detalhe de produto;
+- histórico de preços;
+- watchlist;
+- alertas;
+- conta;
+- preferências.
+
+O MVP já foi validado em dispositivo Android real, incluindo acesso à
+Application API pelo transporte privado via Tailscale.
 
 ### Qualidade
 
-Na validação final da V10, a suíte chegou a **562 testes aprovados**.
+O projeto mantém suíte automatizada de testes e validações com Pytest, Black,
+Ruff, pre-commit, `git diff --check`, contratos versionados e testes dirigidos
+por componente.
 
-Ferramentas de qualidade:
-
-- Pytest
-- Black
-- Ruff
-- pre-commit
-- `git diff --check`
-
----
+Contagens exatas de testes não são fixadas aqui porque evoluem com o projeto.
 
 ## Visão geral
 
@@ -543,84 +570,67 @@ A documentação deve evoluir junto com o código.
 
 ---
 
-## Roadmap
+## Plataforma atual e próximos passos
 
-A direção de longo prazo é transformar o motor atual em uma plataforma própria de inteligência de compras.
+A direção de longo prazo continua sendo transformar o motor de ofertas em uma
+plataforma própria de inteligência de compras.
+
+Hoje, a cadeia principal pode ser representada como:
 
 ```text
-Social Scout + Scrapers
-          |
-          v
-   Canonical Catalog
-          |
-          v
-   Price Intelligence
-          |
-          v
-     Alert Engine
-          |
-          v
-         API
-          |
-          v
-   App / Web / Extensão
+Social Scout + Partner Scout + Scrapers
+                  |
+                  v
+           Canonical Catalog
+                  |
+                  v
+          Price Intelligence
+                  |
+                  v
+            Alert Engine
+                  |
+                  v
+        Application API V1
+                  |
+                  v
+          Public App Android
 ```
 
 ### Canonical Catalog
 
-A meta é criar uma identidade própria para cada produto, independente do marketplace.
-
-```text
-AMD Ryzen 7 5700X
-|
-+-- Mercado Livre
-+-- Shopee
-+-- KaBuM!
-+-- AliExpress
-+-- Amazon
-```
-
-O anúncio deixa de ser a identidade principal. O produto passa a ser.
+O Canonical Catalog está ativo e cria uma identidade própria para cada produto,
+independente do marketplace e do anúncio específico.
 
 ### Price Intelligence
 
-Evoluções planejadas:
-
-- histórico consolidado;
-- comparação entre marketplaces;
-- referência de preço normal;
-- detecção de quedas relevantes;
-- preço final;
-- análise de oportunidade real.
+A Price Intelligence está ativa e opera sobre o catálogo canônico. Ela mantém
+preços atuais, histórico consolidado, comparação entre marketplaces, melhor
+preço conhecido, referência histórica, variações e métricas por produto.
 
 ### Alert Engine
 
-Exemplos de regras futuras:
-
-```text
-"Avise quando uma RTX atingir determinado preço."
-```
-
-```text
-"Avise quando este produto estiver abaixo da média histórica."
-```
+O Alert Engine está ativo e acompanha mudanças de preço associadas aos produtos
+canônicos. Sobre essa base também existem matching personalizado de alertas e
+Notification Outbox persistente.
 
 ### Plataforma pública
 
-Etapas futuras podem incluir:
+A plataforma pública já possui Application API V1, contas, autenticação,
+sessões, preferências, watchlists, alertas e Public App Android.
 
-- API própria;
-- contas de usuários;
-- preferências;
-- watchlists;
-- notificações push;
+O MVP Android já passou por smoke test em dispositivo real.
+
+### Próximos passos
+
+Continuam como evolução futura:
+
+- entrega real de notificações push;
+- registro de dispositivos para push;
 - feed personalizado;
-- app;
-- interface web;
+- refinamento da experiência do Public App;
+- interface web pública;
 - extensão de navegador;
-- ferramentas para criadores e parceiros.
-
----
+- ferramentas adicionais para criadores e parceiros.
 
 ## Princípios do projeto
 
@@ -782,7 +792,7 @@ Documentação: `docs/16-notification-outbox.md`.
 <!-- bloco30-personalized-notification-outbox-v1:end -->
 
 <!-- fase2-roadmap:start -->
-## Roadmap — Fase 2
+## Histórico de implementação — Fase 2
 
 A Fase 1 foi concluída com 30/30 blocos.
 
