@@ -1063,3 +1063,23 @@ Contrato: `contracts/public_app_offers_v1.json`.
 
 Documentação: `docs/30-public-app-offers-v1.md`.
 <!-- fase2-public-app-offers-v1:end -->
+
+<!-- fase2-public-app-watchlist-v1:start -->
+### Fase 2 — Public App MVP: Watchlist V1
+
+O app público agora permite acompanhar produtos pela watchlist pessoal:
+
+- listar itens;
+- adicionar;
+- atualizar;
+- remover;
+- definir preço-alvo opcional;
+- habilitar/desabilitar acompanhamento de queda de preço.
+
+As mutações invalidam o cache da watchlist para refletir o estado persistido
+pelo backend.
+
+Contrato: `contracts/public_app_watchlist_v1.json`.
+
+Documentação: `docs/31-public-app-watchlist-v1.md`.
+<!-- fase2-public-app-watchlist-v1:end -->

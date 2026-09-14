@@ -1,0 +1,44 @@
+{
+  "schema": "projeto-renda-automatica.public-app-watchlist",
+  "watchlist_ui_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "routes": {
+    "watchlist": "/watchlist",
+    "product_editor": "/product/[canonicalKey]"
+  },
+  "api": {
+    "list": "GET /api/v1/me/watchlist",
+    "upsert": "PUT /api/v1/me/watchlist/{canonical_key}",
+    "delete": "DELETE /api/v1/me/watchlist/{canonical_key}",
+    "requires_user_session": true
+  },
+  "features": {
+    "list_saved_items": true,
+    "add_item": true,
+    "update_item": true,
+    "remove_item": true,
+    "optional_target_price": true,
+    "price_drop_toggle": true,
+    "pull_to_refresh": true,
+    "query_cache_invalidated_after_mutation": true,
+    "presentation_adapter": true
+  },
+  "validation": {
+    "empty_target_price_means_null": true,
+    "positive_numeric_target_price_required_when_present": true
+  },
+  "security": {
+    "account_id_from_client": false,
+    "session_header_managed_by_transport": true,
+    "credentials_rendered": false
+  },
+  "boundaries": {
+    "preferences_ui": false,
+    "alerts_ui": false,
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false
+  },
+  "next_step": "public-app-mvp-account-preferences-v1"
+}

@@ -59,13 +59,23 @@ export default function HomeScreen() {
           <Text style={styles.title}>Produtos monitorados</Text>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          style={styles.compactButton}
-          onPress={() => router.push("/connection")}
-        >
-          <Text style={styles.compactButtonText}>Conexão</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.compactButton}
+            onPress={() => router.push("/watchlist")}
+          >
+            <Text style={styles.compactButtonText}>Watchlist</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            style={styles.compactButton}
+            onPress={() => router.push("/connection")}
+          >
+            <Text style={styles.compactButtonText}>Conexão</Text>
+          </Pressable>
+        </View>
       </View>
 
       {products.isPending ? (
@@ -221,14 +231,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     gap: 12,
   },
   headerCopy: {
-    flex: 1,
     gap: 4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
   },
   eyebrow: {
     fontSize: 12,

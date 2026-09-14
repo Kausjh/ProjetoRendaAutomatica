@@ -44,6 +44,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="watchlist"
+              options={{
+                title: "Watchlist",
+              }}
+            />
+            <Stack.Screen
               name="product/[canonicalKey]"
               options={{
                 title: "Produto",
