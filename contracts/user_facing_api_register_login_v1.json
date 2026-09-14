@@ -1,0 +1,72 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-register-login",
+  "register_login_version": 1,
+  "stage": "user-facing-auth-http",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "user_session_required": false,
+      "success_status": 201,
+      "returns_session": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "user_session_required": false,
+      "success_status": 200,
+      "returns_session": true
+    }
+  ],
+  "request": {
+    "content_type": "application/json",
+    "required_fields": [
+      "email",
+      "senha"
+    ],
+    "password_never_returned": true,
+    "password_never_logged": true
+  },
+  "register": {
+    "duplicate_email_status": 409,
+    "invalid_payload_status": 400,
+    "auto_login": false,
+    "response_fields": [
+      "conta"
+    ]
+  },
+  "login": {
+    "invalid_credentials_status": 401,
+    "generic_invalid_credentials_error": true,
+    "response_fields": [
+      "conta",
+      "sessao"
+    ],
+    "session_fields": [
+      "token",
+      "expira_em"
+    ]
+  },
+  "runtime": {
+    "database": "database/user_identity.sqlite3",
+    "repository": "UserIdentityRepository",
+    "service": "UserIdentityService",
+    "service_injected_into_application_api": true
+  },
+  "security": {
+    "infrastructure_access_policy_preserved": true,
+    "remote_access_still_requires_infrastructure_bearer": true,
+    "session_token_uses_existing_identity_foundation": true,
+    "session_token_plaintext_persisted": false,
+    "password_hashing_uses_existing_identity_foundation": true
+  },
+  "boundaries": {
+    "logout_implemented": false,
+    "me_implemented": false,
+    "preferences_http_implemented": false,
+    "watchlist_http_implemented": false,
+    "existing_read_only_data_routes_unchanged": true,
+    "admin_control_plane_unchanged": true
+  },
+  "next_step": "logout-me-v1"
+}

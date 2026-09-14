@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from dotenv import load_dotenv
 
 from services.api_aplicacao.controlador import ControladorApiAplicacao
+from services.api_aplicacao.user_facing_auth import UserFacingAuthController
 from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
     UserFacingHttpFoundation,
@@ -46,6 +47,9 @@ class ServidorApiAplicacao:
         self.token = token.strip() if token is not None else token_ambiente
         self.user_facing_http = UserFacingHttpFoundation(
             user_identity_service=user_identity_service,
+        )
+        self.user_facing_auth = UserFacingAuthController(
+            user_identity_service,
         )
 
         if not self._host_loopback(self.host) and not self.token:
@@ -102,6 +106,7 @@ class ServidorApiAplicacao:
         controlador = self.controlador
         token_api = self.token
         user_facing_http = self.user_facing_http
+        user_facing_auth = self.user_facing_auth
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -179,7 +184,43 @@ class ServidorApiAplicacao:
                 )
 
             def do_POST(self) -> None:
-                self._metodo_nao_permitido()
+                url = urlparse(self.path)
+                rota = url.path.rstrip("/") or "/"
+
+                if rota not in {
+                    "/api/v1/auth/register",
+                    "/api/v1/auth/login",
+                }:
+                    self._metodo_nao_permitido()
+                    return
+
+                if token_api and not self._autorizado(token_api):
+                    self._responder_erro_user_facing(
+                        ErroHttpUserFacing(
+                            401,
+                            "infraestrutura_nao_autorizada",
+                            "Nao autorizado.",
+                        )
+                    )
+                    return
+
+                payload = self._ler_json_user_facing()
+                if payload is None:
+                    return
+
+                try:
+                    if rota == "/api/v1/auth/register":
+                        status, dados = user_facing_auth.registrar(payload)
+                    else:
+                        status, dados = user_facing_auth.login(payload)
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return
+
+                self._responder_json(
+                    status,
+                    user_facing_http.sucesso(dados),
+                )
 
             def do_PUT(self) -> None:
                 self._metodo_nao_permitido()

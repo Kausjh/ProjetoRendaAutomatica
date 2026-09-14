@@ -849,3 +849,24 @@ Contrato: `contracts/user_facing_api_http_foundation_v1.json`.
 
 Documentação: `docs/19-user-facing-api-http-foundation-v1.md`.
 <!-- fase2-user-facing-http-foundation-v1:end -->
+
+<!-- fase2-user-facing-register-login-v1:start -->
+### Fase 2 — User-Facing API V1: Register/Login
+
+As primeiras rotas HTTP de usuário estão disponíveis:
+
+- `POST /api/v1/auth/register`;
+- `POST /api/v1/auth/login`.
+
+O cadastro cria uma conta sem abrir sessão automaticamente. O login retorna uma
+sessão opaca `pra_usr_v1_...`, usando a fundação de identidade existente.
+
+O runtime injeta `UserIdentityService` na Application API usando
+`database/user_identity.sqlite3`.
+
+A proteção de infraestrutura continua separada da identidade do usuário.
+
+Contrato: `contracts/user_facing_api_register_login_v1.json`.
+
+Documentação: `docs/20-user-facing-api-register-login-v1.md`.
+<!-- fase2-user-facing-register-login-v1:end -->

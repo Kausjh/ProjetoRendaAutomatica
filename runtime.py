@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 """Ponto único de inicialização do Projeto Renda Automática.
 
@@ -16,6 +16,7 @@ import logging
 import os
 
 from config.logging_config import configurar_logging
+from repositories.user_identity_repository import UserIdentityRepository
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
@@ -26,6 +27,7 @@ from services.runtime.orquestrador import (
     OrquestradorRuntime,
     TravaRuntime,
 )
+from services.user_identity_service import UserIdentityService
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +62,19 @@ def main() -> int:
         controlador=orquestrador.controle_administrativo,
     )
     controlador_api = ControladorApiAplicacao()
+    user_identity_repository = UserIdentityRepository(
+        os.path.join(
+            DIRETORIO_PROJETO,
+            "database",
+            "user_identity.sqlite3",
+        )
+    )
+    user_identity_service = UserIdentityService(
+        user_identity_repository,
+    )
     servidor_api = ServidorApiAplicacao(
         controlador=controlador_api,
+        user_identity_service=user_identity_service,
     )
 
     try:

@@ -114,16 +114,17 @@ def test_documentacao_declara_headers_e_fronteiras():
     assert "Rotas sob `/me` nunca aceitam `conta_id`" in text
 
 
-def test_servidor_ainda_nao_implementa_rotas_user_facing():
+def test_contrato_auth_e_compativel_com_register_login_posteriores():
     source = SERVER.read_text(encoding="utf-8")
 
-    routes = (
-        "/api/v1/auth/register",
-        "/api/v1/auth/login",
+    assert "/api/v1/auth/register" in source
+    assert "/api/v1/auth/login" in source
+
+    ainda_futuras = (
         "/api/v1/auth/logout",
-        "/api/v1/me",
+        'rota == "/api/v1/me"',
         "/api/v1/me/preferences",
         "/api/v1/me/watchlist",
     )
 
-    assert all(route not in source for route in routes)
+    assert all(route not in source for route in ainda_futuras)
