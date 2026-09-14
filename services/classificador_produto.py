@@ -656,8 +656,71 @@ class ClassificadorProduto:
         "placa de captura",
     )
 
+    @classmethod
+    def _identificar_acessorio_gpu(cls, texto: str) -> list[str]:
+        # Detecta acessorios que citam uma GPU sem tratar o acessorio como a GPU.
+        marcador_gpu = re.search(
+            r"\b(?:"
+            r"rtx\s*\d{3,4}(?:\s*ti)?|"
+            r"gtx\s*\d{3,4}(?:\s*ti)?|"
+            r"rx\s*\d{3,4}(?:\s*(?:xt|xtx))?|"
+            r"geforce|radeon|gpu|placa grafica"
+            r")\b",
+            texto,
+        )
+        if marcador_gpu is None:
+            return []
+
+        padroes_acessorio = (
+            (
+                "acessorio_gpu_inicio",
+                r"^(?:(?:novo|nova|new|original|replacement|reposicao)\s+){0,3}"
+                r"(?:(?:kit|conjunto|par)\s+(?:de\s+)?(?:\d+\s+)?)?"
+                r"(?:(?:\d+(?:\.\d+)?\s*(?:mm|cm)\s+)?)"
+                r"(?:capa|cover|ventilador|ventoinha|fan|fans|cooler|"
+                r"backplate|dissipador|heatsink|water\s*block|waterblock)\b",
+            ),
+            (
+                "capa_gpu",
+                r"\b(?:capa|cover|backplate)\s+(?:para|compativel\s+com)\b",
+            ),
+            (
+                "refrigeracao_placa_gpu",
+                r"\b(?:ventilador|ventoinha|fan|fans|cooler)\s+"
+                r"(?:de|da|do|para)\s+"
+                r"(?:placa\s+(?:de\s+)?video|placa\s+(?:grafica|gr\s*fica)|gpu)\b",
+            ),
+            (
+                "refrigeracao_gpu",
+                r"\b(?:ventilador|ventoinha|fan|fans|cooler|heatsink|"
+                r"dissipador|water\s*block|waterblock)\s+"
+                r"(?:para|compativel\s+com)\s+"
+                r"(?:placa\s+(?:de\s+)?video|gpu|geforce|radeon|rtx|gtx|rx)\b",
+            ),
+        )
+
+        encontrados: list[str] = []
+        for nome, padrao in padroes_acessorio:
+            if re.search(padrao, texto):
+                encontrados.append(nome)
+
+        return encontrados
+
     def classificar(self, oferta: Oferta) -> ResultadoClassificacaoProduto:
         nome_normalizado = self._normalizar_texto(oferta.nome)
+
+        acessorios_gpu = self._identificar_acessorio_gpu(nome_normalizado)
+        if acessorios_gpu:
+            return ResultadoClassificacaoProduto(
+                eh_nicho=False,
+                categoria=None,
+                relevancia=0,
+                termos_encontrados=acessorios_gpu,
+                motivo=(
+                    "Anuncio identificado como acessorio de placa de video; "
+                    "o modelo de GPU citado nao representa o produto principal."
+                ),
+            )
 
         termos_bloqueados = self._localizar_termos(nome_normalizado, self.TERMOS_BLOQUEADOS)
         if termos_bloqueados:
