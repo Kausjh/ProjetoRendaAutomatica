@@ -7,6 +7,7 @@ import {
   AuthSessionBootstrap,
   AuthSessionProvider,
 } from "@/src/auth";
+import { AppBottomNav, appTheme } from "@/src/ui";
 
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
@@ -18,6 +19,11 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerTitleAlign: "center",
+              headerStyle: {
+                backgroundColor: appTheme.colors.surface,
+              },
+              headerTintColor: appTheme.colors.text,
+              headerShadowVisible: false,
             }}
           >
             <Stack.Screen
@@ -39,36 +45,45 @@ export default function RootLayout() {
             <Stack.Screen
               name="home"
               options={{
-                title: "Ofertas",
-                headerBackVisible: false,
+                headerShown: false,
+                gestureEnabled: false,
               }}
             />
             <Stack.Screen
               name="watchlist"
               options={{
-                title: "Watchlist",
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="alerts"
               options={{
-                title: "Alertas",
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="account"
               options={{
-                title: "Conta",
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="search"
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen
               name="product/[canonicalKey]"
               options={{
                 title: "Produto",
+                headerBackTitle: "Voltar",
               }}
             />
           </Stack>
-          <StatusBar style="auto" />
+
+          <AppBottomNav />
+          <StatusBar style="light" />
         </AuthSessionBootstrap>
       </AuthSessionProvider>
     </QueryClientProvider>

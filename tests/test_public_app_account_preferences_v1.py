@@ -83,10 +83,12 @@ def test_account_screen_supports_connection_and_logout():
     assert 'router.replace("/")' in source
 
 
-def test_home_links_to_account():
-    source = _read(APP / "app" / "home.tsx")
+def test_bottom_nav_links_to_account():
+    source = _read(APP / "src" / "ui" / "bottom-nav.tsx")
 
-    assert 'router.push("/account")' in source
+    assert 'route: "/account"' in source
+    assert 'label: "Perfil"' in source
+    assert "router.replace(item.route)" in source
 
 
 def test_root_layout_registers_account_route():

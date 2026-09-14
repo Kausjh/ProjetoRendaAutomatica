@@ -1,8 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
-import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -10,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuthSession } from "@/src/auth";
 import {
@@ -17,16 +17,19 @@ import {
   formatPrice,
   useProductList,
 } from "@/src/offers";
+import { appTheme } from "@/src/ui";
 
 export default function HomeScreen() {
-  const { logout, snapshot } = useAuthSession();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const { snapshot } = useAuthSession();
   const products = useProductList(50, 0);
 
   if (snapshot.status === "restoring") {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator
+          size="large"
+          color={appTheme.colors.accent}
+        />
       </View>
     );
   }
@@ -35,68 +38,87 @@ export default function HomeScreen() {
     return <Redirect href="/" />;
   }
 
-  const performLogout = async (): Promise<void> => {
-    setLoggingOut(true);
-
-    try {
-      await logout();
-    } catch {
-      Alert.alert(
-        "Sessão local encerrada",
-        "O servidor não confirmou a revogação, mas este aparelho já foi desconectado.",
-      );
-    } finally {
-      setLoggingOut(false);
-      router.replace("/");
-    }
-  };
+  const totalProducts =
+    products.data?.total ?? products.data?.items.length ?? 0;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.eyebrow}>OFERTAS</Text>
-          <Text style={styles.title}>Produtos monitorados</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.brandIcon}>
+            <Ionicons
+              name="game-controller"
+              size={20}
+              color={appTheme.colors.accent}
+            />
+          </View>
+
+          <View style={styles.headerCopy}>
+            <Text style={styles.brand}>Radar de Ofertas</Text>
+            <Text style={styles.vertical}>GAMER</Text>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Buscar produtos"
+            style={styles.profileButton}
+            onPress={() => router.push("/search")}
+          >
+            <Ionicons
+              name="search"
+              size={21}
+              color={appTheme.colors.text}
+            />
+          </Pressable>
         </View>
 
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            style={styles.compactButton}
-            onPress={() => router.push("/watchlist")}
-          >
-            <Text style={styles.compactButtonText}>Watchlist</Text>
-          </Pressable>
+        <View style={styles.hero}>
+          <Text style={styles.heroEyebrow}>OFERTAS MONITORADAS</Text>
+          <Text style={styles.heroTitle}>
+            Preço bom sem perder tempo procurando.
+          </Text>
+          <Text style={styles.heroBody}>
+            O Radar acompanha marketplaces e organiza os melhores
+            preços encontrados para o seu setup.
+          </Text>
 
-          <Pressable
-            accessibilityRole="button"
-            style={styles.compactButton}
-            onPress={() => router.push("/alerts")}
-          >
-            <Text style={styles.compactButtonText}>Alertas</Text>
-          </Pressable>
+          <View style={styles.heroStats}>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{totalProducts}</Text>
+              <Text style={styles.statLabel}>produtos</Text>
+            </View>
 
-          <Pressable
-            accessibilityRole="button"
-            style={styles.compactButton}
-            onPress={() => router.push("/account")}
-          >
-            <Text style={styles.compactButtonText}>Conta</Text>
-          </Pressable>
+            <View style={styles.statDivider} />
+
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>Gamer</Text>
+              <Text style={styles.statLabel}>radar ativo</Text>
+            </View>
+          </View>
         </View>
       </View>
 
       {products.isPending ? (
         <View style={styles.centerState}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.body}>Carregando produtos...</Text>
+          <ActivityIndicator
+            size="large"
+            color={appTheme.colors.accent}
+          />
+          <Text style={styles.body}>Carregando ofertas...</Text>
         </View>
       ) : null}
 
       {products.isError ? (
         <View style={styles.centerState}>
+          <View style={styles.stateIcon}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={28}
+              color={appTheme.colors.warning}
+            />
+          </View>
           <Text style={styles.stateTitle}>
-            Não foi possível carregar os produtos
+            Não foi possível carregar as ofertas
           </Text>
           <Text style={styles.body}>
             {products.error instanceof Error
@@ -122,6 +144,7 @@ export default function HomeScreen() {
         <FlatList
           data={[...products.data.items]}
           keyExtractor={(item) => item.canonicalKey}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContent,
             products.data.items.length === 0 &&
@@ -129,19 +152,42 @@ export default function HomeScreen() {
           ]}
           refreshControl={
             <RefreshControl
+              tintColor={appTheme.colors.accent}
+              colors={[appTheme.colors.accent]}
               refreshing={products.isRefetching}
               onRefresh={() => {
                 void products.refetch();
               }}
             />
           }
+          ListHeaderComponent={
+            <View style={styles.feedHeader}>
+              <View>
+                <Text style={styles.feedEyebrow}>AGORA</Text>
+                <Text style={styles.feedTitle}>Melhores preços</Text>
+              </View>
+
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Radar ativo</Text>
+              </View>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.centerState}>
+              <View style={styles.stateIcon}>
+                <Ionicons
+                  name="search-outline"
+                  size={28}
+                  color={appTheme.colors.textMuted}
+                />
+              </View>
               <Text style={styles.stateTitle}>
-                Nenhum produto encontrado
+                Nenhuma oferta encontrada
               </Text>
               <Text style={styles.body}>
-                A API respondeu normalmente, mas não retornou produtos.
+                O Radar respondeu normalmente, mas não há produtos
+                disponíveis agora.
               </Text>
             </View>
           }
@@ -158,26 +204,9 @@ export default function HomeScreen() {
               }
             />
           )}
-          ListFooterComponent={
-            <Pressable
-              accessibilityRole="button"
-              disabled={loggingOut}
-              style={[
-                styles.logoutButton,
-                loggingOut && styles.disabledButton,
-              ]}
-              onPress={() => {
-                void performLogout();
-              }}
-            >
-              <Text style={styles.logoutButtonText}>
-                {loggingOut ? "Saindo..." : "Sair da conta"}
-              </Text>
-            </Pressable>
-          }
         />
       ) : null}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -188,184 +217,420 @@ function ProductCardView({
   item: ProductCard;
   onPress: () => void;
 }>) {
+  const marketplace =
+    item.marketplace?.trim() || "Marketplace";
+
   return (
     <Pressable
       accessibilityRole="button"
-      style={styles.card}
+      style={({ pressed }) => [
+        styles.card,
+        pressed && styles.cardPressed,
+      ]}
       onPress={onPress}
     >
-      <View style={styles.cardTopRow}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
+      <View style={styles.cardHeader}>
+        <View style={styles.marketplaceBadge}>
+          <Ionicons
+            name="storefront-outline"
+            size={14}
+            color={appTheme.colors.accent}
+          />
+          <Text style={styles.marketplace} numberOfLines={1}>
+            {marketplace}
+          </Text>
+        </View>
 
         {item.discountPercent !== null ? (
-          <Text style={styles.discount}>
-            -{Math.round(item.discountPercent)}%
-          </Text>
+          <View style={styles.discountBadge}>
+            <Ionicons
+              name="pricetag"
+              size={12}
+              color={appTheme.colors.success}
+            />
+            <Text style={styles.discount}>
+              -{Math.round(item.discountPercent)}%
+            </Text>
+          </View>
         ) : null}
       </View>
 
-      <Text style={styles.price}>
-        {formatPrice(item.currentPrice)}
-      </Text>
+      <View style={styles.cardMain}>
+        <View style={styles.productGlyph}>
+          <Ionicons
+            name="hardware-chip-outline"
+            size={30}
+            color={appTheme.colors.textMuted}
+          />
+        </View>
 
-      {item.originalPrice !== null ? (
-        <Text style={styles.originalPrice}>
-          De {formatPrice(item.originalPrice)}
-        </Text>
-      ) : null}
+        <View style={styles.cardCopy}>
+          <Text style={styles.cardTitle} numberOfLines={3}>
+            {item.title}
+          </Text>
 
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>
-          {item.marketplace ?? "Marketplace não informado"}
-        </Text>
-        <Text style={styles.openLabel}>Ver detalhes →</Text>
+          <View style={styles.priceLine}>
+            <Text style={styles.price}>
+              {formatPrice(item.currentPrice)}
+            </Text>
+
+            {item.originalPrice !== null ? (
+              <Text style={styles.originalPrice}>
+                {formatPrice(item.originalPrice)}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.cardFooter}>
+        <View style={styles.intelligenceChip}>
+          <Ionicons
+            name="pulse-outline"
+            size={13}
+            color={appTheme.colors.textMuted}
+          />
+          <Text style={styles.intelligenceText}>
+            Histórico disponível
+          </Text>
+        </View>
+
+        <View style={styles.openButton}>
+          <Text style={styles.openLabel}>Ver oferta</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={15}
+            color={appTheme.colors.text}
+          />
+        </View>
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: appTheme.colors.background,
   },
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: appTheme.colors.background,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 12,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 16,
+  },
+  brandRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  brandIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: appTheme.colors.accentSoft,
   },
   headerCopy: {
-    gap: 4,
+    flex: 1,
   },
-  headerActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+  brand: {
+    color: appTheme.colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: -0.2,
   },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
+  vertical: {
+    marginTop: 2,
+    color: appTheme.colors.accent,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.7,
+  },
+  profileButton: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.surface,
+  },
+  hero: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.xl,
+    backgroundColor: appTheme.colors.surface,
+    padding: 18,
+  },
+  heroEyebrow: {
+    color: appTheme.colors.accent,
+    fontSize: 10,
+    fontWeight: "900",
     letterSpacing: 1.5,
-    opacity: 0.55,
   },
-  title: {
-    fontSize: 27,
+  heroTitle: {
+    marginTop: 8,
+    color: appTheme.colors.text,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+  heroBody: {
+    marginTop: 8,
+    color: appTheme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  heroStats: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: appTheme.colors.border,
+    paddingTop: 14,
+  },
+  stat: {
+    flex: 1,
+  },
+  statValue: {
+    color: appTheme.colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  statLabel: {
+    marginTop: 2,
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 30,
+    backgroundColor: appTheme.colors.border,
+    marginHorizontal: 14,
+  },
+  feedHeader: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 2,
+  },
+  feedEyebrow: {
+    color: appTheme.colors.textSubtle,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.3,
+  },
+  feedTitle: {
+    marginTop: 2,
+    color: appTheme.colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: appTheme.colors.success,
+  },
+  liveText: {
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
     fontWeight: "800",
   },
   body: {
-    fontSize: 15,
-    lineHeight: 22,
-    opacity: 0.7,
+    color: appTheme.colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
-  },
-  compactButton: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  compactButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
   },
   centerState: {
     flex: 1,
     minHeight: 250,
     alignItems: "center",
     justifyContent: "center",
-    gap: 14,
+    gap: 12,
     padding: 24,
+    backgroundColor: appTheme.colors.background,
+  },
+  stateIcon: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: appTheme.colors.surface,
   },
   stateTitle: {
-    fontSize: 20,
-    fontWeight: "800",
+    color: appTheme.colors.text,
+    fontSize: 19,
+    fontWeight: "900",
     textAlign: "center",
   },
   primaryButton: {
-    minHeight: 48,
+    minHeight: 46,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: "#111111",
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.accentStrong,
     paddingHorizontal: 18,
   },
   primaryButtonText: {
-    color: "#ffffff",
-    fontWeight: "700",
+    color: appTheme.colors.white,
+    fontWeight: "900",
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 108,
     gap: 12,
-    paddingBottom: 32,
   },
   emptyListContent: {
     flexGrow: 1,
   },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    padding: 16,
-    gap: 8,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.lg,
+    backgroundColor: appTheme.colors.surface,
+    padding: 14,
+    gap: 13,
   },
-  cardTopRow: {
+  cardPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.995 }],
+  },
+  cardHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
   },
-  cardTitle: {
+  marketplaceBadge: {
+    minWidth: 0,
     flex: 1,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "700",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  marketplace: {
+    flex: 1,
+    color: appTheme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "capitalize",
+  },
+  discountBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.successSurface,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   discount: {
-    fontSize: 13,
+    color: appTheme.colors.success,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  cardMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  productGlyph: {
+    width: 72,
+    height: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: appTheme.colors.surfaceElevated,
+  },
+  cardCopy: {
+    flex: 1,
+    gap: 8,
+  },
+  cardTitle: {
+    color: appTheme.colors.text,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "800",
   },
+  priceLine: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   price: {
-    fontSize: 24,
+    color: appTheme.colors.price,
+    fontSize: 20,
     fontWeight: "900",
   },
   originalPrice: {
-    fontSize: 13,
+    color: appTheme.colors.textSubtle,
+    fontSize: 11,
     textDecorationLine: "line-through",
-    opacity: 0.5,
   },
-  metaRow: {
+  cardFooter: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginTop: 4,
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: appTheme.colors.border,
+    paddingTop: 11,
   },
-  meta: {
+  intelligenceChip: {
     flex: 1,
-    fontSize: 12,
-    opacity: 0.6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  intelligenceText: {
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  openButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.borderStrong,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.surfaceElevated,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
   openLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  logoutButton: {
-    minHeight: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginTop: 12,
-  },
-  logoutButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  disabledButton: {
-    opacity: 0.5,
+    color: appTheme.colors.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
 });

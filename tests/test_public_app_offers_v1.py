@@ -87,7 +87,7 @@ def test_root_layout_registers_product_detail_route():
     source = _read(APP / "app" / "_layout.tsx")
 
     assert 'name="product/[canonicalKey]"' in source
-    assert 'title: "Ofertas"' in source
+    assert 'title: "Produto"' in source
 
 
 def test_offers_ui_contains_no_transport_credentials():

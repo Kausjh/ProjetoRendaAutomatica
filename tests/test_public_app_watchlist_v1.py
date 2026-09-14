@@ -82,10 +82,12 @@ def test_product_detail_validates_target_price_and_toggle():
     assert "notifyPriceDrop" in source
 
 
-def test_home_links_to_watchlist():
-    source = _read(APP / "app" / "home.tsx")
+def test_bottom_nav_links_to_watchlist():
+    source = _read(APP / "src" / "ui" / "bottom-nav.tsx")
 
-    assert 'router.push("/watchlist")' in source
+    assert 'route: "/watchlist"' in source
+    assert 'label: "Lista"' in source
+    assert "router.replace(item.route)" in source
 
 
 def test_root_layout_registers_watchlist_route():

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -11,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   normalizeMarketplaceInput,
@@ -18,6 +20,7 @@ import {
   useSaveAccountPreferences,
 } from "@/src/account";
 import { useAuthSession } from "@/src/auth";
+import { appTheme } from "@/src/ui";
 
 function accountField(
   account: Readonly<Record<string, unknown>> | null,
@@ -80,8 +83,11 @@ export default function AccountScreen() {
 
   if (snapshot.status === "restoring") {
     return (
-      <View style={styles.centerState}>
-        <ActivityIndicator size="large" />
+      <View style={styles.loading}>
+        <ActivityIndicator
+          size="large"
+          color={appTheme.colors.accent}
+        />
       </View>
     );
   }
@@ -94,11 +100,7 @@ export default function AccountScreen() {
     accountField(snapshot.account, ["email", "e_mail"]) ??
     "E-mail não informado";
 
-  const accountId = accountField(snapshot.account, [
-    "id",
-    "conta_id",
-    "account_id",
-  ]);
+  const initial = email.trim().charAt(0).toUpperCase() || "R";
 
   const refreshAccount = async (): Promise<void> => {
     setLocalError(null);
@@ -157,151 +159,240 @@ export default function AccountScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.eyebrow}>CONTA</Text>
-      <Text style={styles.title}>Minha conta</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>E-mail</Text>
-        <Text style={styles.value}>{email}</Text>
-
-        {accountId ? (
-          <>
-            <Text style={styles.label}>Identificador</Text>
-            <Text selectable style={styles.value}>
-              {accountId}
-            </Text>
-          </>
-        ) : null}
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        disabled={refreshingAccount}
-        style={styles.secondaryButton}
-        onPress={() => {
-          void refreshAccount();
-        }}
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.container}
       >
-        <Text style={styles.secondaryButtonText}>
-          {refreshingAccount
-            ? "Atualizando..."
-            : "Atualizar dados da conta"}
-        </Text>
-      </Pressable>
+        <View style={styles.header}>
+          <View style={styles.headerIcon}>
+            <Ionicons
+              name="person-circle"
+              size={20}
+              color={appTheme.colors.accent}
+            />
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferências</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>CONTA E PREFERÊNCIAS</Text>
+            <Text style={styles.title}>Perfil</Text>
+          </View>
+        </View>
 
-        {preferences.isPending ? (
-          <ActivityIndicator />
-        ) : null}
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
 
-        {preferences.isError ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.error}>
-              {preferences.error instanceof Error
-                ? preferences.error.message
-                : "Não foi possível carregar as preferências."}
+          <View style={styles.profileCopy}>
+            <Text style={styles.profileLabel}>Sua conta</Text>
+            <Text style={styles.email} numberOfLines={1}>
+              {email}
             </Text>
+          </View>
 
-            <Pressable
-              accessibilityRole="button"
-              style={styles.secondaryButton}
-              onPress={() => {
-                void preferences.refetch();
-              }}
-            >
-              <Text style={styles.secondaryButtonText}>
-                Tentar novamente
-              </Text>
-            </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Atualizar conta"
+            disabled={refreshingAccount}
+            style={styles.iconButton}
+            onPress={() => {
+              void refreshAccount();
+            }}
+          >
+            {refreshingAccount ? (
+              <ActivityIndicator
+                size="small"
+                color={appTheme.colors.accent}
+              />
+            ) : (
+              <Ionicons
+                name="refresh"
+                size={18}
+                color={appTheme.colors.text}
+              />
+            )}
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionEyebrow}>PREFERÊNCIAS</Text>
+          <Text style={styles.sectionTitle}>Como o Radar deve te avisar</Text>
+
+          <View style={styles.card}>
+            {preferences.isPending ? (
+              <View style={styles.inlineLoading}>
+                <ActivityIndicator
+                  color={appTheme.colors.accent}
+                />
+                <Text style={styles.hint}>
+                  Carregando preferências...
+                </Text>
+              </View>
+            ) : null}
+
+            {preferences.isError ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.error}>
+                  {preferences.error instanceof Error
+                    ? preferences.error.message
+                    : "Não foi possível carregar as preferências."}
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.secondaryButton}
+                  onPress={() => {
+                    void preferences.refetch();
+                  }}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    Tentar novamente
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {preferences.data ? (
+              <>
+                <View style={styles.switchRow}>
+                  <View style={styles.switchIcon}>
+                    <Ionicons
+                      name="notifications-outline"
+                      size={19}
+                      color={appTheme.colors.accent}
+                    />
+                  </View>
+
+                  <View style={styles.switchCopy}>
+                    <Text style={styles.fieldLabel}>
+                      Alertas de preço
+                    </Text>
+                    <Text style={styles.hint}>
+                      Receba alertas quando o Radar encontrar mudanças
+                      relevantes.
+                    </Text>
+                  </View>
+
+                  <Switch
+                    value={priceNotificationsEnabled}
+                    trackColor={{
+                      false: appTheme.colors.borderStrong,
+                      true: appTheme.colors.accentStrong,
+                    }}
+                    thumbColor={appTheme.colors.white}
+                    onValueChange={setPriceNotificationsEnabled}
+                  />
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.field}>
+                  <View style={styles.fieldHeading}>
+                    <Ionicons
+                      name="storefront-outline"
+                      size={18}
+                      color={appTheme.colors.accent}
+                    />
+                    <Text style={styles.fieldLabel}>
+                      Marketplaces preferidos
+                    </Text>
+                  </View>
+
+                  <TextInput
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    multiline
+                    placeholder="Ex.: Mercado Livre, Amazon, Shopee"
+                    placeholderTextColor={appTheme.colors.textSubtle}
+                    selectionColor={appTheme.colors.accent}
+                    style={[styles.input, styles.multilineInput]}
+                    value={marketplacesText}
+                    onChangeText={setMarketplacesText}
+                  />
+
+                  <Text style={styles.hint}>
+                    Separe os nomes por vírgulas. Deixe vazio para não
+                    restringir por marketplace.
+                  </Text>
+
+                  {normalizedMarketplaces.length > 0 ? (
+                    <View style={styles.chipRow}>
+                      {normalizedMarketplaces.map((marketplace) => (
+                        <View style={styles.chip} key={marketplace}>
+                          <Text style={styles.chipText}>
+                            {marketplace}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={savePreferences.isPending}
+                  style={[
+                    styles.primaryButton,
+                    savePreferences.isPending && styles.disabledButton,
+                  ]}
+                  onPress={() => {
+                    void save();
+                  }}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {savePreferences.isPending
+                      ? "Salvando..."
+                      : "Salvar preferências"}
+                  </Text>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+        </View>
+
+        {localError ? (
+          <View style={styles.localError}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={18}
+              color={appTheme.colors.danger}
+            />
+            <Text style={styles.error}>{localError}</Text>
           </View>
         ) : null}
 
-        {preferences.data ? (
-          <>
-            <View style={styles.switchRow}>
-              <View style={styles.switchCopy}>
-                <Text style={styles.fieldLabel}>
-                  Notificações de preço
-                </Text>
-                <Text style={styles.hint}>
-                  Controla o matching futuro de alertas personalizados.
-                </Text>
-              </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionEyebrow}>APLICATIVO</Text>
+          <Text style={styles.sectionTitle}>Configurações</Text>
 
-              <Switch
-                value={priceNotificationsEnabled}
-                onValueChange={setPriceNotificationsEnabled}
+          <Pressable
+            accessibilityRole="button"
+            style={styles.settingRow}
+            onPress={() => router.push("/connection")}
+          >
+            <View style={styles.settingIcon}>
+              <Ionicons
+                name="wifi-outline"
+                size={19}
+                color={appTheme.colors.textMuted}
               />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>
-                Marketplaces preferidos
-              </Text>
-
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                multiline
-                placeholder="Ex.: Mercado Livre, Amazon"
-                style={[styles.input, styles.multilineInput]}
-                value={marketplacesText}
-                onChangeText={setMarketplacesText}
-              />
-
+            <View style={styles.settingCopy}>
+              <Text style={styles.settingTitle}>Conexão</Text>
               <Text style={styles.hint}>
-                Separe por vírgulas. Deixe vazio para não restringir
-                por marketplace.
+                Ajustes técnicos de acesso ao Radar.
               </Text>
-
-              {normalizedMarketplaces.length > 0 ? (
-                <Text style={styles.preview}>
-                  {normalizedMarketplaces.join(" • ")}
-                </Text>
-              ) : null}
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={savePreferences.isPending}
-              style={[
-                styles.primaryButton,
-                savePreferences.isPending &&
-                  styles.disabledButton,
-              ]}
-              onPress={() => {
-                void save();
-              }}
-            >
-              <Text style={styles.primaryButtonText}>
-                {savePreferences.isPending
-                  ? "Salvando..."
-                  : "Salvar preferências"}
-              </Text>
-            </Pressable>
-          </>
-        ) : null}
-      </View>
-
-      {localError ? (
-        <Text style={styles.error}>{localError}</Text>
-      ) : null}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Aplicativo</Text>
-
-        <Pressable
-          accessibilityRole="button"
-          style={styles.secondaryButton}
-          onPress={() => router.push("/connection")}
-        >
-          <Text style={styles.secondaryButtonText}>
-            Configuração da conexão
-          </Text>
-        </Pressable>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={appTheme.colors.textSubtle}
+            />
+          </Pressable>
+        </View>
 
         <Pressable
           accessibilityRole="button"
@@ -314,147 +405,301 @@ export default function AccountScreen() {
             void performLogout();
           }}
         >
+          <Ionicons
+            name="log-out-outline"
+            size={19}
+            color={appTheme.colors.danger}
+          />
           <Text style={styles.logoutButtonText}>
             {loggingOut ? "Saindo..." : "Sair da conta"}
           </Text>
         </Pressable>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-    gap: 16,
+  screen: {
+    flex: 1,
+    backgroundColor: appTheme.colors.background,
   },
-  centerState: {
+  loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: appTheme.colors.background,
+  },
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 108,
+    gap: 18,
+  },
+  header: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: appTheme.colors.accentSoft,
+  },
+  headerCopy: {
+    flex: 1,
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    opacity: 0.55,
+    color: appTheme.colors.accent,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.4,
   },
   title: {
-    fontSize: 30,
-    fontWeight: "800",
+    marginTop: 2,
+    color: appTheme.colors.text,
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.lg,
+    backgroundColor: appTheme.colors.surface,
+    padding: 14,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 17,
+    backgroundColor: appTheme.colors.accentSoft,
+  },
+  avatarText: {
+    color: appTheme.colors.accent,
+    fontSize: 21,
+    fontWeight: "900",
+  },
+  profileCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  profileLabel: {
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  email: {
+    color: appTheme.colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  iconButton: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: appTheme.colors.surfaceElevated,
+  },
+  section: {
+    gap: 10,
+  },
+  sectionEyebrow: {
+    color: appTheme.colors.textSubtle,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.3,
+  },
+  sectionTitle: {
+    color: appTheme.colors.text,
+    fontSize: 19,
+    fontWeight: "900",
   },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    padding: 16,
-    gap: 6,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.lg,
+    backgroundColor: appTheme.colors.surface,
+    padding: 14,
+    gap: 14,
   },
-  label: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.7,
-    opacity: 0.55,
-    textTransform: "uppercase",
+  inlineLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  value: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "700",
+  errorCard: {
+    gap: 10,
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.dangerSurface,
+    padding: 12,
   },
-  section: {
-    gap: 12,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
+  error: {
+    flex: 1,
+    color: appTheme.colors.danger,
+    fontSize: 12,
+    lineHeight: 18,
   },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
+    gap: 11,
+  },
+  switchIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: appTheme.colors.accentSoft,
   },
   switchCopy: {
     flex: 1,
     gap: 3,
   },
   field: {
-    gap: 7,
+    gap: 8,
+  },
+  fieldHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   fieldLabel: {
-    fontSize: 14,
-    fontWeight: "700",
+    color: appTheme.colors.text,
+    fontSize: 13,
+    fontWeight: "900",
   },
   hint: {
-    fontSize: 12,
-    lineHeight: 18,
-    opacity: 0.6,
+    color: appTheme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: appTheme.colors.border,
   },
   input: {
-    minHeight: 50,
+    minHeight: 48,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    fontSize: 16,
+    borderColor: appTheme.colors.borderStrong,
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.surfaceElevated,
+    color: appTheme.colors.text,
+    paddingHorizontal: 13,
+    fontSize: 14,
   },
   multilineInput: {
-    minHeight: 88,
+    minHeight: 78,
     paddingTop: 12,
     textAlignVertical: "top",
   },
-  preview: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "600",
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  chip: {
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipText: {
+    color: appTheme.colors.accent,
+    fontSize: 10,
+    fontWeight: "800",
   },
   primaryButton: {
-    minHeight: 50,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: "#111111",
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.accentStrong,
     paddingHorizontal: 18,
   },
   primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "700",
+    color: appTheme.colors.white,
+    fontSize: 13,
+    fontWeight: "900",
   },
   secondaryButton: {
-    minHeight: 50,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 18,
+    borderColor: appTheme.colors.borderStrong,
+    borderRadius: appTheme.radius.md,
+    paddingHorizontal: 16,
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
+    color: appTheme.colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  localError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.dangerSurface,
+    padding: 12,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.lg,
+    backgroundColor: appTheme.colors.surface,
+    padding: 14,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: appTheme.colors.surfaceElevated,
+  },
+  settingCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  settingTitle: {
+    color: appTheme.colors.text,
+    fontSize: 13,
+    fontWeight: "900",
   },
   logoutButton: {
     minHeight: 50,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
+    gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.dangerBorder,
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.dangerSurface,
     paddingHorizontal: 18,
   },
   logoutButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
+    color: appTheme.colors.danger,
+    fontSize: 13,
+    fontWeight: "900",
   },
   disabledButton: {
-    opacity: 0.5,
-  },
-  errorCard: {
-    gap: 10,
-  },
-  error: {
-    fontSize: 14,
-    lineHeight: 20,
+    opacity: 0.55,
   },
 });

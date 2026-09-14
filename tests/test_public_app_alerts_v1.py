@@ -73,10 +73,12 @@ def test_alert_screen_navigates_to_product_when_key_exists():
     assert 'pathname: "/product/[canonicalKey]"' in source
 
 
-def test_home_links_to_alerts():
-    source = _read(APP / "app" / "home.tsx")
+def test_bottom_nav_links_to_alerts():
+    source = _read(APP / "src" / "ui" / "bottom-nav.tsx")
 
-    assert 'router.push("/alerts")' in source
+    assert 'route: "/alerts"' in source
+    assert 'label: "Alertas"' in source
+    assert "router.replace(item.route)" in source
 
 
 def test_root_layout_registers_alerts_route():

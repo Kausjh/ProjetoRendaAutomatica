@@ -86,13 +86,14 @@ def test_register_confirms_password_and_does_not_save_session():
     assert "saveUserSession" not in source
 
 
-def test_home_is_protected_and_supports_logout():
-    source = _read(ROUTES / "home.tsx")
+def test_home_is_protected_and_account_supports_logout():
+    home_source = _read(ROUTES / "home.tsx")
+    account_source = _read(ROUTES / "account.tsx")
 
-    assert 'snapshot.status !== "authenticated"' in source
-    assert '<Redirect href="/"' in source
-    assert "await logout()" in source
-    assert 'router.replace("/")' in source
+    assert 'snapshot.status !== "authenticated"' in home_source
+    assert '<Redirect href="/"' in home_source
+    assert "await logout()" in account_source
+    assert 'router.replace("/")' in account_source
 
 
 def test_root_stack_registers_auth_routes():

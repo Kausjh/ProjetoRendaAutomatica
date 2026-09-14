@@ -55,6 +55,21 @@ function firstNumber(
   return null;
 }
 
+function firstRecord(
+  record: UnknownRecord,
+  keys: readonly string[],
+): UnknownRecord | null {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (isRecord(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 function unwrapSingleRecord(payload: unknown): UnknownRecord | null {
   if (!isRecord(payload)) {
     return null;
@@ -128,8 +143,16 @@ function normalizeProduct(record: UnknownRecord): ProductCard | null {
     return null;
   }
 
+  const priceRecord = firstRecord(record, [
+    "preco",
+    "price_intelligence",
+    "priceIntelligence",
+  ]);
+
   const title =
     firstString(record, [
+      "nome_canonico",
+      "canonical_name",
       "titulo",
       "title",
       "nome",
@@ -137,22 +160,48 @@ function normalizeProduct(record: UnknownRecord): ProductCard | null {
       "produto",
     ]) ?? canonicalKey;
 
-  return {
-    canonicalKey,
-    title,
-    marketplace: firstString(record, [
+  const marketplace =
+    firstString(record, [
       "marketplace",
+      "marketplace_melhor_preco",
       "origem",
       "source",
       "loja",
-    ]),
-    currentPrice: firstNumber(record, [
+    ]) ??
+    (priceRecord
+      ? firstString(priceRecord, [
+          "marketplace_melhor_preco",
+          "marketplace",
+          "origem",
+          "source",
+          "loja",
+        ])
+      : null);
+
+  const currentPrice =
+    firstNumber(record, [
+      "preco_minimo_atual",
       "preco_atual",
-      "preco",
       "price",
       "current_price",
       "melhor_preco",
-    ]),
+    ]) ??
+    (priceRecord
+      ? firstNumber(priceRecord, [
+          "preco_minimo_atual",
+          "preco_atual",
+          "preco",
+          "price",
+          "current_price",
+          "melhor_preco",
+        ])
+      : null);
+
+  return {
+    canonicalKey,
+    title,
+    marketplace,
+    currentPrice,
     originalPrice: firstNumber(record, [
       "preco_original",
       "original_price",
@@ -202,8 +251,14 @@ export function presentProductDetail(
   payload: unknown,
   fallbackCanonicalKey: string,
 ): ProductDetail {
+  const root = isRecord(payload) ? payload : null;
   const record = unwrapSingleRecord(payload) ?? {};
-  const normalized = normalizeProduct({
+  const priceIntelligence =
+    root && isRecord(root.price_intelligence)
+      ? root.price_intelligence
+      : null;
+
+  const detailRecord: UnknownRecord = {
     ...record,
     chave_canonica:
       firstString(record, [
@@ -213,7 +268,94 @@ export function presentProductDetail(
         "id_canonico",
         "id",
       ]) ?? fallbackCanonicalKey,
-  });
+  };
+
+  if (priceIntelligence) {
+    Object.assign(detailRecord, priceIntelligence, {
+      preco: priceIntelligence,
+    });
+  }
+
+  const currentPriceRecords =
+    root && Array.isArray(root.precos_atuais)
+      ? root.precos_atuais.filter(isRecord)
+      : [];
+
+  const bestMarketplace = priceIntelligence
+    ? firstString(priceIntelligence, [
+        "marketplace_melhor_preco",
+        "marketplace",
+        "origem",
+        "source",
+        "loja",
+      ])
+    : null;
+
+  const bestPrice = priceIntelligence
+    ? firstNumber(priceIntelligence, [
+        "preco_minimo_atual",
+        "preco_atual",
+        "preco",
+        "price",
+        "current_price",
+        "melhor_preco",
+      ])
+    : null;
+
+  const sameMarketplace = (record: UnknownRecord): boolean => {
+    if (!bestMarketplace) {
+      return false;
+    }
+
+    const marketplace = firstString(record, [
+      "marketplace",
+      "marketplace_melhor_preco",
+      "origem",
+      "source",
+      "loja",
+    ]);
+
+    return marketplace?.toLowerCase() === bestMarketplace.toLowerCase();
+  };
+
+  const samePrice = (record: UnknownRecord): boolean => {
+    if (bestPrice === null) {
+      return false;
+    }
+
+    const price = firstNumber(record, [
+      "preco_atual",
+      "preco",
+      "price",
+      "current_price",
+      "melhor_preco",
+    ]);
+
+    return price !== null && Math.abs(price - bestPrice) < 0.01;
+  };
+
+  const bestCurrentPriceRecord =
+    currentPriceRecords.find(
+      (record) => sameMarketplace(record) && samePrice(record),
+    ) ??
+    currentPriceRecords.find(sameMarketplace) ??
+    currentPriceRecords.find(samePrice) ??
+    (currentPriceRecords.length === 1 ? currentPriceRecords[0] : null);
+
+  if (bestCurrentPriceRecord) {
+    const currentPriceUrl = firstString(bestCurrentPriceRecord, [
+      "url",
+      "link",
+      "link_publicacao",
+      "product_url",
+    ]);
+
+    if (currentPriceUrl) {
+      detailRecord.url = currentPriceUrl;
+    }
+  }
+
+  const normalized = normalizeProduct(detailRecord);
 
   const card =
     normalized ??
@@ -241,6 +383,10 @@ export function presentPriceHistory(
     .map((record) => ({
       timestamp: firstString(record, [
         "capturado_em",
+        "observado_em",
+        "ultimo_observado_em",
+        "primeiro_observado_em",
+        "atualizado_em",
         "timestamp",
         "data",
         "created_at",
@@ -254,6 +400,7 @@ export function presentPriceHistory(
       ]),
       marketplace: firstString(record, [
         "marketplace",
+        "marketplace_melhor_preco",
         "origem",
         "source",
         "loja",
