@@ -870,3 +870,23 @@ Contrato: `contracts/user_facing_api_register_login_v1.json`.
 
 Documentação: `docs/20-user-facing-api-register-login-v1.md`.
 <!-- fase2-user-facing-register-login-v1:end -->
+
+<!-- fase2-user-facing-logout-me-v1:start -->
+### Fase 2 — User-Facing API V1: Logout + Me
+
+As primeiras rotas autenticadas por sessão de usuário estão disponíveis:
+
+- `POST /api/v1/auth/logout`;
+- `GET /api/v1/me`.
+
+`/me` deriva a conta exclusivamente de `X-User-Session`; `conta_id` enviado pelo
+cliente não seleciona identidade. O logout revoga somente a sessão atual e
+preserva outras sessões válidas da mesma conta.
+
+A camada `Authorization: Bearer <API_APLICACAO_TOKEN>` continua independente e
+preservada quando configurada.
+
+Contrato: `contracts/user_facing_api_logout_me_v1.json`.
+
+Documentação: `docs/21-user-facing-api-logout-me-v1.md`.
+<!-- fase2-user-facing-logout-me-v1:end -->

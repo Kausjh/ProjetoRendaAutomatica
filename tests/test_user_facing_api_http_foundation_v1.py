@@ -290,17 +290,19 @@ def test_servidor_expoe_foundation_sem_mudar_construtor_basico():
     )
 
 
-def test_http_foundation_e_compativel_com_register_login_posteriores():
+def test_http_foundation_e_compativel_com_logout_me_posteriores():
     source = SERVER.read_text(encoding="utf-8")
 
-    assert "/api/v1/auth/register" in source
-    assert "/api/v1/auth/login" in source
-
-    ainda_futuras = (
+    implementadas = (
+        "/api/v1/auth/register",
+        "/api/v1/auth/login",
         "/api/v1/auth/logout",
         'rota == "/api/v1/me"',
+    )
+    ainda_futuras = (
         "/api/v1/me/preferences",
         "/api/v1/me/watchlist",
     )
 
+    assert all(route in source for route in implementadas)
     assert all(route not in source for route in ainda_futuras)

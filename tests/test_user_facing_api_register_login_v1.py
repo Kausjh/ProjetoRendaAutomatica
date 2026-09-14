@@ -306,10 +306,10 @@ def test_runtime_injeta_servico_real_de_identidade():
     assert "user_identity_service=user_identity_service" in source
 
 
-def test_logout_e_me_ainda_nao_foram_abertos():
+def test_register_login_e_compativel_com_logout_me_posteriores():
     source = (ROOT / "services" / "api_aplicacao" / "servidor.py").read_text(encoding="utf-8")
 
-    assert "/api/v1/auth/logout" not in source
-    assert 'rota == "/api/v1/me"' not in source
+    assert "/api/v1/auth/logout" in source
+    assert 'rota == "/api/v1/me"' in source
     assert "/api/v1/me/preferences" not in source
     assert "/api/v1/me/watchlist" not in source

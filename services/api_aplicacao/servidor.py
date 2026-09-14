@@ -19,6 +19,7 @@ from services.api_aplicacao.user_facing_http import (
 )
 
 if TYPE_CHECKING:
+    from models.user_identity import ContaUsuario
     from services.user_identity_service import UserIdentityService
 
 
@@ -122,9 +123,30 @@ class ServidorApiAplicacao:
                     return
 
                 if token_api and not self._autorizado(token_api):
+                    if rota == "/api/v1/me":
+                        self._responder_erro_user_facing(
+                            ErroHttpUserFacing(
+                                401,
+                                "infraestrutura_nao_autorizada",
+                                "Nao autorizado.",
+                            )
+                        )
+                    else:
+                        self._responder_json(
+                            401,
+                            {"erro": "Nao autorizado."},
+                        )
+                    return
+
+                if rota == "/api/v1/me":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    status, dados = user_facing_auth.me(conta)
                     self._responder_json(
-                        401,
-                        {"erro": "Nao autorizado."},
+                        status,
+                        user_facing_http.sucesso(dados),
                     )
                     return
 
@@ -190,6 +212,7 @@ class ServidorApiAplicacao:
                 if rota not in {
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
+                    "/api/v1/auth/logout",
                 }:
                     self._metodo_nao_permitido()
                     return
@@ -201,6 +224,28 @@ class ServidorApiAplicacao:
                             "infraestrutura_nao_autorizada",
                             "Nao autorizado.",
                         )
+                    )
+                    return
+
+                if rota == "/api/v1/auth/logout":
+                    try:
+                        token_usuario = user_facing_http.extrair_token_sessao(
+                            self.headers,
+                            obrigatorio=True,
+                        )
+                        assert token_usuario is not None
+
+                        user_facing_http.resolver_usuario(
+                            self.headers,
+                        )
+                        status, dados = user_facing_auth.logout(token_usuario)
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
                     )
                     return
 
@@ -265,7 +310,7 @@ class ServidorApiAplicacao:
 
             def _resolver_usuario_user_facing(
                 self,
-            ) -> object | None:
+            ) -> ContaUsuario | None:
                 try:
                     return user_facing_http.resolver_usuario(
                         self.headers,

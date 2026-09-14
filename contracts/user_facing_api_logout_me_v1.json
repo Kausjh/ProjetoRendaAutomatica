@@ -1,0 +1,55 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-logout-me",
+  "logout_me_version": 1,
+  "stage": "user-facing-authenticated-session-http",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "requires_user_session": true,
+      "success_status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me",
+      "requires_user_session": true,
+      "success_status": 200
+    }
+  ],
+  "session_semantics": {
+    "header": "X-User-Session",
+    "identity_resolved_server_side": true,
+    "me_never_uses_client_account_id": true,
+    "logout_revokes_only_current_session": true,
+    "revoked_session_fails_closed": true
+  },
+  "logout": {
+    "response_field": "sessao_revogada",
+    "does_not_revoke_other_sessions": true
+  },
+  "me": {
+    "response_field": "conta",
+    "public_account_fields": [
+      "id",
+      "email",
+      "criado_em",
+      "ativa"
+    ],
+    "session_token_not_returned": true
+  },
+  "security": {
+    "infrastructure_access_policy_preserved": true,
+    "remote_access_still_requires_infrastructure_bearer": true,
+    "missing_or_invalid_user_session_status": 401,
+    "infrastructure_failure_status": 401
+  },
+  "boundaries": {
+    "preferences_http_implemented": false,
+    "watchlist_http_implemented": false,
+    "device_registration_implemented": false,
+    "push_delivery_implemented": false,
+    "existing_read_only_data_routes_unchanged": true,
+    "admin_control_plane_unchanged": true
+  },
+  "next_step": "preferences-http-v1"
+}

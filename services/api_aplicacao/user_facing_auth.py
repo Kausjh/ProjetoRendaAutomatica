@@ -37,7 +37,7 @@ class UserFacingAuthController:
         return valor
 
     @staticmethod
-    def _conta_publica(
+    def conta_publica(
         conta: ContaUsuario,
     ) -> dict[str, object]:
         return {
@@ -78,7 +78,7 @@ class UserFacingAuthController:
         return (
             201,
             {
-                "conta": self._conta_publica(conta),
+                "conta": self.conta_publica(conta),
             },
         )
 
@@ -107,10 +107,39 @@ class UserFacingAuthController:
         return (
             200,
             {
-                "conta": self._conta_publica(emitida.conta),
+                "conta": self.conta_publica(emitida.conta),
                 "sessao": {
                     "token": emitida.token,
                     "expira_em": emitida.sessao.expira_em,
                 },
+            },
+        )
+
+    def me(
+        self,
+        conta: ContaUsuario,
+    ) -> tuple[int, dict[str, object]]:
+        return (
+            200,
+            {
+                "conta": self.conta_publica(conta),
+            },
+        )
+
+    def logout(
+        self,
+        token: str,
+    ) -> tuple[int, dict[str, object]]:
+        if not self._service().revogar_sessao(token):
+            raise ErroHttpUserFacing(
+                401,
+                "sessao_usuario_invalida",
+                "Sessao de usuario invalida.",
+            )
+
+        return (
+            200,
+            {
+                "sessao_revogada": True,
             },
         )
