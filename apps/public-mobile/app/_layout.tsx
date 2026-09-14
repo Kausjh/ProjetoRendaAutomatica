@@ -19,7 +19,31 @@ export default function RootLayout() {
             screenOptions={{
               headerTitleAlign: "center",
             }}
-          />
+          >
+            <Stack.Screen
+              name="index"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="connection"
+              options={{ title: "Conexão" }}
+            />
+            <Stack.Screen
+              name="login"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="register"
+              options={{ title: "Criar conta" }}
+            />
+            <Stack.Screen
+              name="home"
+              options={{
+                title: "Início",
+                headerBackVisible: false,
+              }}
+            />
+          </Stack>
           <StatusBar style="auto" />
         </AuthSessionBootstrap>
       </AuthSessionProvider>

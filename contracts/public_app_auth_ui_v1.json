@@ -1,0 +1,62 @@
+{
+  "schema": "projeto-renda-automatica.public-app-auth-ui",
+  "auth_ui_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "routes": {
+    "gate": "/",
+    "connection": "/connection",
+    "login": "/login",
+    "register": "/register",
+    "protected_home": "/home"
+  },
+  "gate": {
+    "requires_runtime_config_before_api_use": true,
+    "restoring_state_visible": true,
+    "authenticated_destination": "/home",
+    "anonymous_destination": "/login",
+    "transient_restore_error_has_retry": true
+  },
+  "connection": {
+    "runtime_config_editable": true,
+    "real_endpoint_bundled": false,
+    "infrastructure_token_displayed_after_save": false,
+    "infrastructure_token_secure_entry": true,
+    "changed_config_clears_user_session": true,
+    "admin_port_rejected_by_domain_validation": true
+  },
+  "login": {
+    "email": true,
+    "password": true,
+    "password_secure_entry": true,
+    "api_error_visible": true
+  },
+  "register": {
+    "email": true,
+    "password": true,
+    "password_confirmation": true,
+    "auto_login": false,
+    "api_error_visible": true
+  },
+  "protected_home": {
+    "requires_authenticated_snapshot": true,
+    "logout": true,
+    "connection_settings_link": true,
+    "offers_implemented": false
+  },
+  "security": {
+    "session_token_rendered": false,
+    "infrastructure_token_rendered": false,
+    "password_logged": false,
+    "credential_values_hardcoded": false
+  },
+  "boundaries": {
+    "offers_ui": false,
+    "watchlist_ui": false,
+    "preferences_ui": false,
+    "alerts_ui": false,
+    "device_registration": false,
+    "push_delivery": false
+  },
+  "next_step": "public-app-mvp-offers-v1"
+}

@@ -1022,3 +1022,24 @@ Contrato: `contracts/public_app_auth_session_v1.json`.
 
 Documentação: `docs/28-public-app-auth-session-v1.md`.
 <!-- fase2-public-app-auth-session-v1:end -->
+
+<!-- fase2-public-app-auth-ui-v1:start -->
+### Fase 2 — Public App MVP: Auth UI V1
+
+O fluxo de autenticação do app público agora possui telas utilizáveis:
+
+- gate inicial;
+- configuração local do alpha;
+- login;
+- cadastro;
+- home protegida;
+- logout.
+
+Endpoint e Bearer continuam exclusivamente locais e não são embutidos no
+aplicativo. A home autenticada ainda é apenas a entrada para os próximos
+recursos do MVP.
+
+Contrato: `contracts/public_app_auth_ui_v1.json`.
+
+Documentação: `docs/29-public-app-auth-ui-v1.md`.
+<!-- fase2-public-app-auth-ui-v1:end -->
