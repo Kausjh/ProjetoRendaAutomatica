@@ -17,6 +17,13 @@
     },
     "android": {
       "package": "com.rendaautomatica.app"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e9879a81-d369-46da-b664-7e9dcb7fe631"
+      }
+    },
+    "owner": "jhon21"
   }
 }
