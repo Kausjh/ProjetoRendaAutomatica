@@ -1,0 +1,144 @@
+{
+  "schema": "projeto-renda-automatica.public-app-mvp-architecture",
+  "architecture_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "name": "Public App MVP",
+  "product_role": "end-user application",
+  "platform": {
+    "primary": "android",
+    "framework": "react-native",
+    "toolchain": "expo",
+    "language": "typescript",
+    "planned_source_root": "apps/public-mobile"
+  },
+  "distribution_scope": {
+    "mvp": "internal-alpha-over-tailnet",
+    "general_public_release": false,
+    "reason": "current remote transport requires infrastructure bearer and trusted Tailscale transport"
+  },
+  "api": {
+    "base_path": "/api/v1",
+    "application_backend_port": 8766,
+    "tailscale_forward_port": 18767,
+    "admin_port_8765_allowed": false,
+    "user_session_header": "X-User-Session",
+    "infrastructure_bearer_header": "Authorization"
+  },
+  "secret_policy": {
+    "api_application_token_bundled": false,
+    "api_application_token_committed": false,
+    "api_application_token_hardcoded": false,
+    "user_session_persisted_in_secure_store": true,
+    "infrastructure_token_mvp_source": "local-runtime-configuration",
+    "plaintext_secret_in_repository": false
+  },
+  "transport_abstraction": {
+    "required": true,
+    "current_profile": "tailscale-http-trusted-tunnel",
+    "future_profile": "public-https-gateway",
+    "ui_must_not_depend_on_transport_profile": true
+  },
+  "mvp_screens": [
+    {
+      "id": "auth",
+      "features": [
+        "register",
+        "login"
+      ],
+      "routes": [
+        "POST /api/v1/auth/register",
+        "POST /api/v1/auth/login"
+      ]
+    },
+    {
+      "id": "offers",
+      "features": [
+        "product-list",
+        "product-detail",
+        "price-history"
+      ],
+      "routes": [
+        "GET /api/v1/produtos",
+        "GET /api/v1/produtos/{canonical_key}",
+        "GET /api/v1/produtos/{canonical_key}/historico"
+      ]
+    },
+    {
+      "id": "alerts",
+      "features": [
+        "alert-list"
+      ],
+      "routes": [
+        "GET /api/v1/alertas"
+      ]
+    },
+    {
+      "id": "watchlist",
+      "features": [
+        "list",
+        "upsert",
+        "remove"
+      ],
+      "routes": [
+        "GET /api/v1/me/watchlist",
+        "PUT /api/v1/me/watchlist/{canonical_key}",
+        "DELETE /api/v1/me/watchlist/{canonical_key}"
+      ]
+    },
+    {
+      "id": "account",
+      "features": [
+        "me",
+        "preferences",
+        "logout"
+      ],
+      "routes": [
+        "GET /api/v1/me",
+        "GET /api/v1/me/preferences",
+        "PATCH /api/v1/me/preferences",
+        "POST /api/v1/auth/logout"
+      ]
+    }
+  ],
+  "state_and_data": {
+    "server_state_is_source_of_truth": true,
+    "session_store": "expo-secure-store",
+    "network_cache": "tanstack-query",
+    "business_rules_duplicated_in_client": false
+  },
+  "ui": {
+    "navigation": "expo-router",
+    "styling": "react-native-stylesheet",
+    "personalized_feed_in_mvp": false,
+    "push_notifications_in_mvp": false,
+    "device_registration_in_mvp": false
+  },
+  "repository_boundaries": {
+    "public_user_app_source_allowed": true,
+    "private_admin_android_app_allowed": false,
+    "admin_credentials_allowed": false,
+    "admin_control_plane_usage_allowed": false
+  },
+  "non_goals": [
+    "device registration",
+    "push delivery",
+    "personalized feed",
+    "admin control plane",
+    "public internet exposure",
+    "embedding infrastructure secrets"
+  ],
+  "implementation_order": [
+    "bootstrap expo typescript app",
+    "transport and api client foundation",
+    "secure session storage",
+    "register login logout",
+    "offers and product detail",
+    "watchlist",
+    "preferences account",
+    "alerts",
+    "android device smoke test over tailscale",
+    "mvp final audit"
+  ],
+  "next_step": "public-app-mvp-bootstrap-v1"
+}

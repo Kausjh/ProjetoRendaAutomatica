@@ -944,3 +944,22 @@ Defaults e variáveis de ambiente estão documentados em
 
 Contrato: `contracts/user_facing_api_abuse_controls_v1.json`.
 <!-- fase2-user-facing-abuse-controls-v1:end -->
+
+<!-- fase2-public-app-mvp-architecture-v1:start -->
+### Fase 2 — Public App MVP: arquitetura V1
+
+O aplicativo de usuário final será construído para Android com **React Native + Expo + TypeScript**.
+
+O código público do app poderá viver em `apps/public-mobile/`. O aplicativo
+Android privado de administração continua fora deste repositório.
+
+O MVP inicial opera como alpha sobre o transporte Tailscale já existente
+(`:18767 -> 127.0.0.1:8766`) e nunca usa a API administrativa `8765`.
+
+Nenhum `API_APLICACAO_TOKEN` será hardcoded, commitado ou embutido como segredo
+fixo no app. A sessão de usuário será armazenada em Secure Store.
+
+Contrato: `contracts/public_app_mvp_architecture_v1.json`.
+
+Documentação: `docs/25-public-app-mvp-architecture.md`.
+<!-- fase2-public-app-mvp-architecture-v1:end -->
