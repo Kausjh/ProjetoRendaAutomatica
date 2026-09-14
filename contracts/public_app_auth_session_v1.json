@@ -1,0 +1,41 @@
+{
+  "schema": "projeto-renda-automatica.public-app-auth-session",
+  "auth_session_version": 1,
+  "phase": 2,
+  "stage": 2,
+  "source_root": "apps/public-mobile/src/auth",
+  "lifecycle": {
+    "restore_on_app_boot": true,
+    "restore_validates_with_me": true,
+    "invalid_session_401_clears_local_token": true,
+    "transient_network_failure_clears_local_token": false,
+    "register_auto_login": false,
+    "login_persists_user_session": true,
+    "logout_calls_server": true,
+    "logout_always_clears_local_session": true,
+    "refresh_me_supported": true
+  },
+  "storage": {
+    "provider": "expo-secure-store",
+    "plaintext_file_storage": false,
+    "session_token_logged": false
+  },
+  "state": {
+    "statuses": [
+      "restoring",
+      "anonymous",
+      "authenticated",
+      "error"
+    ],
+    "account_held_in_memory_when_authenticated": true,
+    "routing_gate_ready": true
+  },
+  "boundaries": {
+    "final_auth_screens": false,
+    "device_registration": false,
+    "push_delivery": false,
+    "personalized_feed": false,
+    "admin_control_plane": false
+  },
+  "next_step": "public-app-mvp-auth-ui-v1"
+}

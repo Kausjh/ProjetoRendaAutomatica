@@ -1004,3 +1004,21 @@ Contrato: `contracts/public_app_api_client_transport_v1.json`.
 
 Documentação: `docs/27-public-app-api-client-transport-v1.md`.
 <!-- fase2-public-app-api-client-transport-v1:end -->
+
+<!-- fase2-public-app-auth-session-v1:start -->
+### Fase 2 — Public App MVP: Auth Session V1
+
+O app público possui estado real de autenticação em
+`apps/public-mobile/src/auth/`.
+
+O provider restaura a sessão do Secure Store ao abrir o app, valida `/me`,
+persiste a sessão após login e garante limpeza local no logout. Sessões
+rejeitadas com `401` são removidas; falhas transitórias de rede não provocam
+logout automático.
+
+O root layout já inicializa esse estado para preparar o roteamento autenticado.
+
+Contrato: `contracts/public_app_auth_session_v1.json`.
+
+Documentação: `docs/28-public-app-auth-session-v1.md`.
+<!-- fase2-public-app-auth-session-v1:end -->
