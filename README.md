@@ -831,3 +831,21 @@ Contrato: `contracts/user_facing_api_auth_v1.json`.
 
 Documentação: `docs/18-user-facing-api-auth-v1.md`.
 <!-- fase2-user-facing-auth-contract-v1:end -->
+
+<!-- fase2-user-facing-http-foundation-v1:start -->
+### Fase 2 — User-Facing API V1: HTTP Foundation
+
+A infraestrutura HTTP compartilhada da superfície user-facing está preparada
+sem alterar as rotas de negócio existentes.
+
+Ela fornece parsing JSON com limite de payload, envelopes de sucesso/erro,
+extração de `X-User-Session` e resolução server-side da sessão do usuário.
+
+`ServidorApiAplicacao` aceita opcionalmente o serviço de identidade, preservando
+compatibilidade com o runtime atual enquanto `register/login` ainda não foram
+abertos.
+
+Contrato: `contracts/user_facing_api_http_foundation_v1.json`.
+
+Documentação: `docs/19-user-facing-api-http-foundation-v1.md`.
+<!-- fase2-user-facing-http-foundation-v1:end -->

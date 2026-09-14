@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import hmac
 import ipaddress
@@ -6,11 +6,19 @@ import json
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, unquote, urlparse
 
 from dotenv import load_dotenv
 
 from services.api_aplicacao.controlador import ControladorApiAplicacao
+from services.api_aplicacao.user_facing_http import (
+    ErroHttpUserFacing,
+    UserFacingHttpFoundation,
+)
+
+if TYPE_CHECKING:
+    from services.user_identity_service import UserIdentityService
 
 
 class ServidorApiAplicacao:
@@ -21,6 +29,7 @@ class ServidorApiAplicacao:
         host: str | None = None,
         porta: int | None = None,
         token: str | None = None,
+        user_identity_service: UserIdentityService | None = None,
     ) -> None:
         load_dotenv()
 
@@ -35,6 +44,9 @@ class ServidorApiAplicacao:
             porta_ambiente=porta_ambiente,
         )
         self.token = token.strip() if token is not None else token_ambiente
+        self.user_facing_http = UserFacingHttpFoundation(
+            user_identity_service=user_identity_service,
+        )
 
         if not self._host_loopback(self.host) and not self.token:
             raise ValueError("API_APLICACAO_TOKEN e obrigatorio para bind " "fora de loopback.")
@@ -89,6 +101,7 @@ class ServidorApiAplicacao:
 
         controlador = self.controlador
         token_api = self.token
+        user_facing_http = self.user_facing_http
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -195,6 +208,38 @@ class ServidorApiAplicacao:
                 return hmac.compare_digest(
                     recebido,
                     esperado,
+                )
+
+            def _ler_json_user_facing(
+                self,
+            ) -> dict[str, object] | None:
+                try:
+                    return user_facing_http.ler_json_objeto(
+                        headers=self.headers,
+                        stream=self.rfile,
+                    )
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return None
+
+            def _resolver_usuario_user_facing(
+                self,
+            ) -> object | None:
+                try:
+                    return user_facing_http.resolver_usuario(
+                        self.headers,
+                    )
+                except ErroHttpUserFacing as erro:
+                    self._responder_erro_user_facing(erro)
+                    return None
+
+            def _responder_erro_user_facing(
+                self,
+                erro: ErroHttpUserFacing,
+            ) -> None:
+                self._responder_json(
+                    erro.status,
+                    erro.payload(),
                 )
 
             def _responder_json(

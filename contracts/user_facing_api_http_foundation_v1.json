@@ -1,0 +1,63 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-http-foundation",
+  "http_foundation_version": 1,
+  "stage": "http-foundation",
+  "new_business_routes": false,
+  "request_json": {
+    "content_type": "application/json",
+    "object_only": true,
+    "utf8_required": true,
+    "content_length_required": true,
+    "max_body_bytes": 65536,
+    "errors": {
+      "400": [
+        "missing/invalid content length",
+        "empty/incomplete body",
+        "invalid utf-8",
+        "invalid json",
+        "non-object json"
+      ],
+      "413": [
+        "body too large"
+      ],
+      "415": [
+        "unsupported content type"
+      ]
+    }
+  },
+  "response_envelope": {
+    "success": {
+      "api_version": "v1",
+      "data_key": "dados"
+    },
+    "error": {
+      "api_version": "v1",
+      "error_key": "erro",
+      "fields": [
+        "codigo",
+        "mensagem"
+      ]
+    }
+  },
+  "user_session": {
+    "header": "X-User-Session",
+    "token_prefix": "pra_usr_v1_",
+    "max_header_length": 512,
+    "resolved_server_side": true,
+    "missing_required_status": 401,
+    "invalid_status": 401,
+    "identity_service_unavailable_status": 503
+  },
+  "boundaries": {
+    "infrastructure_bearer_preserved": true,
+    "existing_read_only_routes_unchanged": true,
+    "health_route_unchanged": true,
+    "register_route_added": false,
+    "login_route_added": false,
+    "logout_route_added": false,
+    "me_route_added": false,
+    "admin_control_plane_unchanged": true,
+    "no_user_session_logging": true
+  },
+  "next_step": "register-login-http-v1"
+}
