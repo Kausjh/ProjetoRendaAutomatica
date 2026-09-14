@@ -660,14 +660,6 @@ Distribuído sob licença MIT.
 
 Consulte `LICENSE`.
 
----
-
-## Autor
-
-**Kauê Jhonatas**
-
-Projeto desenvolvido com foco em automação comercial, engenharia de software, inteligência de preços e arquitetura modular.
-
 ## Contrato de clientes da API V1
 
 A API de aplicação possui contrato público e versionado em
