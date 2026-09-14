@@ -1,0 +1,51 @@
+{
+  "schema": "projeto-renda-automatica.device-registration",
+  "device_registration_version": 1,
+  "stage": "backend-foundation",
+  "identity": {
+    "source": "X-User-Session",
+    "conta_id_from_client": false
+  },
+  "persistence": {
+    "engine": "sqlite",
+    "database": "database/user_identity.sqlite3",
+    "table": "dispositivos_usuario",
+    "multiple_devices_per_account": true,
+    "unique_installation_per_account": true,
+    "token_rotation_supported": true,
+    "active_inactive_state": true
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/me/devices",
+      "purpose": "listar dispositivos da conta"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/me/devices/{instalacao_id}",
+      "purpose": "registrar, reativar ou rotacionar token"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/me/devices/{instalacao_id}",
+      "purpose": "revogar dispositivo"
+    }
+  ],
+  "security": {
+    "push_token_returned_to_client": false,
+    "provider_credentials_exposed_to_client": false,
+    "cross_account_device_access": false,
+    "raw_push_token_required_for_future_dispatcher": true
+  },
+  "delivery": {
+    "push_delivery_enabled": false,
+    "push_provider_configured": false,
+    "external_network_calls": false
+  },
+  "public_app": {
+    "token_acquisition_implemented": false,
+    "automatic_registration_implemented": false
+  },
+  "next_step": "public-app-device-token-binding-v1"
+}

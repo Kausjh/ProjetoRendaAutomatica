@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,3 +25,16 @@ class SessaoUsuarioEmitida:
     conta: ContaUsuario
     sessao: SessaoUsuario
     token: str
+
+
+@dataclass(frozen=True, slots=True)
+class DispositivoUsuario:
+    id: str
+    conta_id: str
+    instalacao_id: str
+    plataforma: str
+    push_token: str = field(repr=False)
+    ativo: bool
+    criado_em: str
+    atualizado_em: str
+    revogado_em: str | None

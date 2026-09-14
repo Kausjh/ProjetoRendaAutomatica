@@ -17,6 +17,7 @@ from services.api_aplicacao.user_facing_abuse_controls import (
     UserFacingAbuseControls,
 )
 from services.api_aplicacao.user_facing_auth import UserFacingAuthController
+from services.api_aplicacao.user_facing_devices import UserFacingDevicesController
 from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
     UserFacingHttpFoundation,
@@ -65,6 +66,9 @@ class ServidorApiAplicacao:
             user_identity_service=user_identity_service,
         )
         self.user_facing_auth = UserFacingAuthController(
+            user_identity_service,
+        )
+        self.user_facing_devices = UserFacingDevicesController(
             user_identity_service,
         )
         self.user_facing_preferences = UserFacingPreferencesController(
@@ -134,6 +138,7 @@ class ServidorApiAplicacao:
         token_api = self.token
         user_facing_http = self.user_facing_http
         user_facing_auth = self.user_facing_auth
+        user_facing_devices = self.user_facing_devices
         user_facing_preferences = self.user_facing_preferences
         user_facing_watchlist = self.user_facing_watchlist
         abuse_controls = self.user_facing_abuse_controls
@@ -156,6 +161,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me",
                         "/api/v1/me/preferences",
                         "/api/v1/me/watchlist",
+                        "/api/v1/me/devices",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -169,6 +175,23 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/devices":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_devices.listar(conta)
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/watchlist":
@@ -347,7 +370,11 @@ class ServidorApiAplicacao:
                 rota = url.path.rstrip("/") or "/"
                 partes = [unquote(parte) for parte in rota.split("/") if parte]
 
-                if not (len(partes) == 5 and partes[:4] == ["api", "v1", "me", "watchlist"]):
+                if not (
+                    len(partes) == 5
+                    and partes[:3] == ["api", "v1", "me"]
+                    and partes[3] in {"watchlist", "devices"}
+                ):
                     self._metodo_nao_permitido()
                     return
 
@@ -370,11 +397,18 @@ class ServidorApiAplicacao:
                     return
 
                 try:
-                    status, dados = user_facing_watchlist.salvar(
-                        conta,
-                        partes[4],
-                        payload,
-                    )
+                    if partes[3] == "watchlist":
+                        status, dados = user_facing_watchlist.salvar(
+                            conta,
+                            partes[4],
+                            payload,
+                        )
+                    else:
+                        status, dados = user_facing_devices.salvar(
+                            conta,
+                            partes[4],
+                            payload,
+                        )
                 except ErroHttpUserFacing as erro:
                     self._responder_erro_user_facing(erro)
                     return
@@ -429,7 +463,11 @@ class ServidorApiAplicacao:
                 rota = url.path.rstrip("/") or "/"
                 partes = [unquote(parte) for parte in rota.split("/") if parte]
 
-                if not (len(partes) == 5 and partes[:4] == ["api", "v1", "me", "watchlist"]):
+                if not (
+                    len(partes) == 5
+                    and partes[:3] == ["api", "v1", "me"]
+                    and partes[3] in {"watchlist", "devices"}
+                ):
                     self._metodo_nao_permitido()
                     return
 
@@ -448,10 +486,16 @@ class ServidorApiAplicacao:
                     return
 
                 try:
-                    status, dados = user_facing_watchlist.remover(
-                        conta,
-                        partes[4],
-                    )
+                    if partes[3] == "watchlist":
+                        status, dados = user_facing_watchlist.remover(
+                            conta,
+                            partes[4],
+                        )
+                    else:
+                        status, dados = user_facing_devices.remover(
+                            conta,
+                            partes[4],
+                        )
                 except ErroHttpUserFacing as erro:
                     self._responder_erro_user_facing(erro)
                     return

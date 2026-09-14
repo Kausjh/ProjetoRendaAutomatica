@@ -7,7 +7,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from models.user_identity import ContaUsuario, SessaoUsuarioEmitida
+from models.user_identity import ContaUsuario, DispositivoUsuario, SessaoUsuarioEmitida
 from repositories.user_identity_repository import UserIdentityRepository
 
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -182,4 +182,82 @@ class UserIdentityService:
         return self.repository.revogar_sessao(
             sessao_id=sessao.id,
             revogada_em=self._agora().isoformat(),
+        )
+
+    @staticmethod
+    def _validar_instalacao_id(instalacao_id: str) -> str:
+        valor = str(instalacao_id or "").strip()
+        if not valor or len(valor) > 200:
+            raise ValueError("instalacao_id invalido.")
+        return valor
+
+    @staticmethod
+    def _validar_plataforma(plataforma: str) -> str:
+        valor = str(plataforma or "").strip().lower()
+        if valor not in {"android", "ios"}:
+            raise ValueError("plataforma precisa ser android ou ios.")
+        return valor
+
+    @staticmethod
+    def _validar_push_token(push_token: str) -> str:
+        valor = str(push_token or "").strip()
+        if len(valor) < 8 or len(valor) > 4096:
+            raise ValueError("push_token invalido.")
+        return valor
+
+    @staticmethod
+    def _hash_push_token(push_token: str) -> str:
+        return hashlib.sha256(f"device:{push_token}".encode()).hexdigest()
+
+    def registrar_dispositivo(
+        self,
+        *,
+        conta_id: str,
+        instalacao_id: str,
+        plataforma: str,
+        push_token: str,
+    ) -> tuple[DispositivoUsuario, bool, bool]:
+        instalacao = self._validar_instalacao_id(instalacao_id)
+        plataforma_normalizada = self._validar_plataforma(plataforma)
+        token = self._validar_push_token(push_token)
+
+        return self.repository.registrar_dispositivo(
+            dispositivo_id=f"dev_{uuid.uuid4().hex}",
+            conta_id=str(conta_id or "").strip(),
+            instalacao_id=instalacao,
+            plataforma=plataforma_normalizada,
+            push_token=token,
+            push_token_hash=self._hash_push_token(token),
+            agora=self._agora().isoformat(),
+        )
+
+    def listar_dispositivos(
+        self,
+        conta_id: str,
+    ) -> list[DispositivoUsuario]:
+        return self.repository.listar_dispositivos(
+            str(conta_id or "").strip(),
+        )
+
+    def listar_dispositivos_ativos(
+        self,
+        conta_id: str,
+    ) -> list[DispositivoUsuario]:
+        return self.repository.listar_dispositivos(
+            str(conta_id or "").strip(),
+            apenas_ativos=True,
+        )
+
+    def revogar_dispositivo(
+        self,
+        *,
+        conta_id: str,
+        instalacao_id: str,
+    ) -> DispositivoUsuario | None:
+        instalacao = self._validar_instalacao_id(instalacao_id)
+
+        return self.repository.revogar_dispositivo(
+            conta_id=str(conta_id or "").strip(),
+            instalacao_id=instalacao,
+            agora=self._agora().isoformat(),
         )
