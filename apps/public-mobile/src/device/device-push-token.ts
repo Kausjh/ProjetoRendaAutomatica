@@ -36,7 +36,7 @@ function resolveProjectId(): string | null {
 }
 
 function isExpoGo(): boolean {
-  return Constants.expoGoConfig !== null;
+  return Constants.executionEnvironment === "storeClient";
 }
 
 export async function acquireExpoPushToken(): Promise<PushTokenAcquisitionResult> {
