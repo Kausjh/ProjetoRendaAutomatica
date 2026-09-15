@@ -51,7 +51,8 @@ def test_installation_id_is_random_stable_and_not_cleared_on_logout():
 def test_push_token_flow_is_expo_go_safe_and_requires_project_id():
     source = _read(DEVICE / "device-push-token.ts")
 
-    assert "Constants.expoGoConfig" in source
+    assert 'Constants.executionEnvironment === "storeClient"' in source
+    assert "Constants.expoGoConfig" not in source
     assert '"expo-go-remote-push-unavailable"' in source
     assert "Constants.expoConfig?.extra?.eas?.projectId" in source
     assert "Constants.easConfig?.projectId" in source
@@ -60,7 +61,7 @@ def test_push_token_flow_is_expo_go_safe_and_requires_project_id():
     assert "Notifications.requestPermissionsAsync()" in source
     assert "Notifications.getExpoPushTokenAsync" in source
 
-    assert source.index("Constants.expoGoConfig") < source.index(
+    assert source.index('Constants.executionEnvironment === "storeClient"') < source.index(
         "Notifications.getExpoPushTokenAsync"
     )
 
