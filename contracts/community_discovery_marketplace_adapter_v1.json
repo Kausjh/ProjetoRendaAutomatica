@@ -1,0 +1,47 @@
+{
+  "name": "community_discovery_marketplace_adapter_v1",
+  "version": 1,
+  "phase": "V1B2",
+  "input": {
+    "type": "DescobertaComunitaria",
+    "required_status": "processing",
+    "user_submission_contains_only_url": true
+  },
+  "marketplaces": {
+    "mercado_livre": {
+      "resolver": "ResolvedorDestinoSocialScout",
+      "validator": "ValidadorPrecoMercadoLivreSocialScout",
+      "mode": "official_snapshot_without_user_claim"
+    },
+    "shopee": {
+      "processor": "ProcessadorShopeeSocialScout",
+      "mode": "official_price_without_user_claim"
+    },
+    "aliexpress": {
+      "processor": "ProcessadorAliExpressSocialScout",
+      "mode": "official_price_without_user_claim",
+      "known_gap": "official title is not exposed by current validator"
+    },
+    "kabum": {
+      "processor": "ProcessadorKabumSocialScout",
+      "mode": "official_price_without_user_claim"
+    },
+    "amazon": {
+      "supported": false,
+      "reason": "no product resolver/validator exists yet"
+    }
+  },
+  "result_statuses": [
+    "oferta_criada",
+    "retry",
+    "rejeitada",
+    "nao_suportada"
+  ],
+  "boundaries": {
+    "queue_state_mutation": false,
+    "runtime_worker_enabled": false,
+    "pipeline_handoff": false,
+    "automatic_publication": false,
+    "next_phase": "worker -> queue state transition -> existing pipeline handoff"
+  }
+}
