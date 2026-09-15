@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -18,10 +19,19 @@ import {
   useProductList,
 } from "@/src/offers";
 import { appTheme } from "@/src/ui";
+import {
+  useDeleteWatchlist,
+  useUpsertWatchlist,
+  useWatchlist,
+} from "@/src/watchlist";
 
 export default function HomeScreen() {
   const { snapshot } = useAuthSession();
+  const authenticated = snapshot.status === "authenticated";
   const products = useProductList(50, 0);
+  const watchlist = useWatchlist(authenticated);
+  const upsertWatchlist = useUpsertWatchlist();
+  const deleteWatchlist = useDeleteWatchlist();
 
   if (snapshot.status === "restoring") {
     return (
@@ -40,6 +50,39 @@ export default function HomeScreen() {
 
   const totalProducts =
     products.data?.total ?? products.data?.items.length ?? 0;
+
+  const watchedKeys = new Set(
+    (watchlist.data?.items ?? []).map((item) => item.canonicalKey),
+  );
+  const watchlistBusy =
+    watchlist.isPending ||
+    upsertWatchlist.isPending ||
+    deleteWatchlist.isPending;
+
+  const toggleWatchlist = async (
+    canonicalKey: string,
+    watched: boolean,
+  ): Promise<void> => {
+    try {
+      if (watched) {
+        await deleteWatchlist.mutateAsync(canonicalKey);
+        return;
+      }
+
+      await upsertWatchlist.mutateAsync({
+        canonicalKey,
+        targetPrice: null,
+        notifyPriceDrop: true,
+      });
+    } catch (caught) {
+      Alert.alert(
+        "Não foi possível atualizar a Lista",
+        caught instanceof Error
+          ? caught.message
+          : "Tente novamente em alguns instantes.",
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -154,9 +197,14 @@ export default function HomeScreen() {
             <RefreshControl
               tintColor={appTheme.colors.accent}
               colors={[appTheme.colors.accent]}
-              refreshing={products.isRefetching}
+              refreshing={
+                products.isRefetching || watchlist.isRefetching
+              }
               onRefresh={() => {
-                void products.refetch();
+                void Promise.all([
+                  products.refetch(),
+                  watchlist.refetch(),
+                ]);
               }}
             />
           }
@@ -194,6 +242,11 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <ProductCardView
               item={item}
+              watched={watchedKeys.has(item.canonicalKey)}
+              watchlistBusy={watchlistBusy}
+              onToggleWatchlist={(canonicalKey, watched) =>
+                toggleWatchlist(canonicalKey, watched)
+              }
               onPress={() =>
                 router.push({
                   pathname: "/product/[canonicalKey]",
@@ -212,9 +265,18 @@ export default function HomeScreen() {
 
 function ProductCardView({
   item,
+  watched,
+  watchlistBusy,
+  onToggleWatchlist,
   onPress,
 }: Readonly<{
   item: ProductCard;
+  watched: boolean;
+  watchlistBusy: boolean;
+  onToggleWatchlist: (
+    canonicalKey: string,
+    watched: boolean,
+  ) => Promise<void>;
   onPress: () => void;
 }>) {
   const marketplace =
@@ -241,18 +303,49 @@ function ProductCardView({
           </Text>
         </View>
 
-        {item.discountPercent !== null ? (
-          <View style={styles.discountBadge}>
+        <View style={styles.cardHeaderActions}>
+          {item.discountPercent !== null ? (
+            <View style={styles.discountBadge}>
+              <Ionicons
+                name="pricetag"
+                size={12}
+                color={appTheme.colors.success}
+              />
+              <Text style={styles.discount}>
+                -{Math.round(item.discountPercent)}%
+              </Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              watched ? "Remover da Lista" : "Salvar na Lista"
+            }
+            accessibilityState={{ selected: watched }}
+            disabled={watchlistBusy}
+            hitSlop={8}
+            style={[
+              styles.watchButton,
+              watched && styles.watchButtonActive,
+              watchlistBusy && styles.watchButtonDisabled,
+            ]}
+            onPress={(event) => {
+              event.stopPropagation();
+              void onToggleWatchlist(item.canonicalKey, watched);
+            }}
+          >
             <Ionicons
-              name="pricetag"
-              size={12}
-              color={appTheme.colors.success}
+              name={watched ? "heart" : "heart-outline"}
+              size={18}
+              color={
+                watched
+                  ? appTheme.colors.accent
+                  : appTheme.colors.textMuted
+              }
             />
-            <Text style={styles.discount}>
-              -{Math.round(item.discountPercent)}%
-            </Text>
-          </View>
-        ) : null}
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.cardMain}>
@@ -543,6 +636,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     textTransform: "capitalize",
+  },
+  cardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  watchButton: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.borderStrong,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.surfaceElevated,
+  },
+  watchButtonActive: {
+    borderColor: appTheme.colors.accent,
+    backgroundColor: appTheme.colors.accentSoft,
+  },
+  watchButtonDisabled: {
+    opacity: 0.55,
   },
   discountBadge: {
     flexDirection: "row",
