@@ -1,0 +1,41 @@
+{
+  "name": "community_discovery_processor_v1",
+  "version": 1,
+  "phase": "V1B1",
+  "purpose": "durable_queue_state_machine",
+  "states": {
+    "pending": [
+      "received",
+      "retry"
+    ],
+    "leased": "processing",
+    "terminal": [
+      "approved",
+      "rejected"
+    ]
+  },
+  "claim": {
+    "atomic_sqlite_claim": true,
+    "increments_attempts_on_claim": true,
+    "clears_previous_status_reason": true
+  },
+  "retry": {
+    "max_attempts_default": 5,
+    "base_delay_seconds_default": 60,
+    "max_delay_seconds_default": 3600,
+    "exponential_backoff": true
+  },
+  "recovery": {
+    "stale_processing_timeout_seconds_default": 900,
+    "stale_processing_returns_to_retry": true
+  },
+  "boundaries": {
+    "external_network_calls": false,
+    "marketplace_resolution": false,
+    "offer_construction": false,
+    "pipeline_handoff": false,
+    "runtime_worker_enabled": false,
+    "automatic_publication": false,
+    "next_phase": "community marketplace adapter -> validated Oferta -> existing pipeline"
+  }
+}

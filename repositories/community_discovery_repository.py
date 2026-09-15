@@ -241,3 +241,187 @@ class CommunityDiscoveryRepository:
             ).fetchall()
 
         return [self._da_linha(linha) for linha in linhas]
+
+    def reservar_pendentes(
+        self,
+        *,
+        disponivel_ate: str,
+        agora: str,
+        limite: int = 10,
+    ) -> list[DescobertaComunitaria]:
+        limite_seguro = max(1, min(int(limite), 100))
+
+        with self._conectar() as conexao:
+            conexao.execute("BEGIN IMMEDIATE")
+
+            linhas = conexao.execute(
+                """
+                SELECT id
+                FROM community_discoveries
+                WHERE status IN ('received', 'retry')
+                  AND disponivel_em <= ?
+                ORDER BY disponivel_em ASC, criado_em ASC, id ASC
+                LIMIT ?
+                """,
+                (disponivel_ate, limite_seguro),
+            ).fetchall()
+
+            ids = [str(linha["id"]) for linha in linhas]
+
+            if not ids:
+                return []
+
+            placeholders = ",".join("?" for _ in ids)
+
+            conexao.execute(
+                f"""
+                UPDATE community_discoveries
+                SET
+                    status = 'processing',
+                    tentativas = tentativas + 1,
+                    processando_desde = ?,
+                    motivo_status = NULL,
+                    atualizado_em = ?
+                WHERE id IN ({placeholders})
+                  AND status IN ('received', 'retry')
+                """,
+                (agora, agora, *ids),
+            )
+
+            reservadas = conexao.execute(
+                f"""
+                SELECT *
+                FROM community_discoveries
+                WHERE id IN ({placeholders})
+                  AND status = 'processing'
+                ORDER BY disponivel_em ASC, criado_em ASC, id ASC
+                """,
+                ids,
+            ).fetchall()
+
+        return [self._da_linha(linha) for linha in reservadas]
+
+    def marcar_retry(
+        self,
+        descoberta_id: str,
+        *,
+        disponivel_em: str,
+        motivo: str,
+        agora: str,
+    ) -> bool:
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE community_discoveries
+                SET
+                    status = 'retry',
+                    disponivel_em = ?,
+                    processando_desde = NULL,
+                    motivo_status = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'processing'
+                """,
+                (
+                    disponivel_em,
+                    str(motivo or "").strip() or None,
+                    agora,
+                    str(descoberta_id or "").strip(),
+                ),
+            )
+
+        return cursor.rowcount == 1
+
+    def marcar_aprovada(
+        self,
+        descoberta_id: str,
+        *,
+        canonical_key: str | None,
+        motivo: str | None,
+        agora: str,
+    ) -> bool:
+        canonical = str(canonical_key or "").strip() or None
+        motivo_normalizado = str(motivo or "").strip() or None
+
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE community_discoveries
+                SET
+                    status = 'approved',
+                    processando_desde = NULL,
+                    motivo_status = ?,
+                    canonical_key = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'processing'
+                """,
+                (
+                    motivo_normalizado,
+                    canonical,
+                    agora,
+                    str(descoberta_id or "").strip(),
+                ),
+            )
+
+        return cursor.rowcount == 1
+
+    def marcar_rejeitada(
+        self,
+        descoberta_id: str,
+        *,
+        motivo: str,
+        agora: str,
+    ) -> bool:
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE community_discoveries
+                SET
+                    status = 'rejected',
+                    processando_desde = NULL,
+                    motivo_status = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND status = 'processing'
+                """,
+                (
+                    str(motivo or "").strip() or None,
+                    agora,
+                    str(descoberta_id or "").strip(),
+                ),
+            )
+
+        return cursor.rowcount == 1
+
+    def recuperar_processamentos_expirados(
+        self,
+        *,
+        processando_antes: str,
+        disponivel_em: str,
+        agora: str,
+        motivo: str = "processing_timeout",
+    ) -> int:
+        with self._conectar() as conexao:
+            cursor = conexao.execute(
+                """
+                UPDATE community_discoveries
+                SET
+                    status = 'retry',
+                    disponivel_em = ?,
+                    processando_desde = NULL,
+                    motivo_status = ?,
+                    atualizado_em = ?
+                WHERE status = 'processing'
+                  AND processando_desde IS NOT NULL
+                  AND processando_desde <= ?
+                """,
+                (
+                    disponivel_em,
+                    str(motivo or "").strip() or "processing_timeout",
+                    agora,
+                    processando_antes,
+                ),
+            )
+
+        return int(cursor.rowcount)
