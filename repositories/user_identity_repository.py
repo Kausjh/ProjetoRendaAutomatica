@@ -415,6 +415,31 @@ class UserIdentityRepository:
         assert linha is not None
         return self._dispositivo_da_linha(linha), criado, token_rotacionado
 
+    def obter_dispositivo_por_id(
+        self,
+        dispositivo_id: str,
+    ) -> DispositivoUsuario | None:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT
+                    id,
+                    conta_id,
+                    instalacao_id,
+                    plataforma,
+                    push_token,
+                    ativo,
+                    criado_em,
+                    atualizado_em,
+                    revogado_em
+                FROM dispositivos_usuario
+                WHERE id = ?
+                """,
+                (str(dispositivo_id or "").strip(),),
+            ).fetchone()
+
+        return self._dispositivo_da_linha(linha) if linha is not None else None
+
     def listar_dispositivos(
         self,
         conta_id: str,

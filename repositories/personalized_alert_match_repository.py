@@ -135,6 +135,32 @@ class PersonalizedAlertMatchRepository:
 
         return match, criado
 
+    def obter_por_id(
+        self,
+        match_id: str,
+    ) -> CorrespondenciaAlertaPersonalizado | None:
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT
+                    id,
+                    evento_alerta_id,
+                    watchlist_id,
+                    conta_id,
+                    canonical_key,
+                    tipo_evento,
+                    preco_atual_centavos,
+                    marketplace,
+                    motivos_json,
+                    criado_em
+                FROM personalized_alert_matches
+                WHERE id = ?
+                """,
+                (str(match_id or "").strip(),),
+            ).fetchone()
+
+        return self._da_linha(linha) if linha is not None else None
+
     def obter_por_evento_watchlist(
         self,
         *,

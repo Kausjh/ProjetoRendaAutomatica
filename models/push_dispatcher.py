@@ -61,6 +61,7 @@ class RegistroTentativaPush:
     id: str
     outbox_id: str
     dispositivo_id: str
+    outbox_tentativa: int
     ticket_id: str | None
     ticket_status: str
     receipt_status: str | None
@@ -68,3 +69,31 @@ class RegistroTentativaPush:
     ultimo_erro: str | None
     criado_em: str
     atualizado_em: str
+
+
+@dataclass(frozen=True, slots=True)
+class ConteudoPushPersonalizado:
+    titulo: str
+    corpo: str
+    dados: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ResultadoEnvioPush:
+    status: str
+    outbox_id: str | None
+    dispositivos: int = 0
+    tickets_ok: int = 0
+    tickets_erro: int = 0
+    dispositivos_revogados: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ResultadoRecibosPush:
+    status: str
+    consultados: int
+    recebidos: int
+    outboxes_entregues: int = 0
+    outboxes_retry: int = 0
+    outboxes_falha: int = 0
+    dispositivos_revogados: int = 0

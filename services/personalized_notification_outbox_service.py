@@ -85,6 +85,12 @@ class PersonalizedNotificationOutboxService:
 
         return None
 
+    def obter_por_id(
+        self,
+        outbox_id: str,
+    ) -> ItemOutboxNotificacaoPersonalizada | None:
+        return self.repository.obter_por_id(str(outbox_id or "").strip())
+
     def registrar_sucesso(
         self,
         outbox_id: str,

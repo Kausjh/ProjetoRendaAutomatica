@@ -29,6 +29,8 @@ class PushDeliveryRepository:
                     id TEXT PRIMARY KEY,
                     outbox_id TEXT NOT NULL,
                     dispositivo_id TEXT NOT NULL,
+                    outbox_tentativa INTEGER NOT NULL DEFAULT 1
+                        CHECK (outbox_tentativa >= 1),
                     ticket_id TEXT UNIQUE,
                     ticket_status TEXT NOT NULL
                         CHECK (ticket_status IN ('ok', 'error')),
@@ -60,6 +62,16 @@ class PushDeliveryRepository:
                     );
             """)
 
+            colunas = {
+                str(linha[1])
+                for linha in conexao.execute("PRAGMA table_info(push_delivery_attempts)").fetchall()
+            }
+            if "outbox_tentativa" not in colunas:
+                conexao.execute(
+                    "ALTER TABLE push_delivery_attempts "
+                    "ADD COLUMN outbox_tentativa INTEGER NOT NULL DEFAULT 1"
+                )
+
     @staticmethod
     def _agora() -> str:
         return datetime.now(UTC).isoformat()
@@ -77,6 +89,7 @@ class PushDeliveryRepository:
             id=str(linha["id"]),
             outbox_id=str(linha["outbox_id"]),
             dispositivo_id=str(linha["dispositivo_id"]),
+            outbox_tentativa=int(linha["outbox_tentativa"]),
             ticket_id=(str(linha["ticket_id"]) if linha["ticket_id"] is not None else None),
             ticket_status=str(linha["ticket_status"]),
             receipt_status=(
@@ -98,9 +111,15 @@ class PushDeliveryRepository:
         outbox_id: str,
         dispositivo_id: str,
         ticket: TicketPushExpo,
+        outbox_tentativa: int = 1,
     ) -> RegistroTentativaPush:
         if ticket.status not in {"ok", "error"}:
             raise ValueError("ticket_status invalido.")
+
+        tentativa_outbox = int(outbox_tentativa)
+        if tentativa_outbox < 1:
+            raise ValueError("outbox_tentativa precisa ser positiva.")
+
         if ticket.status == "ok" and not ticket.ticket_id:
             raise ValueError("Ticket ok precisa de ticket_id.")
 
@@ -111,16 +130,17 @@ class PushDeliveryRepository:
             conexao.execute(
                 """
                 INSERT INTO push_delivery_attempts (
-                    id, outbox_id, dispositivo_id, ticket_id,
-                    ticket_status, receipt_status, provider_error_code,
-                    ultimo_erro, criado_em, atualizado_em
+                    id, outbox_id, dispositivo_id, outbox_tentativa,
+                    ticket_id, ticket_status, receipt_status,
+                    provider_error_code, ultimo_erro, criado_em, atualizado_em
                 )
-                VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
                 """,
                 (
                     tentativa_id,
                     outbox_id,
                     dispositivo_id,
+                    tentativa_outbox,
                     ticket.ticket_id,
                     ticket.status,
                     ticket.erro_codigo,

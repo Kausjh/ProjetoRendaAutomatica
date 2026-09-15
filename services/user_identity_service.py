@@ -231,6 +231,12 @@ class UserIdentityService:
             agora=self._agora().isoformat(),
         )
 
+    def obter_dispositivo_por_id(
+        self,
+        dispositivo_id: str,
+    ) -> DispositivoUsuario | None:
+        return self.repository.obter_dispositivo_por_id(str(dispositivo_id or "").strip())
+
     def listar_dispositivos(
         self,
         conta_id: str,
