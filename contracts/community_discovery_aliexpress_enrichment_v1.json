@@ -1,0 +1,28 @@
+{
+  "name": "community_discovery_aliexpress_enrichment_v1",
+  "version": 1,
+  "phase": "V1B3",
+  "purpose": "trusted_aliexpress_product_title_enrichment",
+  "source_of_truth": {
+    "title": "Product.name from the same JSON-LD object whose BRL Offer is validated",
+    "price": "existing AliExpress JSON-LD/PDP validation",
+    "user_text_as_official_title": false,
+    "fabricated_fallback_title": false
+  },
+  "flow": [
+    "community discovery URL",
+    "AliExpress product resolution",
+    "existing BRL validation",
+    "trusted JSON-LD title enrichment",
+    "ResultadoValidacaoPrecoSocialScout.titulo_oficial",
+    "existing community marketplace adapter"
+  ],
+  "safety": {
+    "missing_title_remains_unsupported": true,
+    "existing_price_validation_preserved": true,
+    "captcha_and_cooldown_behavior_preserved": true,
+    "automatic_worker_enabled": false,
+    "pipeline_handoff_enabled": false
+  },
+  "next_phase": "community discovery worker -> queue claim -> marketplace adapter -> existing pipeline handoff"
+}

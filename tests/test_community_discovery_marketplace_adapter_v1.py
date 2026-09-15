@@ -300,3 +300,32 @@ def test_adapter_exige_item_previamente_reservado():
                 status="received",
             )
         )
+
+
+def test_aliexpress_com_titulo_oficial_cria_oferta_link_only():
+    processador = ProcessadorFake(
+        resultado_resolucao=resolucao("aliexpress"),
+        resultado_validacao=validacao(
+            "aliexpress",
+            status="nao_verificavel",
+            motivo="mensagem_aliexpress_sem_preco_base",
+            titulo="SSD NVMe AliExpress Oficial",
+            preco=299.90,
+        ),
+    )
+    construtor = ConstrutorFake()
+
+    adapter = CommunityDiscoveryMarketplaceAdapter(
+        processador_aliexpress=processador,
+        construtor=construtor,
+    )
+
+    resultado = adapter.processar(
+        descoberta("aliexpress"),
+    )
+
+    assert resultado.status == "oferta_criada"
+    assert resultado.motivo == ("oferta_comunitaria_criada_com_preco_oficial")
+    assert processador.resolver_chamadas == 1
+    assert processador.validar_chamadas == 1
+    assert construtor.chamadas == 1

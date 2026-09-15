@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -33,6 +33,7 @@ class ResultadoPrecoAliExpress:
     promocao_novo_usuario: bool = False
     sku_id: str | None = None
     sku_atributo_selecionado: str | None = None
+    titulo: str | None = None
 
     @property
     def preco(self) -> float | None:
@@ -131,6 +132,7 @@ class ValidadorPrecoAliExpress:
         (
             preco_json_ld,
             url_json_ld,
+            titulo_json_ld,
         ) = oferta_json_ld
 
         if pdp_texto is None:
@@ -146,6 +148,7 @@ class ValidadorPrecoAliExpress:
                 moeda="BRL",
                 url_produto=(url_json_ld or url_final),
                 valido=True,
+                titulo=titulo_json_ld,
                 motivo=("preco BRL confirmado " "por JSON-LD"),
             )
 
@@ -164,15 +167,24 @@ class ValidadorPrecoAliExpress:
                 moeda="BRL",
                 url_produto=(url_json_ld or url_final),
                 valido=True,
+                titulo=titulo_json_ld,
                 motivo=("preco BRL confirmado " "por JSON-LD; PDP invalida"),
             )
 
-        return self._validar_com_pdp(
+        resultado_pdp = self._validar_com_pdp(
             produto_id=produto_id,
             url_final=(url_json_ld or url_final),
             preco_json_ld=(preco_json_ld),
             dados_pdp=dados_pdp,
         )
+
+        if resultado_pdp.valido:
+            return replace(
+                resultado_pdp,
+                titulo=titulo_json_ld,
+            )
+
+        return resultado_pdp
 
     def _validar_com_pdp(
         self,
@@ -406,7 +418,7 @@ class _JsonLdParser(HTMLParser):
 def _extrair_oferta_json_ld(
     html: str,
     produto_id: str,
-) -> tuple[float, str | None] | None:
+) -> tuple[float, str | None, str | None] | None:
     parser = _JsonLdParser()
 
     try:
@@ -430,6 +442,7 @@ def _extrair_oferta_json_ld(
             ):
                 continue
 
+            titulo_produto = _texto(objeto.get("name")) or None
             ofertas = objeto.get("offers")
 
             for oferta in _normalizar_ofertas(ofertas):
@@ -458,6 +471,7 @@ def _extrair_oferta_json_ld(
                 return (
                     preco,
                     url or None,
+                    titulo_produto,
                 )
 
     return None

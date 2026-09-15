@@ -12,10 +12,12 @@ URL = "https://pt.aliexpress.com/" f"item/{PRODUTO_ID}.html"
 def html_produto(
     preco="38.04",
     moeda="BRL",
+    nome="Produto AliExpress Oficial",
 ):
     dados = {
         "@context": "https://schema.org",
         "@type": "Product",
+        "name": nome,
         "offers": {
             "@type": "Offer",
             "url": URL,
@@ -352,3 +354,48 @@ def test_sem_mensagem_regional_preserva_rejeicao_jsonld():
     assert resultado.valido is False
 
     assert resultado.motivo == ("preco BRL confiavel nao encontrado no JSON-LD")
+
+
+def test_json_ld_expoe_titulo_oficial_confiavel():
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html_produto(
+            nome="SSD NVMe AliExpress Oficial",
+        ),
+    )
+
+    assert resultado.valido is True
+    assert resultado.titulo == "SSD NVMe AliExpress Oficial"
+
+
+def test_pdp_preserva_titulo_oficial_do_json_ld():
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html_produto(
+            preco="38.04",
+            nome="SSD NVMe AliExpress Oficial",
+        ),
+        pdp_texto=pdp(
+            sale="38.04",
+            normal="40.04",
+        ),
+        exigir_pdp=True,
+    )
+
+    assert resultado.valido is True
+    assert resultado.titulo == "SSD NVMe AliExpress Oficial"
+
+
+def test_sem_name_json_ld_nao_fabrica_titulo():
+    resultado = ValidadorPrecoAliExpress().validar_html(
+        produto_id=PRODUTO_ID,
+        url_final=URL,
+        html=html_produto(
+            nome=None,
+        ),
+    )
+
+    assert resultado.valido is True
+    assert resultado.titulo is None

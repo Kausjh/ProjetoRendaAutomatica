@@ -283,7 +283,7 @@ class ProcessadorAliExpressSocialScout:
             status=status,
             marketplace=self.MARKETPLACE,
             url=resolucao.url_destino,
-            titulo_oficial="",
+            titulo_oficial=(str(resultado.titulo or "").strip() if resultado is not None else ""),
             preco_oficial=preco_oficial,
             preco_original_oficial=preco_original,
             tipo_preco_oficial=("aliexpress_pdp_brl" if preco_oficial is not None else None),

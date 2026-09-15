@@ -69,6 +69,7 @@ def deteccao(
 
 def valido(
     preco=299.90,
+    titulo="Produto AliExpress Oficial",
 ):
     return ResultadoPrecoAliExpress(
         produto_id=ID,
@@ -79,6 +80,7 @@ def valido(
         motivo="ok",
         preco_normal_brl=349.90,
         moeda_normal="BRL",
+        titulo=titulo,
     )
 
 
@@ -304,3 +306,26 @@ def test_cooldown_e_transitorio():
     )
 
     assert v.status == "erro"
+
+
+def test_validacao_propaga_titulo_oficial_aliexpress():
+    processador = ProcessadorAliExpressSocialScout(
+        service=ServiceFake(
+            resultado=valido(
+                titulo="SSD NVMe AliExpress Oficial",
+            ),
+        ),
+    )
+    sinal = deteccao()
+    resolucao = processador.resolver(
+        mensagem(URL),
+        sinal,
+    )
+
+    validacao = processador.validar(
+        sinal,
+        resolucao,
+    )
+
+    assert validacao.status == "validado"
+    assert validacao.titulo_oficial == "SSD NVMe AliExpress Oficial"
