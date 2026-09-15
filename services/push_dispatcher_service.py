@@ -167,8 +167,15 @@ class PushDispatcherService:
             dispositivos_revogados=revogados,
         )
 
-    def processar_recibos_pendentes(self) -> ResultadoRecibosPush:
-        pendentes = self.delivery_repository.listar_aguardando_recibo(limite=1000)
+    def processar_recibos_pendentes(
+        self,
+        *,
+        criado_ate: str | None = None,
+    ) -> ResultadoRecibosPush:
+        pendentes = self.delivery_repository.listar_aguardando_recibo(
+            limite=1000,
+            criado_ate=criado_ate,
+        )
         if not pendentes:
             return ResultadoRecibosPush(
                 status="sem_recibos",

@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+
+from dotenv import load_dotenv
 
 from config.configuracoes import Configuracoes
 from repositories.alert_engine_repository import AlertEngineRepository
@@ -31,6 +33,7 @@ logger = logging.getLogger(__name__)
 DIRETORIO_PROJETO: Final = Path(__file__).resolve().parents[2]
 ARQUIVO_BOT_CONSULTA: Final = DIRETORIO_PROJETO / "bot_consulta.py"
 ARQUIVO_PUBLICADOR_FILA: Final = DIRETORIO_PROJETO / "publicador_fila.py"
+ARQUIVO_PUSH_DISPATCHER: Final = DIRETORIO_PROJETO / "push_dispatcher_runtime.py"
 ARQUIVO_LAUNCHER_PIPELINE: Final = (
     DIRETORIO_PROJETO / "services" / "launcher" / "chrome_launcher.py"
 )
@@ -52,6 +55,13 @@ class ConfiguracoesRuntime:
     intervalo_monitoramento_segundos: float = 2.0
     atraso_reinicio_bot_segundos: float = 5.0
 
+    push_dispatcher_ativo: bool = False
+    push_dispatcher_intervalo_segundos: float = 2.0
+    push_dispatcher_atraso_reinicio_segundos: float = 10.0
+    push_dispatcher_retry_segundos: int = 300
+    push_dispatcher_receipt_min_age_segundos: int = 900
+    push_dispatcher_max_envios_por_ciclo: int = 10
+
     aguardar_internet_ao_iniciar: bool = True
     intervalo_verificacao_rede_segundos: float = 10.0
     timeout_verificacao_rede_segundos: float = 3.0
@@ -60,6 +70,8 @@ class ConfiguracoesRuntime:
 
     @classmethod
     def carregar(cls) -> ConfiguracoesRuntime:
+        load_dotenv(DIRETORIO_PROJETO / ".env")
+
         configuracao = cls(
             intervalo_minutos=_buscar_decimal(
                 "RUNTIME_INTERVALO_MINUTOS",
@@ -80,6 +92,30 @@ class ConfiguracoesRuntime:
             atraso_reinicio_bot_segundos=_buscar_decimal(
                 "RUNTIME_ATRASO_REINICIO_BOT_SEGUNDOS",
                 5.0,
+            ),
+            push_dispatcher_ativo=_buscar_booleano(
+                "RUNTIME_PUSH_DISPATCHER_ATIVO",
+                False,
+            ),
+            push_dispatcher_intervalo_segundos=_buscar_decimal(
+                "RUNTIME_PUSH_DISPATCHER_INTERVALO_SEGUNDOS",
+                2.0,
+            ),
+            push_dispatcher_atraso_reinicio_segundos=_buscar_decimal(
+                "RUNTIME_PUSH_DISPATCHER_ATRASO_REINICIO_SEGUNDOS",
+                10.0,
+            ),
+            push_dispatcher_retry_segundos=_buscar_inteiro(
+                "RUNTIME_PUSH_DISPATCHER_RETRY_SEGUNDOS",
+                300,
+            ),
+            push_dispatcher_receipt_min_age_segundos=_buscar_inteiro(
+                "RUNTIME_PUSH_RECEIPT_MIN_AGE_SEGUNDOS",
+                900,
+            ),
+            push_dispatcher_max_envios_por_ciclo=_buscar_inteiro(
+                "RUNTIME_PUSH_MAX_ENVIOS_POR_CICLO",
+                10,
             ),
             aguardar_internet_ao_iniciar=_buscar_booleano(
                 "RUNTIME_AGUARDAR_INTERNET_AO_INICIAR",
@@ -112,6 +148,25 @@ class ConfiguracoesRuntime:
 
         if self.atraso_reinicio_bot_segundos < 0:
             raise ValueError("RUNTIME_ATRASO_REINICIO_BOT_SEGUNDOS nÃ£o pode ser negativo.")
+
+        if self.push_dispatcher_intervalo_segundos <= 0:
+            raise ValueError(
+                "RUNTIME_PUSH_DISPATCHER_INTERVALO_SEGUNDOS precisa ser maior que zero."
+            )
+
+        if self.push_dispatcher_atraso_reinicio_segundos < 0:
+            raise ValueError(
+                "RUNTIME_PUSH_DISPATCHER_ATRASO_REINICIO_SEGUNDOS nÃ£o pode ser negativo."
+            )
+
+        if self.push_dispatcher_retry_segundos < 1:
+            raise ValueError("RUNTIME_PUSH_DISPATCHER_RETRY_SEGUNDOS precisa ser positivo.")
+
+        if self.push_dispatcher_receipt_min_age_segundos < 0:
+            raise ValueError("RUNTIME_PUSH_RECEIPT_MIN_AGE_SEGUNDOS nÃ£o pode ser negativo.")
+
+        if self.push_dispatcher_max_envios_por_ciclo < 1:
+            raise ValueError("RUNTIME_PUSH_MAX_ENVIOS_POR_CICLO precisa ser positivo.")
 
         if self.intervalo_verificacao_rede_segundos <= 0:
             raise ValueError(
@@ -167,6 +222,7 @@ class OrquestradorRuntime:
         self.configuracoes = configuracoes
         self.processo_bot: subprocess.Popen[bytes] | None = None
         self.processo_publicador: subprocess.Popen[bytes] | None = None
+        self.processo_push_dispatcher: subprocess.Popen[bytes] | None = None
         self.processo_pipeline: subprocess.Popen[bytes] | None = None
         self._encerrando = False
 
@@ -201,6 +257,7 @@ class OrquestradorRuntime:
             for caminho in (
                 ARQUIVO_BOT_CONSULTA,
                 ARQUIVO_PUBLICADOR_FILA,
+                ARQUIVO_PUSH_DISPATCHER,
                 ARQUIVO_LAUNCHER_PIPELINE,
                 DIRETORIO_PROJETO / "main.py",
             )
@@ -416,6 +473,50 @@ class OrquestradorRuntime:
             time.sleep(self.configuracoes.atraso_reinicio_bot_segundos)
 
         self.iniciar_publicador()
+
+    def iniciar_push_dispatcher(self) -> None:
+        if not self.configuracoes.push_dispatcher_ativo or self._encerrando:
+            return
+
+        processo = self.processo_push_dispatcher
+        if processo is not None and processo.poll() is None:
+            return
+
+        logger.info("Iniciando Push Dispatcher contÃ­nuo.")
+
+        self.processo_push_dispatcher = subprocess.Popen(
+            [sys.executable, str(ARQUIVO_PUSH_DISPATCHER)],
+            cwd=DIRETORIO_PROJETO,
+        )
+
+        logger.info(
+            "Push Dispatcher iniciado com PID %s.",
+            self.processo_push_dispatcher.pid,
+        )
+
+    def garantir_push_dispatcher_ativo(self) -> None:
+        if not self.configuracoes.push_dispatcher_ativo or self._encerrando:
+            return
+
+        processo = self.processo_push_dispatcher
+        if processo is not None and processo.poll() is None:
+            return
+
+        if processo is not None:
+            logger.error(
+                "Push Dispatcher encerrou com cÃ³digo %s.",
+                processo.returncode,
+            )
+
+        atraso = self.configuracoes.push_dispatcher_atraso_reinicio_segundos
+        if atraso > 0:
+            logger.info(
+                "Reiniciando Push Dispatcher em %.1f segundo(s).",
+                atraso,
+            )
+            time.sleep(atraso)
+
+        self.iniciar_push_dispatcher()
 
     @property
     def publicador_pausado(self) -> bool:
@@ -693,6 +794,7 @@ class OrquestradorRuntime:
 
         self.iniciar_bot()
         self.iniciar_publicador()
+        self.iniciar_push_dispatcher()
 
         intervalo_segundos = self.configuracoes.intervalo_minutos * 60.0
 
@@ -704,6 +806,7 @@ class OrquestradorRuntime:
         while not self._encerrando:
             self.garantir_bot_ativo()
             self.garantir_publicador_ativo()
+            self.garantir_push_dispatcher_ativo()
 
             if self._pipeline_imediato_pendente:
                 if not self.verificar_internet():
@@ -800,6 +903,11 @@ class OrquestradorRuntime:
         )
 
         self._encerrar_processo(
+            processo=self.processo_push_dispatcher,
+            nome="Push Dispatcher",
+        )
+
+        self._encerrar_processo(
             processo=self.processo_publicador,
             nome="publicador da fila",
         )
@@ -810,6 +918,7 @@ class OrquestradorRuntime:
         )
 
         self.processo_pipeline = None
+        self.processo_push_dispatcher = None
         self.processo_publicador = None
         self.processo_bot = None
 

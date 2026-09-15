@@ -1,0 +1,33 @@
+{
+  "version": "v1",
+  "component": "push_dispatcher_runtime",
+  "mode": "managed_child_process",
+  "activation": {
+    "env": "RUNTIME_PUSH_DISPATCHER_ATIVO",
+    "default": false,
+    "fail_closed": true
+  },
+  "runtime": {
+    "parent": "runtime.py",
+    "supervisor": "services/runtime/orquestrador.py",
+    "entrypoint": "push_dispatcher_runtime.py",
+    "worker": "services/push_dispatcher_runtime_worker.py"
+  },
+  "provider": "Expo Push Service",
+  "receipt_policy": {
+    "default_min_age_seconds": 900,
+    "reason": "Expo recommends checking receipts about 15 minutes after send"
+  },
+  "safety": {
+    "touch_local_env": false,
+    "real_push_during_tests": false,
+    "external_calls_during_tests": false,
+    "push_tokens_in_logs": false
+  },
+  "boundaries": {
+    "real_smoke": false,
+    "auto_enable": false,
+    "app_notification_tap_navigation": false
+  },
+  "next_step": "controlled_real_push_smoke"
+}

@@ -187,21 +187,35 @@ class PushDeliveryRepository:
             raise RuntimeError("Tentativa push desapareceu apos receipt.")
         return tentativa
 
-    def listar_aguardando_recibo(self, *, limite: int = 1000) -> list[RegistroTentativaPush]:
+    def listar_aguardando_recibo(
+        self,
+        *,
+        limite: int = 1000,
+        criado_ate: str | None = None,
+    ) -> list[RegistroTentativaPush]:
         limite_seguro = max(1, min(int(limite), 1000))
+        corte = str(criado_ate or "").strip() or None
+        filtro_corte = " AND criado_em <= ?" if corte is not None else ""
+
+        parametros: tuple[object, ...]
+        if corte is None:
+            parametros = (limite_seguro,)
+        else:
+            parametros = (corte, limite_seguro)
 
         with self._conectar() as conexao:
             linhas = conexao.execute(
-                """
+                f"""
                 SELECT *
                 FROM push_delivery_attempts
                 WHERE ticket_status = 'ok'
                   AND receipt_status IS NULL
                   AND ticket_id IS NOT NULL
+                  {filtro_corte}
                 ORDER BY criado_em ASC, id ASC
                 LIMIT ?
                 """,
-                (limite_seguro,),
+                parametros,
             ).fetchall()
 
         return [self._da_linha(linha) for linha in linhas]
