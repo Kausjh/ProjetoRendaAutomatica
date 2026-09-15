@@ -6,6 +6,6 @@
   "supervisor_restart_limit_per_incident": 1,
   "reboot_cooldown_hours": 6,
   "max_auto_reboots_per_cooldown": 1,
-  "auto_reboot_enabled": true,
+  "auto_reboot_enabled": false,
   "supervisor_restart_enabled": true
 }

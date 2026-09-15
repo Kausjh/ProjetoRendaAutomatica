@@ -22,12 +22,12 @@ def _monitor() -> str:
     return MONITOR.read_text(encoding="utf-8-sig")
 
 
-def test_policy_v1c_habilita_full_recovery_com_arm_gate_externo():
+def test_policy_v1c_mantem_full_recovery_com_reboot_desarmado():
     data = json.loads(POLICY.read_text(encoding="utf-8-sig"))
     assert data["enabled"] is True
     assert data["mode"] == "active_full_recovery"
     assert data["supervisor_restart_enabled"] is True
-    assert data["auto_reboot_enabled"] is True
+    assert data["auto_reboot_enabled"] is False
     assert data["reboot_cooldown_hours"] == 6
     assert data["max_auto_reboots_per_cooldown"] == 1
 
