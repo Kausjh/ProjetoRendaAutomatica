@@ -141,6 +141,40 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Enviar uma oferta encontrada"
+        style={({ pressed }) => [
+          styles.communityCard,
+          pressed && styles.communityCardPressed,
+        ]}
+        onPress={() => router.push("/discover" as never)}
+      >
+        <View style={styles.communityIcon}>
+          <Ionicons
+            name="radio-outline"
+            size={20}
+            color={appTheme.colors.accent}
+          />
+        </View>
+
+        <View style={styles.communityCopy}>
+          <Text style={styles.communityEyebrow}>COMUNIDADE</Text>
+          <Text style={styles.communityTitle}>
+            Encontrou uma oferta?
+          </Text>
+          <Text style={styles.communityBody}>
+            Envie o link para o Radar validar.
+          </Text>
+        </View>
+
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={appTheme.colors.textMuted}
+        />
+      </Pressable>
+
       {products.isPending ? (
         <View style={styles.centerState}>
           <ActivityIndicator
@@ -417,6 +451,48 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 10,
     gap: 16,
+  },
+  communityCard: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.lg,
+    backgroundColor: appTheme.colors.surface,
+    padding: 13,
+  },
+  communityCardPressed: {
+    opacity: 0.84,
+  },
+  communityIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: appTheme.colors.accentSoft,
+  },
+  communityCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  communityEyebrow: {
+    color: appTheme.colors.accent,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  communityTitle: {
+    color: appTheme.colors.text,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  communityBody: {
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
   },
   brandRow: {
     minHeight: 52,

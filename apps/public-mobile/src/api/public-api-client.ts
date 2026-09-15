@@ -27,6 +27,10 @@ export type DeviceRegistrationPutInput = Readonly<{
   push_token: string;
 }>;
 
+export type CommunityDiscoveryCreateInput = Readonly<{
+  url: string;
+}>;
+
 export class PublicApiClient {
   constructor(private readonly transport: HttpApiTransport) {}
 
@@ -125,6 +129,26 @@ export class PublicApiClient {
       method: "PATCH",
       path: "/me/preferences",
       body: patch,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  listCommunityDiscoveries<T = unknown>(): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/discoveries",
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  createCommunityDiscovery<T = unknown>(
+    input: CommunityDiscoveryCreateInput,
+  ): Promise<T> {
+    return this.transport.request<T>({
+      method: "POST",
+      path: "/me/discoveries",
+      body: input,
       requiresUserSession: true,
       responseMode: "user-facing-envelope",
     });

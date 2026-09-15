@@ -11,12 +11,18 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from dotenv import load_dotenv
 
+from repositories.community_discovery_repository import (
+    CommunityDiscoveryRepository,
+)
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.user_facing_abuse_controls import (
     DecisaoAbuseControl,
     UserFacingAbuseControls,
 )
 from services.api_aplicacao.user_facing_auth import UserFacingAuthController
+from services.api_aplicacao.user_facing_community_discovery import (
+    UserFacingCommunityDiscoveryController,
+)
 from services.api_aplicacao.user_facing_devices import UserFacingDevicesController
 from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
@@ -28,6 +34,7 @@ from services.api_aplicacao.user_facing_preferences import (
 from services.api_aplicacao.user_facing_watchlist import (
     UserFacingWatchlistController,
 )
+from services.community_discovery_service import CommunityDiscoveryService
 
 if TYPE_CHECKING:
     from models.user_identity import ContaUsuario
@@ -47,6 +54,7 @@ class ServidorApiAplicacao:
         token: str | None = None,
         user_identity_service: UserIdentityService | None = None,
         user_personalization_service: UserPersonalizationService | None = None,
+        community_discovery_service: CommunityDiscoveryService | None = None,
         user_facing_abuse_controls: UserFacingAbuseControls | None = None,
     ) -> None:
         load_dotenv()
@@ -76,6 +84,26 @@ class ServidorApiAplicacao:
         )
         self.user_facing_watchlist = UserFacingWatchlistController(
             user_personalization_service,
+        )
+
+        if community_discovery_service is None and user_identity_service is not None:
+            identity_repository = getattr(
+                user_identity_service,
+                "repository",
+                None,
+            )
+            identity_database = getattr(
+                identity_repository,
+                "caminho_banco",
+                None,
+            )
+            if identity_database is not None:
+                community_discovery_service = CommunityDiscoveryService(
+                    CommunityDiscoveryRepository(identity_database)
+                )
+
+        self.user_facing_community_discovery = UserFacingCommunityDiscoveryController(
+            community_discovery_service,
         )
         self.user_facing_abuse_controls = (
             user_facing_abuse_controls
@@ -141,6 +169,7 @@ class ServidorApiAplicacao:
         user_facing_devices = self.user_facing_devices
         user_facing_preferences = self.user_facing_preferences
         user_facing_watchlist = self.user_facing_watchlist
+        user_facing_community_discovery = self.user_facing_community_discovery
         abuse_controls = self.user_facing_abuse_controls
 
         class Handler(BaseHTTPRequestHandler):
@@ -162,6 +191,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/preferences",
                         "/api/v1/me/watchlist",
                         "/api/v1/me/devices",
+                        "/api/v1/me/discoveries",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -175,6 +205,25 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/discoveries":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_community_discovery.listar(
+                            conta,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/devices":
@@ -303,6 +352,7 @@ class ServidorApiAplicacao:
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
                     "/api/v1/auth/logout",
+                    "/api/v1/me/discoveries",
                 }:
                     self._metodo_nao_permitido()
                     return
@@ -314,6 +364,30 @@ class ServidorApiAplicacao:
                             "infraestrutura_nao_autorizada",
                             "Nao autorizado.",
                         )
+                    )
+                    return
+
+                if rota == "/api/v1/me/discoveries":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    payload = self._ler_json_user_facing()
+                    if payload is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_community_discovery.criar(
+                            conta,
+                            payload,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
                     )
                     return
 

@@ -1,0 +1,38 @@
+{
+  "name": "community_discovery_v1",
+  "version": 1,
+  "routes": {
+    "create": "POST /api/v1/me/discoveries",
+    "list": "GET /api/v1/me/discoveries"
+  },
+  "authentication": {
+    "user_session_required": true,
+    "infrastructure_token_preserved": true
+  },
+  "submission": {
+    "accepted_fields": [
+      "url"
+    ],
+    "account_attribution_server_side": true,
+    "same_account_same_normalized_url_idempotent": true,
+    "per_account_hourly_limit": 30,
+    "external_network_call_on_intake": false
+  },
+  "status": {
+    "initial": "received",
+    "allowed": [
+      "received",
+      "processing",
+      "retry",
+      "approved",
+      "rejected"
+    ]
+  },
+  "boundaries": {
+    "intake_persists_real_submission": true,
+    "automatic_marketplace_fetch": false,
+    "automatic_catalog_ingestion": false,
+    "automatic_publication": false,
+    "next_phase": "community discovery processor -> validated Oferta -> existing pipeline"
+  }
+}
