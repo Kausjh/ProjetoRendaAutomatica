@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from math import isfinite
 
-from models.alert_engine import ResultadoAlertEngine
+from models.alert_engine import EventoAlertEngine, ResultadoAlertEngine
 from models.price_intelligence import ResultadoObservacaoPriceIntelligence
 from repositories.alert_engine_repository import AlertEngineRepository
 from repositories.price_intelligence_repository import (
@@ -91,6 +91,26 @@ class AlertEngineService:
             menor_preco_historico=menor_historico,
         )
 
+        eventos = tuple(
+            EventoAlertEngine(
+                fingerprint=str(item["fingerprint"]),
+                tipo=str(item["tipo"]),
+                chave_canonica=str(item["chave_canonica"]),
+                nome_canonico=str(item["nome_canonico"]),
+                marketplace=str(item["marketplace"]),
+                identificador=str(item["identificador"]),
+                preco_atual=float(item["preco_atual"]),
+                preco_anterior=(
+                    float(item["preco_anterior"])
+                    if item.get("preco_anterior") is not None
+                    else None
+                ),
+                criado_em=str(item["criado_em"]),
+            )
+            for item in persistido.get("eventos", ())
+            if isinstance(item, dict)
+        )
+
         if persistido["status"] == "conflito_identidade":
             return self._ignorado(
                 "ignorado_conflito_identidade",
@@ -108,6 +128,7 @@ class AlertEngineService:
             marketplace=marketplace,
             identificador=identificador,
             motivo="Observacao canonica processada pelo Alert Engine.",
+            eventos=eventos,
         )
 
     def bootstrap_estado_atual(

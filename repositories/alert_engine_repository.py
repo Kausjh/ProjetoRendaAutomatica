@@ -291,6 +291,7 @@ class AlertEngineRepository:
             "baseline_inicializada": (baseline_listing or baseline_canonico),
             "alertas_gerados": len(eventos),
             "tipos_gerados": tuple(str(evento["tipo"]) for evento in eventos),
+            "eventos": tuple(eventos),
         }
 
     @staticmethod
@@ -324,6 +325,11 @@ class AlertEngineRepository:
         return {
             "fingerprint": sha256(material.encode("utf-8")).hexdigest(),
             "tipo": tipo,
+            "chave_canonica": chave_canonica,
+            "nome_canonico": nome_canonico,
+            "marketplace": marketplace,
+            "identificador": identificador,
+            "preco_atual": preco_atual,
             "preco_anterior": preco_anterior,
             "referencia_anterior": referencia_anterior,
             "direcao": direcao,

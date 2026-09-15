@@ -18,9 +18,16 @@ from repositories.historico_precos_efetivos_repository import (
     HistoricoPrecosEfetivosRepository,
 )
 from repositories.historico_precos_repository import HistoricoPrecosRepository
+from repositories.personalized_alert_match_repository import (
+    PersonalizedAlertMatchRepository,
+)
+from repositories.personalized_notification_outbox_repository import (
+    PersonalizedNotificationOutboxRepository,
+)
 from repositories.price_intelligence_repository import PriceIntelligenceRepository
 from repositories.publicados_repository import PublicadosRepository
 from repositories.relatorios_repository import RelatoriosRepository
+from repositories.user_personalization_repository import UserPersonalizationRepository
 from scrapers.registro_scrapers import criar_scrapers
 from services.alert_engine_service import AlertEngineService
 from services.catalogo_canonico_service import CatalogoCanonicoService
@@ -38,6 +45,11 @@ from services.historico_precos_service import HistoricoPrecosService
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
 from services.observador_shadow_ai import ObservadorShadowAI
+from services.personalized_alert_matching_service import PersonalizedAlertMatchingService
+from services.personalized_alert_runtime_service import PersonalizedAlertRuntimeService
+from services.personalized_notification_outbox_service import (
+    PersonalizedNotificationOutboxService,
+)
 from services.pontuador_oferta import PontuadorOferta
 from services.price_intelligence_service import PriceIntelligenceService
 from services.provedor_http_inteligencia_ai import criar_provedor_http_inteligencia_ai
@@ -206,6 +218,24 @@ async def main() -> None:
         price_intelligence_repository=price_intelligence_repository,
     )
 
+    user_identity_db = "database/user_identity.sqlite3"
+    user_personalization_repository = UserPersonalizationRepository(user_identity_db)
+    personalized_alert_match_repository = PersonalizedAlertMatchRepository(user_identity_db)
+    personalized_alert_matching_service = PersonalizedAlertMatchingService(
+        personalization_repository=user_personalization_repository,
+        match_repository=personalized_alert_match_repository,
+    )
+    personalized_notification_outbox_repository = PersonalizedNotificationOutboxRepository(
+        user_identity_db
+    )
+    personalized_notification_outbox_service = PersonalizedNotificationOutboxService(
+        personalized_notification_outbox_repository
+    )
+    personalized_alert_runtime_service = PersonalizedAlertRuntimeService(
+        matching_service=personalized_alert_matching_service,
+        outbox_service=personalized_notification_outbox_service,
+    )
+
     alert_engine_bootstrap = alert_engine_service.bootstrap_estado_atual()
     logger.info(
         (
@@ -353,6 +383,7 @@ async def main() -> None:
         catalogo_canonico_service=catalogo_canonico_service,
         price_intelligence_service=price_intelligence_service,
         alert_engine_service=alert_engine_service,
+        personalized_alert_runtime_service=personalized_alert_runtime_service,
         curadoria_publicacao=curadoria_publicacao,
         deduplicacao_canonica_ativa=configuracoes.deduplicacao_canonica_ativa,
         confianca_minima_deduplicacao=(configuracoes.confianca_minima_deduplicacao),

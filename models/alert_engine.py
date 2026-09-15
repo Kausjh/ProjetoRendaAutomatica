@@ -7,6 +7,19 @@ TIPO_NOVO_MENOR_PRECO_HISTORICO = "novo_menor_preco_historico"
 
 
 @dataclass(frozen=True, slots=True)
+class EventoAlertEngine:
+    fingerprint: str
+    tipo: str
+    chave_canonica: str
+    nome_canonico: str
+    marketplace: str
+    identificador: str
+    preco_atual: float
+    preco_anterior: float | None
+    criado_em: str
+
+
+@dataclass(frozen=True, slots=True)
 class ResultadoAlertEngine:
     status: str
     processado: bool
@@ -17,3 +30,4 @@ class ResultadoAlertEngine:
     marketplace: str | None
     identificador: str | None
     motivo: str
+    eventos: tuple[EventoAlertEngine, ...] = ()

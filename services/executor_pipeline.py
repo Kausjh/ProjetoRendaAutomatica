@@ -22,6 +22,7 @@ from services.historico_precos_efetivos_service import (
 from services.historico_precos_service import HistoricoPrecosService, ResultadoHistoricoPreco
 from services.janela_publicacao import JanelaPublicacao
 from services.normalizador_produto import NormalizadorProduto
+from services.personalized_alert_runtime_service import PersonalizedAlertRuntimeService
 from services.politica_marketplace import PoliticaMarketplace
 from services.pontuador_oferta import PontuadorOferta
 from services.price_intelligence_service import PriceIntelligenceService
@@ -79,6 +80,7 @@ class ExecutorPipeline:
         catalogo_canonico_service: CatalogoCanonicoService | None = None,
         price_intelligence_service: PriceIntelligenceService | None = None,
         alert_engine_service: AlertEngineService | None = None,
+        personalized_alert_runtime_service: PersonalizedAlertRuntimeService | None = None,
     ) -> None:
         self.coletor = coletor
         self.repository = repository
@@ -101,6 +103,7 @@ class ExecutorPipeline:
         self.catalogo_canonico_service = catalogo_canonico_service
         self.price_intelligence_service = price_intelligence_service
         self.alert_engine_service = alert_engine_service
+        self.personalized_alert_runtime_service = personalized_alert_runtime_service
         self.curadoria_publicacao = curadoria_publicacao or CuradoriaPublicacao()
         self.deduplicacao_canonica_ativa = deduplicacao_canonica_ativa
         self.confianca_minima_deduplicacao = confianca_minima_deduplicacao
@@ -360,6 +363,32 @@ class ExecutorPipeline:
                         resultado_alert_engine.alertas_gerados,
                         resultado_alert_engine.tipos_gerados,
                     )
+
+                    if self.personalized_alert_runtime_service is not None:
+                        try:
+                            resultado_personalizado = (
+                                self.personalized_alert_runtime_service.processar(
+                                    resultado_alert_engine
+                                )
+                            )
+                            logger.debug(
+                                (
+                                    "Personalized Alert Runtime V1: %s | "
+                                    "eventos=%s | correspondencias=%s | outbox=%s"
+                                ),
+                                oferta.nome,
+                                resultado_personalizado.eventos_processados,
+                                resultado_personalizado.correspondencias,
+                                resultado_personalizado.itens_outbox_criados,
+                            )
+                        except Exception:
+                            logger.exception(
+                                (
+                                    "Erro observacional ao processar "
+                                    "Personalized Alert Runtime V1: %s"
+                                ),
+                                oferta.nome,
+                            )
                 except Exception:
                     logger.exception(
                         ("Erro observacional ao processar " "Alert Engine V1: %s"),
