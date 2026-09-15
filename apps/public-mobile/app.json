@@ -16,7 +16,8 @@
       "typedRoutes": true
     },
     "android": {
-      "package": "com.rendaautomatica.app"
+      "package": "com.rendaautomatica.app",
+      "googleServicesFile": "./google-services.json"
     },
     "extra": {
       "router": {},

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1052414262962",
+    "project_id": "radar-de-ofertas-d40d7",
+    "storage_bucket": "radar-de-ofertas-d40d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1052414262962:android:e50d1c88b70b6eed0513ab",
+        "android_client_info": {
+          "package_name": "com.rendaautomatica.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5H2G_k7mOl5vnScSgEaA7__IW-6uxG_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
