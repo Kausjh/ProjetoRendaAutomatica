@@ -63,3 +63,22 @@ Esta fase:
 
 O proximo passo e um smoke real controlado usando o dispositivo ja registrado,
 sem imprimir o token.
+
+## Hardening de processing stale
+
+O runtime revisa itens da outbox que permaneceram em `processing` alem da janela usada
+para receipts. A recuperacao e conservadora:
+
+- se qualquer tentativa historica ja possui receipt `ok`, a outbox e marcada como entregue;
+- se a tentativa atual possui ticket `ok` sem receipt, o item continua em `processing` e
+  nao e reenviado;
+- se a tentativa atual terminou apenas com erros persistidos, o item e reconciliado para
+  retry ou falha terminal conforme o codigo do provedor;
+- se nao existe registro de delivery para a tentativa atual, o item volta para retry apos
+  a janela stale.
+
+Existe uma janela inevitavel entre a aceitacao remota do envio e a persistencia local do
+ticket. Se o processo morrer exatamente nessa janela, o resultado remoto e desconhecido e
+a recuperacao pode reenviar a notificacao. Portanto essa janela possui semantica
+at-least-once e pode, em caso raro de crash, produzir duplicata. Tickets aceitos e
+persistidos nunca sao reenviados enquanto aguardam receipt.

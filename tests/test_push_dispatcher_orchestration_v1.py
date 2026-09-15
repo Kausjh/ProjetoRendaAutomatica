@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 
 from models.personalized_alert_match import EventoAlertaPersonalizavel
+from models.push_dispatcher import ReciboPushExpo, TicketPushExpo
 from repositories.alert_engine_repository import AlertEngineRepository
 from repositories.personalized_alert_match_repository import (
     PersonalizedAlertMatchRepository,
@@ -299,6 +300,150 @@ def test_receipt_device_not_registered_revoga_e_falha_sem_outro_device(
     item = c["outbox_service"].obter_por_id(c["outbox"].id)
     assert item is not None
     assert item.status == "failed"
+
+
+def _corte_stale_futuro() -> str:
+    return "9999-12-31T23:59:59+00:00"
+
+
+def test_recovery_stale_sem_registro_delivery_volta_para_retry(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("rede nao deveria ser chamada")
+
+    c = _contexto(tmp_path, handler)
+    reservado = c["outbox_service"].reservar_proximo()
+    assert reservado is not None
+    assert reservado.status == "processing"
+
+    recuperacao = c["dispatcher"].recuperar_processamentos_stale(
+        atualizado_ate=_corte_stale_futuro()
+    )
+
+    item = c["outbox_service"].obter_por_id(reservado.id)
+    assert item is not None
+    assert item.status == "pending"
+    assert item.tentativas == 1
+    assert item.ultimo_erro == "recovery_processing_sem_registro_delivery"
+    assert recuperacao["avaliados"] == 1
+    assert recuperacao["retries"] == 1
+    assert recuperacao["sem_registro_delivery"] == 1
+
+
+def test_recovery_stale_protege_ticket_aceito_sem_receipt(tmp_path: Path):
+    chamadas = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal chamadas
+        chamadas += 1
+        return httpx.Response(
+            200,
+            json={"data": [{"status": "ok", "id": "ticket_stale_1"}]},
+        )
+
+    c = _contexto(tmp_path, handler)
+    envio = c["dispatcher"].processar_proximo_envio()
+    assert envio.status == "aguardando_receipts"
+
+    recuperacao = c["dispatcher"].recuperar_processamentos_stale(
+        atualizado_ate=_corte_stale_futuro()
+    )
+
+    item = c["outbox_service"].obter_por_id(c["outbox"].id)
+    assert item is not None
+    assert item.status == "processing"
+    assert chamadas == 1
+    assert recuperacao["protegidos_receipt_pendente"] == 1
+    assert recuperacao["retries"] == 0
+
+
+def test_recovery_stale_receipt_ok_ja_persistido_entrega_outbox(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"data": [{"status": "ok", "id": "ticket_stale_ok"}]},
+        )
+
+    c = _contexto(tmp_path, handler)
+    c["dispatcher"].processar_proximo_envio()
+    c["delivery"].registrar_recibo(
+        ReciboPushExpo(
+            ticket_id="ticket_stale_ok",
+            status="ok",
+            erro_codigo=None,
+            erro_mensagem=None,
+        )
+    )
+
+    recuperacao = c["dispatcher"].recuperar_processamentos_stale(
+        atualizado_ate=_corte_stale_futuro()
+    )
+
+    item = c["outbox_service"].obter_por_id(c["outbox"].id)
+    assert item is not None
+    assert item.status == "delivered"
+    assert recuperacao["entregues"] == 1
+
+
+def test_recovery_stale_ticket_retryable_persistido_volta_para_retry(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("rede nao deveria ser chamada")
+
+    c = _contexto(tmp_path, handler)
+    reservado = c["outbox_service"].reservar_proximo()
+    assert reservado is not None
+
+    c["delivery"].registrar_ticket(
+        outbox_id=reservado.id,
+        dispositivo_id=c["dispositivos"][0].id,
+        outbox_tentativa=reservado.tentativas,
+        ticket=TicketPushExpo(
+            status="error",
+            ticket_id=None,
+            erro_codigo="MessageRateExceeded",
+            erro_mensagem="rate limited",
+        ),
+    )
+
+    recuperacao = c["dispatcher"].recuperar_processamentos_stale(
+        atualizado_ate=_corte_stale_futuro()
+    )
+
+    item = c["outbox_service"].obter_por_id(reservado.id)
+    assert item is not None
+    assert item.status == "pending"
+    assert item.ultimo_erro == "recovery_tickets_retryable"
+    assert recuperacao["retries"] == 1
+
+
+def test_recovery_stale_ticket_terminal_persistido_falha_outbox(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("rede nao deveria ser chamada")
+
+    c = _contexto(tmp_path, handler)
+    reservado = c["outbox_service"].reservar_proximo()
+    assert reservado is not None
+
+    c["delivery"].registrar_ticket(
+        outbox_id=reservado.id,
+        dispositivo_id=c["dispositivos"][0].id,
+        outbox_tentativa=reservado.tentativas,
+        ticket=TicketPushExpo(
+            status="error",
+            ticket_id=None,
+            erro_codigo="MessageTooBig",
+            erro_mensagem="payload rejected",
+        ),
+    )
+
+    recuperacao = c["dispatcher"].recuperar_processamentos_stale(
+        atualizado_ate=_corte_stale_futuro()
+    )
+
+    item = c["outbox_service"].obter_por_id(reservado.id)
+    assert item is not None
+    assert item.status == "failed"
+    assert item.ultimo_erro == "recovery_nenhum_ticket_aceito"
+    assert recuperacao["falhas"] == 1
 
 
 def test_contract_e_docs_preservam_fronteiras():

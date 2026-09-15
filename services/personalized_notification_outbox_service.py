@@ -85,6 +85,17 @@ class PersonalizedNotificationOutboxService:
 
         return None
 
+    def listar_processamentos_stale(
+        self,
+        *,
+        atualizado_ate: str,
+        limite: int = 100,
+    ) -> list[ItemOutboxNotificacaoPersonalizada]:
+        return self.repository.listar_processando_ate(
+            atualizado_ate=str(atualizado_ate or "").strip(),
+            limite=limite,
+        )
+
     def obter_por_id(
         self,
         outbox_id: str,

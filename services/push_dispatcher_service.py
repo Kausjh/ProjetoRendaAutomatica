@@ -167,6 +167,126 @@ class PushDispatcherService:
             dispositivos_revogados=revogados,
         )
 
+    def recuperar_processamentos_stale(
+        self,
+        *,
+        atualizado_ate: str,
+        limite: int = 100,
+    ) -> dict[str, int]:
+        itens = self.outbox_service.listar_processamentos_stale(
+            atualizado_ate=atualizado_ate,
+            limite=limite,
+        )
+
+        resultado = {
+            "avaliados": 0,
+            "entregues": 0,
+            "retries": 0,
+            "falhas": 0,
+            "protegidos_receipt_pendente": 0,
+            "sem_registro_delivery": 0,
+            "dispositivos_revogados": 0,
+        }
+
+        for item in itens:
+            resultado["avaliados"] += 1
+            tentativas = self.delivery_repository.listar_por_outbox(
+                item.id,
+                limite=500,
+            )
+
+            if any(t.receipt_status == "ok" for t in tentativas):
+                self.outbox_service.registrar_sucesso(item.id)
+                resultado["entregues"] += 1
+                continue
+
+            atuais = [
+                tentativa
+                for tentativa in tentativas
+                if tentativa.outbox_tentativa == item.tentativas
+            ]
+            aceitos = [
+                tentativa
+                for tentativa in atuais
+                if tentativa.ticket_status == "ok" and tentativa.ticket_id
+            ]
+
+            if aceitos:
+                if any(t.receipt_status is None for t in aceitos):
+                    resultado["protegidos_receipt_pendente"] += 1
+                    continue
+
+                codigos = {
+                    tentativa.provider_error_code
+                    for tentativa in aceitos
+                    if tentativa.provider_error_code
+                }
+
+                if any(codigo in _RETRYABLE_PROVIDER_CODES for codigo in codigos):
+                    self.outbox_service.registrar_retry(
+                        item.id,
+                        erro="recovery_receipt_retryable",
+                        atraso_segundos=self.retry_seconds,
+                    )
+                    resultado["retries"] += 1
+                else:
+                    self.outbox_service.registrar_falha_terminal(
+                        item.id,
+                        erro="recovery_receipts_sem_entrega",
+                    )
+                    resultado["falhas"] += 1
+                continue
+
+            if atuais:
+                for tentativa in atuais:
+                    if tentativa.provider_error_code != "DeviceNotRegistered":
+                        continue
+
+                    dispositivo = self.identity_service.obter_dispositivo_por_id(
+                        tentativa.dispositivo_id
+                    )
+                    if dispositivo is None or not dispositivo.ativo:
+                        continue
+
+                    revogado = self.identity_service.revogar_dispositivo(
+                        conta_id=dispositivo.conta_id,
+                        instalacao_id=dispositivo.instalacao_id,
+                    )
+                    resultado["dispositivos_revogados"] += int(
+                        revogado is not None and not revogado.ativo
+                    )
+
+                codigos = {
+                    tentativa.provider_error_code
+                    for tentativa in atuais
+                    if tentativa.provider_error_code
+                }
+
+                if any(codigo in _RETRYABLE_PROVIDER_CODES for codigo in codigos):
+                    self.outbox_service.registrar_retry(
+                        item.id,
+                        erro="recovery_tickets_retryable",
+                        atraso_segundos=self.retry_seconds,
+                    )
+                    resultado["retries"] += 1
+                else:
+                    self.outbox_service.registrar_falha_terminal(
+                        item.id,
+                        erro="recovery_nenhum_ticket_aceito",
+                    )
+                    resultado["falhas"] += 1
+                continue
+
+            self.outbox_service.registrar_retry(
+                item.id,
+                erro="recovery_processing_sem_registro_delivery",
+                atraso_segundos=self.retry_seconds,
+            )
+            resultado["retries"] += 1
+            resultado["sem_registro_delivery"] += 1
+
+        return resultado
+
     def processar_recibos_pendentes(
         self,
         *,

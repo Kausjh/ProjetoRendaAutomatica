@@ -17,6 +17,7 @@ class ResultadoCicloPushDispatcherRuntime:
     recibos_status: str
     envios_processados: int
     ultimo_envio_status: str | None
+    processamentos_stale_avaliados: int = 0
 
 
 class PushDispatcherRuntimeWorker:
@@ -46,8 +47,13 @@ class PushDispatcherRuntimeWorker:
         return corte.isoformat()
 
     def executar_ciclo(self) -> ResultadoCicloPushDispatcherRuntime:
+        corte = self._corte_receipts()
         recibos = self.dispatcher.processar_recibos_pendentes(
-            criado_ate=self._corte_receipts(),
+            criado_ate=corte,
+        )
+        recuperacao = self.dispatcher.recuperar_processamentos_stale(
+            atualizado_ate=corte,
+            limite=100,
         )
 
         envios_processados = 0
@@ -69,6 +75,7 @@ class PushDispatcherRuntimeWorker:
             recibos_status=recibos.status,
             envios_processados=envios_processados,
             ultimo_envio_status=ultimo_status,
+            processamentos_stale_avaliados=recuperacao["avaliados"],
         )
 
     def executar(
@@ -92,10 +99,16 @@ class PushDispatcherRuntimeWorker:
             except Exception:
                 logger.exception("Falha isolada no ciclo do Push Dispatcher Runtime.")
             else:
-                if resultado.envios_processados > 0 or resultado.recibos_status != "sem_recibos":
+                if (
+                    resultado.envios_processados > 0
+                    or resultado.recibos_status != "sem_recibos"
+                    or resultado.processamentos_stale_avaliados > 0
+                ):
                     logger.info(
-                        "Push Dispatcher Runtime: receipts=%s | envios=%s | ultimo=%s.",
+                        "Push Dispatcher Runtime: receipts=%s | stale=%s | "
+                        "envios=%s | ultimo=%s.",
                         resultado.recibos_status,
+                        resultado.processamentos_stale_avaliados,
                         resultado.envios_processados,
                         resultado.ultimo_envio_status,
                     )

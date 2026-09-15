@@ -375,6 +375,45 @@ class PersonalizedNotificationOutboxRepository:
 
         return cursor.rowcount == 1
 
+    def listar_processando_ate(
+        self,
+        *,
+        atualizado_ate: str,
+        limite: int = 100,
+    ) -> list[ItemOutboxNotificacaoPersonalizada]:
+        corte = str(atualizado_ate or "").strip()
+        if not corte:
+            raise ValueError("Corte de processing stale nao pode ser vazio.")
+
+        limite_seguro = max(1, min(int(limite), 500))
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    id,
+                    match_id,
+                    conta_id,
+                    canonical_key,
+                    canal,
+                    status,
+                    tentativas,
+                    disponivel_em,
+                    criado_em,
+                    atualizado_em,
+                    entregue_em,
+                    ultimo_erro
+                FROM personalized_notification_outbox
+                WHERE status = 'processing'
+                  AND atualizado_em <= ?
+                ORDER BY atualizado_em ASC, criado_em ASC, id ASC
+                LIMIT ?
+                """,
+                (corte, limite_seguro),
+            ).fetchall()
+
+        return [self._da_linha(linha) for linha in linhas]
+
     def listar_por_conta(
         self,
         conta_id: str,

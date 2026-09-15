@@ -25,6 +25,7 @@ class DispatcherFake:
     def __init__(self, statuses: list[str]) -> None:
         self.statuses = list(statuses)
         self.receipt_cutoffs: list[str | None] = []
+        self.recovery_cutoffs: list[str] = []
         self.envio_calls = 0
 
     def processar_recibos_pendentes(
@@ -38,6 +39,24 @@ class DispatcherFake:
             consultados=0,
             recebidos=0,
         )
+
+    def recuperar_processamentos_stale(
+        self,
+        *,
+        atualizado_ate: str,
+        limite: int = 100,
+    ) -> dict[str, int]:
+        self.recovery_cutoffs.append(atualizado_ate)
+        assert limite == 100
+        return {
+            "avaliados": 0,
+            "entregues": 0,
+            "retries": 0,
+            "falhas": 0,
+            "protegidos_receipt_pendente": 0,
+            "sem_registro_delivery": 0,
+            "dispositivos_revogados": 0,
+        }
 
     def processar_proximo_envio(self) -> ResultadoEnvioPush:
         self.envio_calls += 1
@@ -83,6 +102,8 @@ def test_worker_aplica_idade_minima_e_drena_burst():
 
     corte = datetime.fromisoformat(dispatcher.receipt_cutoffs[0] or "")
     assert antes <= corte <= depois
+    assert dispatcher.recovery_cutoffs == [dispatcher.receipt_cutoffs[0]]
+    assert resultado.processamentos_stale_avaliados == 0
 
 
 def test_worker_para_burst_quando_provider_pede_retry():
@@ -202,3 +223,5 @@ def test_contrato_e_documentacao_mantem_runtime_desligado_por_padrao():
     assert "RUNTIME_PUSH_DISPATCHER_ATIVO=false" in env
     assert "nao envia push real" in doc
     assert "nao faz chamadas externas nos testes" in doc
+    assert "processing stale" in doc
+    assert "at-least-once" in doc
