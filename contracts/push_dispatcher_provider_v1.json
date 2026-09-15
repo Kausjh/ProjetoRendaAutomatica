@@ -1,0 +1,32 @@
+{
+  "schema": "projeto-renda-automatica.push-dispatcher-provider",
+  "provider_version": 1,
+  "provider": "expo-push-service",
+  "network_exposure": false,
+  "application_api_routes_added": false,
+  "real_send_enabled_in_runtime": false,
+  "tests_make_external_network_calls": false,
+  "send_endpoint": "https://exp.host/--/api/v2/push/send",
+  "receipts_endpoint": "https://exp.host/--/api/v2/push/getReceipts",
+  "limits": {
+    "messages_per_request": 100,
+    "receipt_ids_per_request": 1000
+  },
+  "semantics": {
+    "ticket_ok": "accepted_by_expo_not_delivered",
+    "receipt_ok": "accepted_by_fcm_or_apns_not_device_confirmed"
+  },
+  "persistence": {
+    "table": "push_delivery_attempts",
+    "stores_push_token": false,
+    "stores_ticket_id": true,
+    "stores_receipt_status": true
+  },
+  "boundaries": {
+    "outbox_transition_on_receipt": false,
+    "device_revocation_on_device_not_registered": false,
+    "continuous_worker": false,
+    "real_device_smoke": false
+  },
+  "next_step": "push-dispatcher-orchestration-v1"
+}
