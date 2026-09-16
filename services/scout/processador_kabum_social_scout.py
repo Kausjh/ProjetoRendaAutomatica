@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import urllib.request
 from urllib.parse import urlsplit
 
 from models.mensagem_social_scout import (
@@ -21,6 +20,9 @@ from models.resultado_validacao_preco_social_scout import (
 from services.kabum_preco_cdp_service import (
     KabumPrecoCdpService,
     ResultadoPrecoKabum,
+)
+from services.scout.seguranca_redirect_http import (
+    resolver_redirects_requests_publicos,
 )
 
 
@@ -419,21 +421,26 @@ class ProcessadorKabumSocialScout:
     def _resolver_url_padrao(
         link: str,
     ) -> str:
-        requisicao = urllib.request.Request(
+        resultado_http = resolver_redirects_requests_publicos(
             str(link),
+            dominios_iniciais=("tidd.ly",),
+            dominios_finais=("kabum.com.br",),
+            timeout_segundos=15,
+            max_redirects=8,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 "
                     "(Windows NT 10.0; Win64; x64) "
                     "AppleWebKit/537.36 "
                     "Chrome/150 Safari/537.36"
-                ),
+                )
             },
-            method="GET",
         )
 
-        with urllib.request.urlopen(
-            requisicao,
-            timeout=15,
-        ) as resposta:
-            return str(resposta.geturl())
+        resposta = resultado_http.resposta
+
+        try:
+            resposta.raise_for_status()
+            return resultado_http.url_final
+        finally:
+            resposta.close()

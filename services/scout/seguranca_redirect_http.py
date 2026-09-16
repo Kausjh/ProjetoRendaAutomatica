@@ -153,3 +153,219 @@ def resolver_redirects_requests(
         atual = proxima
 
     raise UrlRedeNaoPermitida("limite_redirects_excedido")
+
+
+def _resolver_host_global(
+    host: str,
+    *,
+    dns_resolver: Callable[..., object] | None = None,
+) -> None:
+    import ipaddress
+    import socket
+
+    resolver = dns_resolver or socket.getaddrinfo
+
+    try:
+        resultados = resolver(
+            host,
+            None,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as erro:
+        raise UrlRedeNaoPermitida("dns_indisponivel") from erro
+
+    ips = []
+
+    for resultado in resultados:
+        try:
+            sockaddr = resultado[4]
+            bruto = sockaddr[0]
+            ip = ipaddress.ip_address(bruto)
+        except (IndexError, TypeError, ValueError):
+            continue
+
+        ips.append(ip)
+
+    if not ips:
+        raise UrlRedeNaoPermitida("dns_sem_ip")
+
+    if any(not ip.is_global for ip in ips):
+        raise UrlRedeNaoPermitida("ip_nao_global")
+
+
+def _validar_url_publica(
+    url: str,
+    *,
+    dns_resolver: Callable[..., object] | None = None,
+) -> str:
+    texto = str(url or "").strip()
+
+    if not texto:
+        raise UrlRedeNaoPermitida("url_vazia")
+
+    try:
+        partes = urlsplit(texto)
+    except ValueError as erro:
+        raise UrlRedeNaoPermitida("url_invalida") from erro
+
+    esquema = str(partes.scheme or "").casefold()
+
+    if esquema not in {"http", "https"}:
+        raise UrlRedeNaoPermitida("esquema_nao_permitido")
+
+    if partes.username is not None or partes.password is not None:
+        raise UrlRedeNaoPermitida("credenciais_na_url_nao_permitidas")
+
+    host = str(partes.hostname or "").strip().rstrip(".").casefold()
+
+    if not host:
+        raise UrlRedeNaoPermitida("host_ausente")
+
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        raise UrlRedeNaoPermitida("host_local_nao_permitido")
+
+    try:
+        porta = partes.port
+    except ValueError as erro:
+        raise UrlRedeNaoPermitida("porta_invalida") from erro
+
+    if porta not in {None, 80, 443}:
+        raise UrlRedeNaoPermitida("porta_nao_permitida")
+
+    _resolver_host_global(
+        host,
+        dns_resolver=dns_resolver,
+    )
+
+    return texto
+
+
+def _host_em_dominios(
+    url: str,
+    dominios: Iterable[str],
+) -> bool:
+    try:
+        host = str(urlsplit(str(url or "")).hostname or "").strip().rstrip(".").casefold()
+    except ValueError:
+        return False
+
+    permitidos = tuple(
+        str(item or "").strip().rstrip(".").casefold()
+        for item in dominios
+        if str(item or "").strip()
+    )
+
+    return any(_host_corresponde(host, dominio) for dominio in permitidos)
+
+
+def resolver_redirects_requests_publicos(
+    url: str,
+    *,
+    dominios_iniciais: Iterable[str],
+    dominios_finais: Iterable[str],
+    timeout_segundos: float,
+    headers: dict[str, str] | None = None,
+    max_redirects: int = 8,
+    http_get: Callable[..., Any] | None = None,
+    dns_resolver: Callable[..., object] | None = None,
+) -> ResultadoRedirectHttpSeguro:
+    if max_redirects < 0:
+        raise ValueError("max_redirects precisa ser >= 0")
+
+    inicial = str(url or "").strip()
+
+    if not _host_em_dominios(
+        inicial,
+        dominios_iniciais,
+    ):
+        raise UrlRedeNaoPermitida("host_inicial_fora_da_allowlist")
+
+    get = http_get or requests.get
+
+    atual = _validar_url_publica(
+        inicial,
+        dns_resolver=dns_resolver,
+    )
+
+    visitadas: list[str] = []
+    status_redirect = {301, 302, 303, 307, 308}
+
+    for salto in range(max_redirects + 1):
+        _validar_url_publica(
+            atual,
+            dns_resolver=dns_resolver,
+        )
+
+        resposta = get(
+            atual,
+            allow_redirects=False,
+            timeout=float(timeout_segundos),
+            headers=dict(headers or {}),
+        )
+
+        visitadas.append(atual)
+
+        status = getattr(
+            resposta,
+            "status_code",
+            None,
+        )
+
+        if status not in status_redirect:
+            url_resposta = str(getattr(resposta, "url", "") or atual).strip()
+
+            url_final = _validar_url_publica(
+                url_resposta,
+                dns_resolver=dns_resolver,
+            )
+
+            if not _host_em_dominios(
+                url_final,
+                dominios_finais,
+            ):
+                try:
+                    resposta.close()
+                finally:
+                    raise UrlRedeNaoPermitida("host_final_fora_da_allowlist")
+
+            return ResultadoRedirectHttpSeguro(
+                resposta=resposta,
+                url_final=url_final,
+                urls_visitadas=tuple(visitadas),
+            )
+
+        location = str(
+            getattr(
+                resposta,
+                "headers",
+                {},
+            ).get("Location")
+            or ""
+        ).strip()
+
+        if not location:
+            try:
+                resposta.close()
+            finally:
+                raise UrlRedeNaoPermitida("redirect_sem_location")
+
+        if salto >= max_redirects:
+            try:
+                resposta.close()
+            finally:
+                raise UrlRedeNaoPermitida("limite_redirects_excedido")
+
+        proxima = urljoin(
+            atual,
+            location,
+        )
+
+        _validar_url_publica(
+            proxima,
+            dns_resolver=dns_resolver,
+        )
+
+        resposta.close()
+        atual = proxima
+
+    raise UrlRedeNaoPermitida("limite_redirects_excedido")
