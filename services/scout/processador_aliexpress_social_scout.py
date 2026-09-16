@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from models.mensagem_social_scout import MensagemSocialScout
 from models.resultado_deteccao_social_scout import (
@@ -346,7 +346,6 @@ class ProcessadorAliExpressSocialScout:
     ) -> str | None:
         try:
             partes = urlsplit(str(url or ""))
-
         except ValueError:
             return None
 
@@ -354,11 +353,28 @@ class ProcessadorAliExpressSocialScout:
             return None
 
         correspondencia = cls.PADRAO_PRODUTO.search(partes.path)
+        if correspondencia:
+            return correspondencia.group(1)
 
-        if not correspondencia:
+        if partes.path.rstrip("/") != "/p/coin-index/index.html":
             return None
 
-        return correspondencia.group(1)
+        produto_ids = parse_qs(
+            partes.query,
+            keep_blank_values=True,
+        ).get(
+            "productIds",
+            [],
+        )
+
+        if len(produto_ids) != 1:
+            return None
+
+        produto_id = produto_ids[0].strip()
+        if not produto_id.isdigit():
+            return None
+
+        return produto_id
 
     @staticmethod
     def _host(
