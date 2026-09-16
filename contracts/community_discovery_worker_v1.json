@@ -1,0 +1,45 @@
+{
+  "name": "community_discovery_worker_v1",
+  "version": 1,
+  "phase": "V1B4",
+  "runtime_model": "existing_pipeline_source",
+  "dedicated_process": false,
+  "dedicated_thread": false,
+  "source_contract": "BaseScraper.buscar_ofertas",
+  "feature_flag": {
+    "name": "COMMUNITY_DISCOVERY_PIPELINE_ATIVO",
+    "default": false
+  },
+  "per_cycle_limit": {
+    "environment": "COMMUNITY_DISCOVERY_MAX_POR_EXECUCAO",
+    "default": 3
+  },
+  "state_machine": {
+    "reserve": "received/retry -> processing",
+    "transient_failure": "processing -> retry/backoff",
+    "adapter_rejection": "processing -> rejected",
+    "no_downstream_ack": "processing -> stale recovery",
+    "pipeline_processed": "processing -> approved",
+    "collector_duplicate": "processing -> approved",
+    "collector_terminal_rejection": "processing -> rejected"
+  },
+  "handoff": {
+    "pending_in_memory_only": true,
+    "durable_source_is_sqlite": true,
+    "approval_requires_downstream_ack": true,
+    "canonical_key_captured_on_ack_when_available": true
+  },
+  "pipeline": {
+    "uses_existing_hunter": true,
+    "uses_existing_collector_validation": true,
+    "uses_existing_classification": true,
+    "uses_existing_pipeline_steps": true,
+    "uses_existing_executor": true,
+    "bypasses_executor": false,
+    "bypasses_canonical_catalog": false,
+    "bypasses_price_intelligence": false,
+    "bypasses_alert_engine": false
+  },
+  "activation_in_this_phase": false,
+  "next_phase": "V1B5 controlled canary activation"
+}

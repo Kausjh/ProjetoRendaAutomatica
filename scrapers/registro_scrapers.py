@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from models.alvo_discovery_comercial_hunter import AlvoDiscoveryComercialHunter
 from scrapers.aliexpress_scraper import AliExpressScraper
 from scrapers.base_scraper import BaseScraper
+from scrapers.community_discovery_scraper import CommunityDiscoveryScraper
 from scrapers.kabum_scraper import KabumScraper
 from scrapers.mercado_livre_scraper import MercadoLivreScraper
 from scrapers.shopee_scraper import ShopeeScraper
@@ -137,6 +138,21 @@ def criar_scrapers(
             SocialScoutScraper(
                 modo_sombra=modo_sombra,
                 max_mensagens_por_execucao=(max_mensagens_por_execucao),
+            )
+        )
+
+    if _variavel_ativa(
+        "COMMUNITY_DISCOVERY_PIPELINE_ATIVO",
+        valor_padrao=False,
+    ):
+        max_descobertas_por_execucao = _inteiro_positivo(
+            "COMMUNITY_DISCOVERY_MAX_POR_EXECUCAO",
+            valor_padrao=3,
+        )
+
+        scrapers.append(
+            CommunityDiscoveryScraper(
+                max_descobertas_por_execucao=(max_descobertas_por_execucao),
             )
         )
 
