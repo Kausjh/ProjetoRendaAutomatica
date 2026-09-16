@@ -29,6 +29,10 @@ from services.identificador_mercado_livre import (
 from services.scout.detector_promocao_social_scout import (
     DetectorPromocaoSocialScout,
 )
+from services.scout.seguranca_redirect_http import (
+    UrlRedeNaoPermitida,
+    resolver_redirects_requests,
+)
 
 
 class ResolvedorDestinoSocialScout:
@@ -203,12 +207,28 @@ class ResolvedorDestinoSocialScout:
         motivo_falha: str,
     ) -> ResultadoResolucaoSocialScout:
         try:
-            resposta = requests.get(
+            resultado_http = resolver_redirects_requests(
                 url_requisicao,
-                allow_redirects=True,
+                dominios_permitidos=(
+                    "mercadolivre.com.br",
+                    "mercadolivre.com",
+                    "meli.la",
+                ),
+                timeout_segundos=self.timeout_segundos,
                 stream=True,
-                timeout=self.timeout_segundos,
+                max_redirects=5,
                 headers={"User-Agent": ("Mozilla/5.0 " "(Windows NT 10.0; Win64; x64)")},
+            )
+            resposta = resultado_http.resposta
+
+        except UrlRedeNaoPermitida:
+            return ResultadoResolucaoSocialScout(
+                fonte=mensagem.fonte,
+                id_externo=self._criar_id_externo(mensagem),
+                status=self.STATUS_NAO_SUPORTADO,
+                marketplace=(self.MARKETPLACE_MERCADO_LIVRE),
+                url_original=url_original,
+                motivo=("link_curto_nao_levou_ao_" "mercado_livre_oficial"),
             )
 
         except requests.RequestException:
@@ -222,14 +242,7 @@ class ResolvedorDestinoSocialScout:
             )
 
         try:
-            url_final = str(
-                getattr(
-                    resposta,
-                    "url",
-                    "",
-                )
-                or ""
-            ).strip()
+            url_final = resultado_http.url_final
 
             status = getattr(
                 resposta,
@@ -320,7 +333,12 @@ class ResolvedorDestinoSocialScout:
                 motivo=("pagina_social_sem_titulo_destacado"),
             )
 
-        if not self._titulos_compativeis(
+        link_only_comunitario = (
+            str(getattr(deteccao, "motivo", "") or "").strip() == "community_discovery_link_only"
+            and not str(getattr(deteccao, "titulo", "") or "").strip()
+        )
+
+        if not link_only_comunitario and not self._titulos_compativeis(
             deteccao.titulo,
             titulo_destino,
         ):

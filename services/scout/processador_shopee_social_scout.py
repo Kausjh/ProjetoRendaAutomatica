@@ -18,6 +18,9 @@ from models.resultado_resolucao_social_scout import (
 from models.resultado_validacao_preco_social_scout import (
     ResultadoValidacaoPrecoSocialScout,
 )
+from services.scout.seguranca_redirect_http import (
+    resolver_redirects_requests,
+)
 from services.shopee_api_service import ShopeeApiService
 
 
@@ -417,34 +420,43 @@ class ProcessadorShopeeSocialScout:
                 "shopee_identidade_ambigua",
             )
 
-        resposta = requests.get(
+        resultado_http = resolver_redirects_requests(
             link,
-            allow_redirects=True,
-            timeout=self.TIMEOUT_REDIRECT_SEGUNDOS,
+            dominios_permitidos=(
+                "shopee.com.br",
+                "shope.ee",
+            ),
+            timeout_segundos=self.TIMEOUT_REDIRECT_SEGUNDOS,
+            max_redirects=5,
             headers={"User-Agent": ("Mozilla/5.0 " "(Windows NT 10.0; Win64; x64)")},
         )
+
+        resposta = resultado_http.resposta
 
         try:
             resposta.raise_for_status()
 
             candidatos: set[tuple[str, str]] = set()
 
-            for hop in resposta.history:
-                candidatos.update(self._extrair_identidades(hop.url))
+            for url_visitada in resultado_http.urls_visitadas:
+                candidatos.update(self._extrair_identidades(url_visitada))
 
-                location = hop.headers.get("Location")
+            for hop in getattr(resposta, "history", ()) or ():
+                candidatos.update(self._extrair_identidades(str(getattr(hop, "url", "") or "")))
+
+                location = str(getattr(hop, "headers", {}).get("Location") or "").strip()
 
                 if location:
                     candidatos.update(
                         self._extrair_identidades(
                             urljoin(
-                                hop.url,
+                                str(getattr(hop, "url", "") or link),
                                 location,
                             )
                         )
                     )
 
-            candidatos.update(self._extrair_identidades(resposta.url))
+            candidatos.update(self._extrair_identidades(resultado_http.url_final))
 
         finally:
             resposta.close()
