@@ -229,3 +229,31 @@ def test_monitor_v2_consulta_admin_e_fila_read_only():
         "delete from fila_publicacao",
     ):
         assert item not in texto
+
+
+def test_monitor_v2_publicador_usa_runtime_como_fonte_autoritativa():
+    texto = _monitor()
+
+    for item in (
+        "http://127.0.0.1:8765/operacao",
+        "RADAR_ADMIN_TOKEN",
+        "RUNTIME_DISPONIVEL=",
+        "PUBLICADOR_ATIVO=",
+        "RuntimeDisponivel",
+        "$publisherAdmin.Ativo",
+        'method="GET"',
+        "ProxyHandler({})",
+        "HEALTH_MONITOR_READ_ONLY",
+    ):
+        assert item in texto
+
+    assert "print(token)" not in texto
+
+
+def test_monitor_v2_publicador_mantem_wmi_apenas_como_fallback():
+    texto = _monitor()
+
+    assert "Get-PublicadorProcessState" in texto
+    assert "$publisherAdmin.RuntimeDisponivel" in texto
+    assert '$publisherState = "ATIVO"' in texto
+    assert '$publisherState = "PARADO"' in texto

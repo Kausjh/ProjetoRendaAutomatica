@@ -738,6 +738,8 @@ function Get-PublicadorAdminState {
 
     $fallback = [pscustomobject]@{
         Disponivel = $false
+        RuntimeDisponivel = $false
+        Ativo = $false
         Pausado = $false
         Modo = "desconhecido"
         Pendentes = -1
@@ -759,9 +761,14 @@ function Get-PublicadorAdminState {
     $codigo = @'
 from __future__ import annotations
 
+import json
+import os
 import sqlite3
 import sys
+import urllib.request
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 
 root = Path(
@@ -863,6 +870,102 @@ with conectar(
     )
 
 
+runtime_disponivel = False
+publicador_ativo = False
+
+try:
+
+    load_dotenv(
+        dotenv_path=root / ".env",
+        override=False,
+    )
+
+    token = os.getenv(
+        "RADAR_ADMIN_TOKEN",
+        "",
+    ).strip()
+
+    if token:
+
+        req = urllib.request.Request(
+            "http://127.0.0.1:8765/operacao",
+            method="GET",
+            headers={
+                "Authorization": (
+                    "Bearer " + token
+                ),
+                "X-Radar-Device": (
+                    "HEALTH_MONITOR_READ_ONLY"
+                ),
+            },
+        )
+
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({})
+        )
+
+        with opener.open(
+            req,
+            timeout=2.0,
+        ) as response:
+
+            if int(response.status) == 200:
+
+                dados_runtime = json.loads(
+                    response.read().decode(
+                        "utf-8"
+                    )
+                )
+
+                runtime_disponivel = True
+
+                publicador_ativo = bool(
+                    dados_runtime.get(
+                        "publicador_ativo",
+                        False,
+                    )
+                )
+
+                pausado = bool(
+                    dados_runtime.get(
+                        "publicador_pausado",
+                        pausado,
+                    )
+                )
+
+                modo = str(
+                    dados_runtime.get(
+                        "modo_operacao",
+                        modo,
+                    )
+                )
+
+except Exception:
+
+    # A consulta WMI continua existindo como fallback
+    # visual caso a API administrativa esteja indisponivel.
+    runtime_disponivel = False
+    publicador_ativo = False
+
+
+print(
+    "RUNTIME_DISPONIVEL="
+    + (
+        "SIM"
+        if runtime_disponivel
+        else "NAO"
+    )
+)
+
+print(
+    "PUBLICADOR_ATIVO="
+    + (
+        "SIM"
+        if publicador_ativo
+        else "NAO"
+    )
+)
+
 print(
     "PAUSADO="
     + (
@@ -949,6 +1052,26 @@ print(
 
         return [pscustomobject]@{
             Disponivel = $true
+            RuntimeDisponivel = (
+                $dados.ContainsKey(
+                    "RUNTIME_DISPONIVEL"
+                ) -and
+                (
+                    [string]$dados[
+                        "RUNTIME_DISPONIVEL"
+                    ]
+                ) -eq "SIM"
+            )
+            Ativo = (
+                $dados.ContainsKey(
+                    "PUBLICADOR_ATIVO"
+                ) -and
+                (
+                    [string]$dados[
+                        "PUBLICADOR_ATIVO"
+                    ]
+                ) -eq "SIM"
+            )
             Pausado = (
                 [string]$dados["PAUSADO"]
             ) -eq "SIM"
@@ -2268,13 +2391,26 @@ function Update-DashboardV2 {
     }
 
 
+    $publisherAdmin = (
+        Get-PublicadorAdminState
+    )
+
     $publisherState = (
         Get-PublicadorProcessState
     )
 
-    $publisherAdmin = (
-        Get-PublicadorAdminState
-    )
+    if (
+        $publisherAdmin.RuntimeDisponivel
+    ) {
+        if (
+            $publisherAdmin.Ativo
+        ) {
+            $publisherState = "ATIVO"
+        }
+        else {
+            $publisherState = "PARADO"
+        }
+    }
 
     if (
         $publisherAdmin.Disponivel -and
