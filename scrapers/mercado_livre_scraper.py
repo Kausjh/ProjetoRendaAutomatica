@@ -12,6 +12,10 @@ from services.scout.mercado_livre_catalog_api import (
     ErroApiMercadoLivre,
     SnapshotCatalogoMercadoLivre,
 )
+from services.scout.mercado_livre_web_discovery import (
+    ErroDiscoveryMercadoLivre,
+    MercadoLivreWebDiscovery,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -572,6 +576,7 @@ class MercadoLivreScraper(BaseScraper):
         termos_busca: list[str] | None = None,
         *,
         cliente_catalogo: ClienteCatalogoMercadoLivre | None = None,
+        web_discovery=None,
         sleep_fn=None,
         jitter_fn=None,
         tentativas_rate_limit: int = TENTATIVAS_RATE_LIMIT_PADRAO,
@@ -585,9 +590,16 @@ class MercadoLivreScraper(BaseScraper):
         if not self.termos_busca:
             raise ValueError("A lista de termos do Mercado Livre " "não pode estar vazia.")
 
+        cliente_catalogo_injetado = cliente_catalogo is not None
+
         self.cliente_catalogo = (
             cliente_catalogo if cliente_catalogo is not None else ClienteCatalogoMercadoLivre()
         )
+
+        self.web_discovery = web_discovery
+
+        if self.web_discovery is None and not cliente_catalogo_injetado:
+            self.web_discovery = MercadoLivreWebDiscovery()
 
         self._sleep_fn = sleep_fn if sleep_fn is not None else time.sleep
 
@@ -783,6 +795,147 @@ class MercadoLivreScraper(BaseScraper):
             imagem=None,
         )
 
+    def _buscar_ofertas_web_hibridas(
+        self,
+        limite: int,
+    ) -> list[Oferta]:
+        if self.web_discovery is None:
+            return []
+
+        ofertas: list[Oferta] = []
+
+        product_ids_vistos: set[str] = set()
+        item_ids_vistos: set[str] = set()
+
+        snapshots_tentados = 0
+        orcamento_snapshots = limite + self.SNAPSHOTS_EXTRA_POR_CICLO
+
+        for indice, termo in enumerate(
+            self.termos_busca,
+            start=1,
+        ):
+            if len(ofertas) >= limite:
+                break
+
+            if snapshots_tentados >= orcamento_snapshots:
+                break
+
+            categoria = self._categoria_do_termo(termo)
+
+            consulta = self._consulta_enriquecida(
+                termo,
+                categoria,
+            )
+
+            faltantes = limite - len(ofertas)
+
+            restante_orcamento = orcamento_snapshots - snapshots_tentados
+
+            limite_discovery = min(
+                restante_orcamento,
+                faltantes + self.SNAPSHOTS_EXTRA_POR_CICLO,
+            )
+
+            if limite_discovery <= 0:
+                break
+
+            logger.info(
+                "Pesquisando Mercado Livre web " "(%s/%s): %s",
+                indice,
+                len(self.termos_busca),
+                consulta,
+            )
+
+            try:
+                resultados = self.web_discovery.descobrir(
+                    consulta,
+                    limite=limite_discovery,
+                )
+
+            except ErroDiscoveryMercadoLivre as erro:
+                logger.warning(
+                    "Discovery web ML indisponivel " "para '%s': %s. " "Fallback para Catalog API.",
+                    consulta,
+                    erro,
+                )
+
+                if ofertas:
+                    return ofertas
+
+                return []
+
+            adicionadas_termo = 0
+
+            for resultado in resultados:
+                if len(ofertas) >= limite:
+                    break
+
+                if snapshots_tentados >= orcamento_snapshots:
+                    break
+
+                product_id = str(resultado.identificador_ml or "").strip().upper()
+
+                if not product_id:
+                    continue
+
+                if product_id in product_ids_vistos:
+                    continue
+
+                product_ids_vistos.add(product_id)
+
+                snapshots_tentados += 1
+
+                try:
+                    snapshot = self._executar_api_com_backoff(
+                        lambda product_id=product_id: (
+                            self.cliente_catalogo.consultar_snapshot(product_id)
+                        ),
+                        descricao=("web_snapshot:" + product_id),
+                    )
+
+                except ErroApiMercadoLivre as erro:
+                    if erro.status_code == 404:
+                        logger.info(
+                            "PDP ML %s descoberto " "na web nao possui " "snapshot atual.",
+                            product_id,
+                        )
+                        continue
+
+                    raise
+
+                if snapshot is None:
+                    continue
+
+                item_id = str(snapshot.item_id or "").strip().upper()
+
+                if not item_id:
+                    continue
+
+                if item_id in item_ids_vistos:
+                    continue
+
+                oferta = self._oferta_de_snapshot(
+                    snapshot,
+                    link_fallback=resultado.link,
+                )
+
+                if oferta is None:
+                    continue
+
+                item_ids_vistos.add(item_id)
+
+                ofertas.append(oferta)
+
+                adicionadas_termo += 1
+
+            logger.info(
+                "Discovery web ML '%s': " "%s oferta(s) nova(s).",
+                termo,
+                adicionadas_termo,
+            )
+
+        return ofertas
+
     def buscar_ofertas(
         self,
         limite: int = 5,
@@ -794,6 +947,23 @@ class MercadoLivreScraper(BaseScraper):
             )
 
             return []
+
+        if self.web_discovery is not None:
+            ofertas_web = self._buscar_ofertas_web_hibridas(limite)
+
+            if ofertas_web:
+                logger.info(
+                    "Mercado Livre hibrido: " "%s oferta(s) obtida(s) " "via web -> API.",
+                    len(ofertas_web),
+                )
+
+                return ofertas_web[:limite]
+
+            logger.info(
+                "Mercado Livre web discovery "
+                "sem oferta utilizavel. "
+                "Usando fallback Catalog API."
+            )
 
         logger.info(
             "Mercado Livre API-first: " "buscando ate %s oferta(s).",
