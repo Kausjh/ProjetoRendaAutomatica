@@ -22,11 +22,19 @@ class ErroApiMercadoLivre(RuntimeError):
         *,
         status_code: int | None = None,
         transitorio: bool = False,
+        retry_after: int | None = None,
     ) -> None:
         super().__init__(motivo)
         self.motivo = str(motivo or "").strip() or "erro_api_mercado_livre"
         self.status_code = status_code
         self.transitorio = bool(transitorio)
+        self.retry_after = (
+            retry_after
+            if isinstance(retry_after, int)
+            and not isinstance(retry_after, bool)
+            and retry_after >= 1
+            else None
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -516,6 +524,20 @@ class ClienteCatalogoMercadoLivre:
             return
 
         transitorio = status == 429 or status >= 500
+        retry_after: int | None = None
+
+        if status == 429:
+            headers = getattr(resposta, "headers", {}) or {}
+            valor_retry_after = headers.get("Retry-After")
+
+            if valor_retry_after is not None:
+                try:
+                    retry_after = max(
+                        1,
+                        int(valor_retry_after),
+                    )
+                except (TypeError, ValueError):
+                    retry_after = None
 
         if status == 404:
             motivo = f"{prefixo}_nao_encontrado"
@@ -534,6 +556,7 @@ class ClienteCatalogoMercadoLivre:
             motivo,
             status_code=status,
             transitorio=transitorio,
+            retry_after=retry_after,
         )
 
     def _persistir_tokens_env(self) -> None:

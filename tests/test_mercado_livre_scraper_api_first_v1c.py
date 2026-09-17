@@ -220,6 +220,7 @@ def test_429_faz_backoff_e_repete():
         ],
         cliente_catalogo=cliente,
         sleep_fn=esperas.append,
+        jitter_fn=lambda: 0.0,
         tentativas_rate_limit=2,
     )
 

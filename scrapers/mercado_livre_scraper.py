@@ -1,6 +1,7 @@
 # 63.8738, -149.7525
 
 import logging
+import random
 import time
 from datetime import datetime
 
@@ -562,7 +563,9 @@ class MercadoLivreScraper(BaseScraper):
 
     PRODUTOS_POR_TERMO = 2
     SNAPSHOTS_EXTRA_POR_CICLO = 2
-    TENTATIVAS_RATE_LIMIT_PADRAO = 2
+    TENTATIVAS_RATE_LIMIT_PADRAO = 1
+    OPERACOES_API_POR_OFERTA = 3
+    OPERACOES_API_EXTRA_POR_CICLO = 8
 
     def __init__(
         self,
@@ -570,6 +573,7 @@ class MercadoLivreScraper(BaseScraper):
         *,
         cliente_catalogo: ClienteCatalogoMercadoLivre | None = None,
         sleep_fn=None,
+        jitter_fn=None,
         tentativas_rate_limit: int = TENTATIVAS_RATE_LIMIT_PADRAO,
     ) -> None:
         termos_recebidos = (
@@ -586,6 +590,15 @@ class MercadoLivreScraper(BaseScraper):
         )
 
         self._sleep_fn = sleep_fn if sleep_fn is not None else time.sleep
+
+        self._jitter_fn = (
+            jitter_fn
+            if jitter_fn is not None
+            else lambda: random.uniform(
+                0.0,
+                0.5,
+            )
+        )
 
         if (
             isinstance(
@@ -657,15 +670,30 @@ class MercadoLivreScraper(BaseScraper):
                 if erro.status_code != 429 or tentativa >= self.tentativas_rate_limit:
                     raise
 
-                espera = min(
-                    2.0 * (2**tentativa),
-                    8.0,
-                )
+                if erro.retry_after is not None:
+                    espera = float(erro.retry_after)
+                else:
+                    espera_base = min(
+                        2.0 * (2**tentativa),
+                        8.0,
+                    )
+
+                    jitter = float(self._jitter_fn())
+
+                    if jitter < 0:
+                        jitter = 0.0
+
+                    jitter = min(
+                        jitter,
+                        1.0,
+                    )
+
+                    espera = espera_base + jitter
 
                 tentativa += 1
 
                 logger.warning(
-                    "Mercado Livre API limitou '%s'. " "Nova tentativa %s/%s em %.1fs.",
+                    "Mercado Livre API limitou '%s'. " "Nova tentativa %s/%s em %.2fs.",
                     descricao,
                     tentativa,
                     self.tentativas_rate_limit,
@@ -776,6 +804,12 @@ class MercadoLivreScraper(BaseScraper):
 
         orcamento_snapshots = limite + self.SNAPSHOTS_EXTRA_POR_CICLO
 
+        operacoes_api_consumidas = 0
+
+        orcamento_operacoes_api = (
+            limite * self.OPERACOES_API_POR_OFERTA + self.OPERACOES_API_EXTRA_POR_CICLO
+        )
+
         for indice, termo in enumerate(
             self.termos_busca,
             start=1,
@@ -785,6 +819,12 @@ class MercadoLivreScraper(BaseScraper):
 
             if snapshots_tentados >= orcamento_snapshots:
                 logger.info("Mercado Livre atingiu o " "orcamento de snapshots do ciclo.")
+                break
+
+            # Um termo sem produto consome, no caminho normal,
+            # uma descoberta de dominio + uma busca de produtos.
+            if operacoes_api_consumidas + 2 > orcamento_operacoes_api:
+                logger.info("Mercado Livre atingiu o " "orcamento logico de API do ciclo.")
                 break
 
             categoria = self._categoria_do_termo(termo)
@@ -800,6 +840,8 @@ class MercadoLivreScraper(BaseScraper):
                 len(self.termos_busca),
                 consulta,
             )
+
+            operacoes_api_consumidas += 1
 
             domain_id = self._obter_domain_id(
                 termo=termo,
@@ -823,6 +865,8 @@ class MercadoLivreScraper(BaseScraper):
             if limite_produtos <= 0:
                 break
 
+            operacoes_api_consumidas += 1
+
             produtos = self._executar_api_com_backoff(
                 lambda consulta=consulta, domain_id=domain_id, limite_produtos=limite_produtos: (
                     self.cliente_catalogo.buscar_produtos(
@@ -841,6 +885,11 @@ class MercadoLivreScraper(BaseScraper):
                     break
 
                 if snapshots_tentados >= orcamento_snapshots:
+                    break
+
+                # consultar_snapshot executa, no caminho normal,
+                # GET /products/{id} + GET /products/{id}/items.
+                if operacoes_api_consumidas + 2 > orcamento_operacoes_api:
                     break
 
                 product_id = str(produto.product_id or "").strip().upper()
@@ -870,6 +919,7 @@ class MercadoLivreScraper(BaseScraper):
                     continue
 
                 snapshots_tentados += 1
+                operacoes_api_consumidas += 2
 
                 try:
                     snapshot = self._executar_api_com_backoff(
@@ -920,9 +970,13 @@ class MercadoLivreScraper(BaseScraper):
         logger.info(
             "Mercado Livre API-first: %s "
             "oferta(s) unica(s) coletada(s); "
-            "%s snapshot(s) tentado(s).",
+            "%s snapshot(s) tentado(s); "
+            "%s/%s operacao(oes) logica(s) "
+            "de API consumida(s).",
             len(ofertas),
             snapshots_tentados,
+            operacoes_api_consumidas,
+            orcamento_operacoes_api,
         )
 
         return ofertas
