@@ -793,6 +793,9 @@ class MercadoLivreScraper(BaseScraper):
             preco_antigo=None,
             link=permalink,
             imagem=None,
+            marketplace="mercado_livre",
+            id_produto=(str(snapshot.product_id or "").strip().upper() or None),
+            id_anuncio=(str(snapshot.item_id or "").strip().upper() or None),
         )
 
     def _buscar_ofertas_web_hibridas(
