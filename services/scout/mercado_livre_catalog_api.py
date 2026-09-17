@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import requests
 from dotenv import load_dotenv, set_key
@@ -53,6 +54,22 @@ class SnapshotCatalogoMercadoLivre:
             "mercado_livre_currency_id": self.currency_id,
             "mercado_livre_seller_id": self.seller_id,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class DominioCatalogoMercadoLivre:
+    domain_id: str
+    domain_name: str
+    category_id: str
+    category_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProdutoCatalogoMercadoLivre:
+    product_id: str
+    titulo: str
+    domain_id: str
+    status: str
 
 
 class ClienteCatalogoMercadoLivre:
@@ -102,6 +119,150 @@ class ClienteCatalogoMercadoLivre:
         self._timeout = max(float(timeout), 1.0)
         self._agora = agora or time.time
         self._persistir_tokens = bool(persistir_tokens)
+
+    def descobrir_dominios(
+        self,
+        consulta: str,
+        limite: int = 3,
+    ) -> tuple[DominioCatalogoMercadoLivre, ...]:
+        consulta = self._texto(consulta)
+
+        if not consulta:
+            raise ValueError("consulta de dominio nao pode ser vazia.")
+
+        limite = self._validar_limite_busca(limite)
+
+        query = urlencode(
+            {
+                "q": consulta,
+                "limit": limite,
+            }
+        )
+
+        resposta = self._request_autenticado(
+            "GET",
+            (f"{self.BASE_URL}" "/sites/MLB/domain_discovery/search" f"?{query}"),
+        )
+
+        try:
+            payload = resposta.json()
+        except ValueError as erro:
+            raise ErroApiMercadoLivre(
+                "domain_discovery_ml_json_invalido",
+                status_code=resposta.status_code,
+                transitorio=True,
+            ) from erro
+
+        if not isinstance(payload, list):
+            raise ErroApiMercadoLivre(
+                "domain_discovery_ml_resposta_invalida",
+                status_code=resposta.status_code,
+                transitorio=True,
+            )
+
+        dominios: list[DominioCatalogoMercadoLivre] = []
+
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+
+            domain_id = self._texto(item.get("domain_id")).upper()
+
+            if not domain_id:
+                continue
+
+            dominios.append(
+                DominioCatalogoMercadoLivre(
+                    domain_id=domain_id,
+                    domain_name=self._texto(item.get("domain_name")),
+                    category_id=self._texto(item.get("category_id")).upper(),
+                    category_name=self._texto(item.get("category_name")),
+                )
+            )
+
+        return tuple(dominios)
+
+    def buscar_produtos(
+        self,
+        consulta: str,
+        *,
+        domain_id: str | None = None,
+        limite: int = 5,
+    ) -> tuple[ProdutoCatalogoMercadoLivre, ...]:
+        consulta = self._texto(consulta)
+
+        if not consulta:
+            raise ValueError("consulta de produtos nao pode ser vazia.")
+
+        limite = self._validar_limite_busca(limite)
+
+        dominio = self._texto(domain_id).upper()
+
+        parametros: dict[str, object] = {
+            "status": "active",
+            "site_id": "MLB",
+            "q": consulta,
+            "limit": limite,
+        }
+
+        if dominio:
+            parametros["domain_id"] = dominio
+
+        query = urlencode(parametros)
+
+        resposta = self._request_autenticado(
+            "GET",
+            (f"{self.BASE_URL}" "/products/search" f"?{query}"),
+        )
+
+        try:
+            payload = resposta.json()
+        except ValueError as erro:
+            raise ErroApiMercadoLivre(
+                "products_search_ml_json_invalido",
+                status_code=resposta.status_code,
+                transitorio=True,
+            ) from erro
+
+        if not isinstance(payload, dict):
+            raise ErroApiMercadoLivre(
+                "products_search_ml_resposta_invalida",
+                status_code=resposta.status_code,
+                transitorio=True,
+            )
+
+        resultados = payload.get("results")
+
+        if not isinstance(resultados, list):
+            raise ErroApiMercadoLivre(
+                "products_search_ml_results_invalidos",
+                status_code=resposta.status_code,
+                transitorio=True,
+            )
+
+        produtos: list[ProdutoCatalogoMercadoLivre] = []
+
+        for item in resultados:
+            if not isinstance(item, dict):
+                continue
+
+            product_id = self._texto(item.get("id")).upper()
+
+            titulo = self._texto(item.get("name"))
+
+            if not product_id or not titulo:
+                continue
+
+            produtos.append(
+                ProdutoCatalogoMercadoLivre(
+                    product_id=product_id,
+                    titulo=titulo,
+                    domain_id=self._texto(item.get("domain_id")).upper(),
+                    status=self._texto(item.get("status")).casefold(),
+                )
+            )
+
+        return tuple(produtos)
 
     def consultar_snapshot(
         self,
@@ -406,6 +567,20 @@ class ClienteCatalogoMercadoLivre:
             )
 
         return product_id
+
+    @staticmethod
+    def _validar_limite_busca(
+        valor: object,
+        *,
+        maximo: int = 50,
+    ) -> int:
+        if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+            raise ValueError("limite de busca precisa ser inteiro positivo.")
+
+        return min(
+            valor,
+            maximo,
+        )
 
     @staticmethod
     def _texto(valor: object) -> str:
