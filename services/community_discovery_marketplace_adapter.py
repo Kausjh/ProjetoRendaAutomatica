@@ -19,6 +19,10 @@ from models.resultado_validacao_preco_social_scout import (
 from services.scout.construtor_oferta_social_scout import (
     ConstrutorOfertaSocialScout,
 )
+from services.scout.mercado_livre_catalog_api import (
+    ClienteCatalogoMercadoLivre,
+    ErroApiMercadoLivre,
+)
 from services.scout.processador_aliexpress_social_scout import (
     ProcessadorAliExpressSocialScout,
 )
@@ -66,6 +70,7 @@ class CommunityDiscoveryMarketplaceAdapter:
         *,
         resolvedor_ml=None,
         validador_ml=None,
+        cliente_catalogo_ml=None,
         processador_shopee=None,
         processador_aliexpress=None,
         processador_kabum=None,
@@ -73,6 +78,7 @@ class CommunityDiscoveryMarketplaceAdapter:
     ) -> None:
         self._resolvedor_ml = resolvedor_ml
         self._validador_ml = validador_ml
+        self._cliente_catalogo_ml = cliente_catalogo_ml
         self._processador_shopee = processador_shopee
         self._processador_aliexpress = processador_aliexpress
         self._processador_kabum = processador_kabum
@@ -192,33 +198,66 @@ class CommunityDiscoveryMarketplaceAdapter:
         if erro_resolucao is not None:
             return erro_resolucao
 
-        validador = self._validador_ml_real()
+        product_id = (
+            str(
+                getattr(
+                    resolucao,
+                    "id_produto",
+                    "",
+                )
+                or ""
+            )
+            .strip()
+            .upper()
+        )
+
+        if not product_id:
+            return self._resultado(
+                status=self.STATUS_NAO_SUPORTADA,
+                marketplace=marketplace,
+                motivo="mercado_livre_sem_product_id_catalogo",
+                resolucao=resolucao,
+            )
 
         try:
-            snapshot = validador._capturar_snapshot(resolucao.url_destino)
-            preco_oficial = validador._numero(snapshot.get("preco_oficial"))
+            snapshot_api = self._cliente_catalogo_ml_real().consultar_snapshot(
+                product_id,
+            )
+        except ErroApiMercadoLivre as erro:
+            return self._resultado(
+                status=self.STATUS_RETRY,
+                marketplace=marketplace,
+                motivo=f"erro_api_catalogo_mercado_livre:{erro.motivo}",
+                resolucao=resolucao,
+                transitorio=erro.transitorio,
+            )
         except Exception as erro:
             return self._resultado(
                 status=self.STATUS_RETRY,
                 marketplace=marketplace,
-                motivo=("erro_snapshot_mercado_livre:" f"{type(erro).__name__}"),
+                motivo=("erro_api_catalogo_mercado_livre:" f"{type(erro).__name__}"),
                 resolucao=resolucao,
                 transitorio=True,
             )
 
-        if preco_oficial is None or preco_oficial <= 0:
+        if snapshot_api is None:
             return self._resultado(
                 status=self.STATUS_REJEITADA,
                 marketplace=marketplace,
-                motivo="preco_oficial_mercado_livre_invalido",
+                motivo="mercado_livre_sem_publicacao_catalogo_com_preco_valido",
                 resolucao=resolucao,
             )
+
+        snapshot = snapshot_api.como_snapshot_validacao()
+        preco_oficial = float(snapshot_api.preco)
 
         deteccao_oficial = replace(
             deteccao,
             preco_oferta=preco_oficial,
             preco_final=preco_oficial,
         )
+
+        validador = self._validador_ml_real()
 
         try:
             validacao = validador._avaliar_snapshot(
@@ -438,6 +477,11 @@ class CommunityDiscoveryMarketplaceAdapter:
         if self._resolvedor_ml is None:
             self._resolvedor_ml = ResolvedorDestinoSocialScout()
         return self._resolvedor_ml
+
+    def _cliente_catalogo_ml_real(self):
+        if self._cliente_catalogo_ml is None:
+            self._cliente_catalogo_ml = ClienteCatalogoMercadoLivre()
+        return self._cliente_catalogo_ml
 
     def _validador_ml_real(self):
         if self._validador_ml is None:
