@@ -25,6 +25,8 @@ TEMPO_LIMITE_CHROME: Final = 20.0
 INTERVALO_VERIFICACAO: Final = 0.5
 TEMPO_LIMITE_ENCERRAMENTO: Final = 5.0
 ENV_MANTER_CHROME_ATIVO: Final = "RADAR_MANTER_CHROME_ATIVO"
+ENV_CDP_EXTERNO: Final = "RADAR_CDP_EXTERNO"
+TASK_CHROME_EXTERNO: Final = "RendaAutomatica_MLChrome"
 TEMPO_LIMITE_TESTE_CDP_MS: Final = 5_000
 INTERVALO_ESPERA_PORTA_CDP: Final = 0.25
 
@@ -437,6 +439,125 @@ def encerrar_chrome_automacao_travado() -> None:
     print("[OK] Chrome/CDP travado encerrado. A sessão será recriada.")
 
 
+def cdp_externo_gerenciado() -> bool:
+    valor = (
+        os.environ.get(
+            ENV_CDP_EXTERNO,
+            "",
+        )
+        .strip()
+        .lower()
+    )
+
+    return valor in {
+        "1",
+        "true",
+        "yes",
+        "sim",
+        "on",
+    }
+
+
+def _executar_task_chrome_externo(
+    acao: str,
+) -> None:
+    if os.name != "nt":
+        raise RuntimeError("Task S4U do Chrome externo " "so esta disponivel no Windows.")
+
+    acao = (
+        str(
+            acao,
+        )
+        .strip()
+        .lower()
+    )
+
+    if acao not in {
+        "start",
+        "stop",
+    }:
+        raise ValueError("acao da task externa deve ser " "'start' ou 'stop'.")
+
+    if acao == "start":
+        comando = (
+            "$ErrorActionPreference='Stop'; "
+            f"$task=Get-ScheduledTask "
+            f"-TaskName '{TASK_CHROME_EXTERNO}' "
+            "-ErrorAction Stop; "
+            "if ($task.State -ne 'Running') { "
+            f"Start-ScheduledTask "
+            f"-TaskName '{TASK_CHROME_EXTERNO}' "
+            "-ErrorAction Stop "
+            "}"
+        )
+    else:
+        comando = (
+            "$ErrorActionPreference='Stop'; "
+            f"$task=Get-ScheduledTask "
+            f"-TaskName '{TASK_CHROME_EXTERNO}' "
+            "-ErrorAction Stop; "
+            "if ($task.State -eq 'Running') { "
+            f"Stop-ScheduledTask "
+            f"-TaskName '{TASK_CHROME_EXTERNO}' "
+            "-ErrorAction Stop "
+            "}"
+        )
+
+    resultado = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            comando,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=getattr(
+            subprocess,
+            "CREATE_NO_WINDOW",
+            0,
+        ),
+    )
+
+    if resultado.returncode != 0:
+        detalhe = resultado.stderr.strip() or resultado.stdout.strip() or "erro desconhecido"
+
+        raise RuntimeError("Falha ao controlar a task " f"{TASK_CHROME_EXTERNO}: " f"{detalhe}")
+
+
+def iniciar_task_chrome_externo() -> None:
+    _executar_task_chrome_externo(
+        "start",
+    )
+
+
+def parar_task_chrome_externo() -> None:
+    _executar_task_chrome_externo(
+        "stop",
+    )
+
+
+def aguardar_cdp_externo() -> None:
+    inicio = time.monotonic()
+
+    while time.monotonic() - inicio < TEMPO_LIMITE_CHROME:
+        if cdp_esta_funcional():
+            return
+
+        time.sleep(INTERVALO_VERIFICACAO)
+
+    raise TimeoutError(
+        "A task S4U do Chrome foi iniciada, "
+        "mas o CDP externo nao ficou funcional "
+        f"na porta {PORTA_CDP}."
+    )
+
+
 def manter_chrome_ativo_entre_ciclos() -> bool:
     valor = os.environ.get(ENV_MANTER_CHROME_ATIVO, "").strip().lower()
     return valor in {"1", "true", "yes", "sim", "on"}
@@ -444,6 +565,15 @@ def manter_chrome_ativo_entre_ciclos() -> bool:
 
 def encerrar_chrome_automacao() -> None:
     """Encerra, com segurança, apenas o Chrome dedicado ao projeto."""
+
+    if cdp_externo_gerenciado():
+        parar_task_chrome_externo()
+
+        if not aguardar_porta_cdp_liberar():
+            raise RuntimeError("A porta do CDP externo nao foi liberada.")
+
+        print("[OK] Task S4U do Chrome/CDP externo encerrada.")
+        return
 
     pids = localizar_pids_chrome_automacao()
 
@@ -555,6 +685,25 @@ def aguardar_cdp(processo_chrome: subprocess.Popen[bytes]) -> None:
 
 
 def preparar_chrome() -> EstadoChrome:
+    if cdp_externo_gerenciado():
+        if cdp_esta_funcional():
+            print("[OK] Chrome/CDP externo S4U " "ja esta funcional.")
+            return EstadoChrome()
+
+        print("[AVISO] Chrome/CDP externo S4U " "indisponivel. Reiniciando task.")
+
+        parar_task_chrome_externo()
+
+        if not aguardar_porta_cdp_liberar():
+            raise RuntimeError("A porta do CDP externo nao " "foi liberada apos parar a task.")
+
+        iniciar_task_chrome_externo()
+        aguardar_cdp_externo()
+
+        print("[OK] Chrome/CDP externo S4U " "esta funcional.")
+
+        return EstadoChrome()
+
     if cdp_esta_disponivel():
         if cdp_esta_funcional():
             print("[OK] Chrome com CDP funcional já está disponível " f"na porta {PORTA_CDP}.")

@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 def main() -> int:
     os.chdir(DIRETORIO_PROJETO)
     os.environ["RADAR_MANTER_CHROME_ATIVO"] = "1"
+    os.environ["RADAR_CDP_EXTERNO"] = "1"
     configurar_logging()
 
     print("=" * 68)

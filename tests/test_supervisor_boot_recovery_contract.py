@@ -112,36 +112,51 @@ def test_componentes_independentes_validam_script_no_proprio_passo():
         assert verificacao in loop
 
 
-def test_system_session_usa_chrome_headless():
+def test_supervisor_delega_chrome_para_task_s4u():
     texto = _texto()
 
-    assert "$CurrentIdentity = (" in texto
-    assert "$CurrentSessionId = (" in texto
-    assert "$RunChromeHeadless = (" in texto
-    assert "NT AUTHORITY\\SYSTEM" in texto
+    assert "$ChromeTaskName = " '"RendaAutomatica_MLChrome"' in texto
 
-    assert '"--headless=new"' in texto
-    assert '"--disable-gpu"' in texto
-    assert '$chromeMode = "headless-system"' in texto
+    assert '$env:RADAR_CDP_EXTERNO = "1"' in texto
+
+    inicio = texto.index("function Ensure-Cdp {")
+
+    fim = texto.index(
+        "function Update-InternetBootState {",
+        inicio,
+    )
+
+    bloco = texto[inicio:fim]
+
+    assert "Get-ScheduledTask" in bloco
+    assert "Start-ScheduledTask" in bloco
+    assert "Stop-ScheduledTask" in bloco
+    assert "Start-Process" not in bloco
+    assert "taskkill.exe" not in bloco
+    assert "--user-data-dir" not in bloco
 
 
-def test_sessao_interativa_preserva_modo_chrome_normal():
+def test_supervisor_nao_cria_chrome_diretamente():
     texto = _texto()
 
-    assert '$chromeMode = "interactive"' in texto
-    assert "if ($RunChromeHeadless)" in texto
+    assert "$ChromeProfile" not in texto
+    assert "$RunChromeHeadless" not in texto
+    assert "headless-system" not in texto
 
-    bloco = texto[
-        texto.index("$chromeArguments = @(") : texto.index(
-            "if (-not $cdpOk)",
-            texto.index("$chromeArguments = @("),
-        )
-    ]
+    inicio = texto.index("function Ensure-Cdp {")
 
-    assert "--remote-debugging-port=9222" in bloco
-    assert "--user-data-dir=$ChromeProfile" in bloco
-    assert "Start-Process" in bloco
-    assert "-ArgumentList $chromeArguments" in bloco
+    fim = texto.index(
+        "function Update-InternetBootState {",
+        inicio,
+    )
+
+    bloco = texto[inicio:fim]
+
+    assert "RendaAutomatica_MLChrome" in texto
+
+    assert "--remote-debugging-port=9222" not in bloco
+
+    assert "browser_profile_cdp" not in bloco
 
 
 def test_log_startup_registra_identidade_real():

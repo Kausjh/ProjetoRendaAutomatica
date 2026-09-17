@@ -63,3 +63,105 @@ def test_preparar_chrome_nao_mata_processo_desconhecido(monkeypatch):
         assert "não foi identificado como o Chrome de automação" in str(erro)
     else:
         raise AssertionError("Era esperado RuntimeError.")
+
+
+def test_preparar_chrome_externo_reinicia_task_s4u(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "RADAR_CDP_EXTERNO",
+        "1",
+    )
+
+    respostas = iter(
+        (
+            False,
+            True,
+        )
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "cdp_esta_funcional",
+        lambda: next(respostas),
+    )
+
+    chamadas = {
+        "parou": 0,
+        "iniciou": 0,
+    }
+
+    monkeypatch.setattr(
+        launcher,
+        "parar_task_chrome_externo",
+        lambda: chamadas.__setitem__(
+            "parou",
+            chamadas["parou"] + 1,
+        ),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "iniciar_task_chrome_externo",
+        lambda: chamadas.__setitem__(
+            "iniciou",
+            chamadas["iniciou"] + 1,
+        ),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "aguardar_porta_cdp_liberar",
+        lambda: True,
+    )
+
+    monkeypatch.setattr(
+        launcher.time,
+        "sleep",
+        lambda _segundos: None,
+    )
+
+    estado = launcher.preparar_chrome()
+
+    assert chamadas == {
+        "parou": 1,
+        "iniciou": 1,
+    }
+
+    assert estado.processo is None
+
+    assert estado.iniciado_pelo_launcher is False
+
+
+def test_encerrar_chrome_externo_para_task_s4u(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "RADAR_CDP_EXTERNO",
+        "1",
+    )
+
+    chamadas = {
+        "parou": 0,
+    }
+
+    monkeypatch.setattr(
+        launcher,
+        "parar_task_chrome_externo",
+        lambda: chamadas.__setitem__(
+            "parou",
+            chamadas["parou"] + 1,
+        ),
+    )
+
+    monkeypatch.setattr(
+        launcher,
+        "aguardar_porta_cdp_liberar",
+        lambda: True,
+    )
+
+    launcher.encerrar_chrome_automacao()
+
+    assert chamadas == {
+        "parou": 1,
+    }

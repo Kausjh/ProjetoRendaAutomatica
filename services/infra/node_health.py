@@ -630,10 +630,17 @@ def _buscar_chrome_cdp_pids(
         if "chrome" not in nome:
             continue
 
-        if "browser_profile_cdp" not in comando:
+        perfil_legado = "browser_profile_cdp" in comando
+
+        perfil_s4u = "browser_profile_ml_user" in comando
+
+        if not (perfil_legado or perfil_s4u):
             continue
 
-        if raiz not in comando:
+        if perfil_legado and raiz not in comando:
+            continue
+
+        if perfil_s4u and "projetorendaautomatica" not in comando:
             continue
 
         encontrados.append(processo.pid)

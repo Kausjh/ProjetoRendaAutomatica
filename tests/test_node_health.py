@@ -442,3 +442,30 @@ def test_soma_memoria_retorna_none_quando_rss_nao_disponivel():
 
 def test_soma_memoria_conjunto_vazio_retorna_zero():
     assert node_health._somar_memoria_processos(()) == 0
+
+
+def test_busca_chrome_cdp_reconhece_perfil_s4u(
+    tmp_path,
+):
+    processos = (
+        _processo(
+            880,
+            1,
+            "chrome.exe",
+            (
+                "chrome.exe "
+                "--remote-debugging-port=9222 "
+                "--user-data-dir="
+                r"C:\Users\kaue\AppData\Local"
+                r"\ProjetoRendaAutomatica"
+                r"\browser_profile_ml_user"
+            ),
+        ),
+    )
+
+    encontrados = node_health._buscar_chrome_cdp_pids(
+        processos,
+        tmp_path,
+    )
+
+    assert encontrados == (880,)

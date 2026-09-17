@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 $ErrorActionPreference = "Stop"
 
@@ -8,8 +8,9 @@ $RuntimeScript = Join-Path $ProjectRoot "runtime.py"
 $ListenerScript = Join-Path $ProjectRoot "social_scout_telegram.py"
 $NodeAgentScript = Join-Path $ProjectRoot "node_agent.py"
 $PartnerScoutScript = Join-Path $ProjectRoot "partner_scout.py"
-$ChromeProfile = Join-Path $ProjectRoot "browser_profile_cdp"
+$ChromeTaskName = "RendaAutomatica_MLChrome"
 $CdpEndpoint = "http://127.0.0.1:9222/json/version"
+$env:RADAR_CDP_EXTERNO = "1"
 $SupervisorLogDirectory = Join-Path $ProjectRoot "logs\supervisor"
 
 $ManagedScriptRegex = (
@@ -21,19 +22,6 @@ $ManagedScriptRegex = (
 )
 
 $ComponentStates = @{}
-
-$CurrentIdentity = (
-    [Security.Principal.WindowsIdentity]::GetCurrent().Name
-)
-
-$CurrentSessionId = (
-    Get-Process -Id $PID
-).SessionId
-
-$RunChromeHeadless = (
-    $CurrentIdentity -ieq "NT AUTHORITY\SYSTEM" -or
-    $CurrentSessionId -eq 0
-)
 
 $SupervisorStartedAt = Get-Date
 
@@ -386,78 +374,51 @@ function Test-Cdp {
 }
 
 
-function Get-CdpRootProcess {
-    return @(
-        Get-CimInstance Win32_Process |
-            Where-Object {
-                $_.Name -eq "chrome.exe" -and
-                $_.CommandLine -and
-                $_.CommandLine -like "*--remote-debugging-port=9222*" -and
-                $_.CommandLine -notlike "*--type=*"
-            }
-    )
-}
-
-
 function Ensure-Cdp {
     if (Test-Cdp) {
         return
     }
 
-    foreach ($process in @(Get-CdpRootProcess)) {
-        & taskkill.exe /PID $process.ProcessId /T /F | Out-Null
+    $chromeTask = Get-ScheduledTask `
+        -TaskName $ChromeTaskName `
+        -ErrorAction SilentlyContinue
+
+    if (-not $chromeTask) {
+        throw (
+            "Task $ChromeTaskName nao encontrada. " +
+            "Execute scripts\instalar_chrome_ml_s4u.ps1."
+        )
     }
 
-    Start-Sleep -Seconds 2
+    if ($chromeTask.State -eq "Running") {
+        Write-SupervisorLog `
+            -Level "WARN" `
+            -Message (
+                "Chrome/CDP externo sem resposta. " +
+                "Reiniciando task S4U."
+            )
 
-    $chromeCandidates = @(
-        "C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
-    )
+        Stop-ScheduledTask `
+            -TaskName $ChromeTaskName `
+            -ErrorAction SilentlyContinue
 
-    $Chrome = (
-        $chromeCandidates |
-            Where-Object { Test-Path $_ } |
-            Select-Object -First 1
-    )
-
-    if (-not $Chrome) {
-        throw "Google Chrome nao encontrado."
-    }
-
-    $chromeArguments = @(
-        "--remote-debugging-port=9222",
-        "--user-data-dir=$ChromeProfile",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "about:blank"
-    )
-
-    $chromeMode = "interactive"
-
-    if ($RunChromeHeadless) {
-        $chromeArguments = @(
-            "--headless=new",
-            "--disable-gpu"
-        ) + $chromeArguments
-
-        $chromeMode = "headless-system"
+        Start-Sleep -Seconds 2
     }
 
     Write-SupervisorLog `
         -Level "INFO" `
         -Message (
-            "Iniciando Chrome/CDP | modo={0}" -f
-            $chromeMode
+            "Iniciando Chrome/CDP autenticado " +
+            "pela task S4U $ChromeTaskName."
         )
 
-    Start-Process `
-        -FilePath $Chrome `
-        -ArgumentList $chromeArguments
+    Start-ScheduledTask `
+        -TaskName $ChromeTaskName `
+        -ErrorAction Stop
 
     $cdpOk = $false
 
-    for ($i = 1; $i -le 20; $i++) {
+    for ($i = 1; $i -le 30; $i++) {
         Start-Sleep -Seconds 1
 
         if (Test-Cdp) {
@@ -467,14 +428,18 @@ function Ensure-Cdp {
     }
 
     if (-not $cdpOk) {
-        throw "Chrome/CDP nao respondeu na porta 9222."
+        throw (
+            "Chrome/CDP S4U nao respondeu " +
+            "na porta 9222."
+        )
     }
 
     Write-SupervisorLog `
         -Level "INFO" `
-        -Message "Chrome/CDP iniciado e responsivo."
+        -Message (
+            "Chrome/CDP S4U iniciado e responsivo."
+        )
 }
-
 
 
 function Update-InternetBootState {
