@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -153,3 +153,79 @@ def test_telemetria_nao_adiciona_reboot_automatico():
 
     assert "shutdown.exe" not in monitor
     assert "restart-computer" not in monitor
+
+
+def test_monitor_v2_tem_dashboard_visual():
+    texto = _monitor()
+
+    for item in (
+        "CENTRAL DE SAUDE V2 - DASHBOARD",
+        "RADAR DE OFERTAS",
+        "Central de Saude",
+        "SAUDE GERAL",
+        "SAUDE DOS COMPONENTES",
+        "RESUMO OPERACIONAL",
+        "PUBLICADOR",
+        "Detalhes tecnicos",
+        "Update-DashboardV2",
+        "Update-CentralLegacy",
+    ):
+        assert item in texto
+
+
+def test_monitor_v2_preserva_modo_observador():
+    texto = _monitor().lower()
+
+    for item in (
+        "start-scheduledtask",
+        "stop-scheduledtask",
+        "register-scheduledtask",
+        "unregister-scheduledtask",
+        "taskkill.exe",
+        "stop-process",
+        "shutdown.exe",
+        "restart-computer",
+    ):
+        assert item not in texto
+
+
+def test_monitor_v2_publicador_distingue_pausado_de_parado():
+    texto = _monitor()
+
+    for item in (
+        "Get-PublicadorAdminState",
+        "controle_administrativo.sqlite3",
+        "fila_publicacao.sqlite3",
+        "?mode=ro",
+        "PRAGMA query_only = ON",
+        '$publisherStateLabel.Text = "PAUSADO"',
+        "Publicacao bloqueada por",
+        '$publisherStateLabel.Text = "PARADO"',
+        "Modo: ",
+        "Fila: ",
+    ):
+        assert item in texto
+
+
+def test_monitor_v2_saude_geral_exibe_percentual():
+    texto = _monitor()
+
+    assert '$overallDetailLabel.Text = "0% saudavel"' in texto
+    assert '"$percent% saudavel"' in texto
+
+
+def test_monitor_v2_consulta_admin_e_fila_read_only():
+    texto = _monitor().lower()
+
+    assert "?mode=ro" in texto
+    assert "pragma query_only = on" in texto
+
+    for item in (
+        "insert into estado_operacional",
+        "update estado_operacional",
+        "delete from estado_operacional",
+        "insert into fila_publicacao",
+        "update fila_publicacao",
+        "delete from fila_publicacao",
+    ):
+        assert item not in texto
