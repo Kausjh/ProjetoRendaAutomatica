@@ -37,6 +37,7 @@ class SnapshotCatalogoMercadoLivre:
     preco: float
     currency_id: str
     seller_id: int | str | None
+    permalink: str | None = None
 
     def como_snapshot_validacao(self) -> dict[str, Any]:
         return {
@@ -340,6 +341,7 @@ class ClienteCatalogoMercadoLivre:
             preco=preco,
             currency_id=currency_id,
             seller_id=seller_id,
+            permalink=(self._texto(produto.get("permalink")) or None),
         )
 
     def _get_json(
