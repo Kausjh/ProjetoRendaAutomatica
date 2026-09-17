@@ -758,8 +758,13 @@ class MercadoLivreScraper(BaseScraper):
     @staticmethod
     def _oferta_de_snapshot(
         snapshot: SnapshotCatalogoMercadoLivre,
+        *,
+        link_fallback: str | None = None,
     ) -> Oferta | None:
         permalink = str(snapshot.permalink or "").strip()
+
+        if not permalink:
+            permalink = str(link_fallback or "").strip()
 
         if not permalink:
             logger.warning(
