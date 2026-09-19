@@ -1,0 +1,98 @@
+{
+  "schema": "projeto-renda-automatica.gamification-reputation-rules",
+  "gamification_reputation_rules_version": 1,
+  "stage": "production-rules-and-achievements",
+  "source_core_contract": "contracts/gamification_reputation_core_v1.json",
+  "ruleset_version": "gamification-reputation-production-v1",
+  "levels": {
+    "thresholds_xp": [
+      0,
+      100,
+      250,
+      450,
+      700,
+      1000,
+      1400,
+      1900,
+      2500,
+      3200
+    ],
+    "level_count": 10,
+    "derived_from_xp": true
+  },
+  "rules": {
+    "production_rules_defined": true,
+    "events": [
+      {
+        "type": "onboarding_conta_criada",
+        "xp": 40,
+        "reputation": 0,
+        "idempotency_scope": "account_lifetime"
+      },
+      {
+        "type": "onboarding_dispositivo_vinculado",
+        "xp": 20,
+        "reputation": 0,
+        "idempotency_scope": "account_lifetime"
+      },
+      {
+        "type": "onboarding_preferencias_definidas",
+        "xp": 20,
+        "reputation": 0,
+        "idempotency_scope": "account_lifetime"
+      },
+      {
+        "type": "watchlist_produto_adicionado",
+        "xp": 20,
+        "reputation": 0,
+        "idempotency_scope": "account_canonical_key_lifetime",
+        "window_limit": 10,
+        "window_seconds": 86400
+      },
+      {
+        "type": "watchlist_preco_alvo_definido",
+        "xp": 10,
+        "reputation": 0,
+        "idempotency_scope": "account_canonical_key_lifetime",
+        "window_limit": 10,
+        "window_seconds": 86400
+      }
+    ]
+  },
+  "reputation": {
+    "nonzero_delta_rules": 0,
+    "community_reputation_reserved_for_stage_8": true
+  },
+  "achievements": {
+    "derived_from_ledger": true,
+    "persisted_separately": false,
+    "codes": [
+      "radar_ligado",
+      "lista_5",
+      "lista_10",
+      "primeiro_alvo",
+      "setup_completo",
+      "nivel_5"
+    ]
+  },
+  "excluded_events": [
+    "login",
+    "logout",
+    "watchlist_remove",
+    "device_revoke",
+    "community_discovery_submit",
+    "community_discovery_approved",
+    "community_discovery_rejected"
+  ],
+  "boundaries": {
+    "runtime_wiring": false,
+    "public_api": false,
+    "public_app": false,
+    "missions": false,
+    "community_rewards": false,
+    "community_reputation": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "gamification-reputation-v1-event-wiring"
+}
