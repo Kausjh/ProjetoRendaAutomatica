@@ -792,24 +792,46 @@ Documentação: `docs/16-notification-outbox.md`.
 <!-- bloco30-personalized-notification-outbox-v1:end -->
 
 <!-- fase2-roadmap:start -->
-## Histórico de implementação — Fase 2
+## Roadmap — Fase 2
 
 A Fase 1 foi concluída com 30/30 blocos.
 
 A Fase 2 transforma a infraestrutura construída em produto utilizável por
-usuários finais.
+usuários finais e expande progressivamente personalização, comunidade,
+gamificação e novas superfícies.
 
-Ordem oficial:
+### Ordem oficial
 
 1. User-Facing API V1
 2. Public App MVP
 3. Device Registration V1
 4. Push Dispatcher V1
 5. Personalized Feed V1
-6. Web / Extensão / Growth Surfaces
+6. Gamification & Reputation V1
+7. Missions & Community Rewards V1
+8. Community Reputation & Trust V1
+9. Social / Competitive Layer V1
+10. Web / Extensão / Growth Surfaces
 
-O primeiro passo é estabilizar o contrato e a fronteira de autenticação da
-User-Facing API antes de abrir novas rotas.
+### Estado atual
+
+- **Etapa 1 — User-Facing API V1:** concluída.
+- **Etapa 2 — Public App MVP:** concluída como MVP; o App V3 continua evoluindo.
+- **Etapa 3 — Device Registration V1:** backend e binding do app implementados;
+  validação operacional com push token real permanece como gate.
+- **Etapa 4 — Push Dispatcher V1:** provider, orquestração e runtime
+  supervisionado implementados em modo fail-closed; o smoke real controlado
+  permanece como gate operacional.
+- **Etapa 5 — Personalized Feed V1:** próxima macroetapa de produto.
+- **Etapas 6 a 10:** planejadas.
+
+A Descoberta Comunitária é uma frente habilitadora para comunidade, reputação,
+missões e gamificação. Sua existência não implica que as Etapas 6 a 9 estejam
+concluídas.
+
+A regra continua sendo não simular capacidade na interface: personalização,
+reputação, ranking, recompensas e competição só devem ser apresentadas como
+funcionais quando existirem regras e dados reais no backend.
 
 Documentação completa: `docs/17-roadmap-fase-2.md`.
 <!-- fase2-roadmap:end -->

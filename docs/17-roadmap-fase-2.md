@@ -1,245 +1,376 @@
 # Roadmap — Fase 2
 
-## Status da transição
+## Objetivo
 
 A Fase 1 foi concluída com o roadmap 30/30.
 
 O backend já possui coleta, catálogo canônico, inteligência de preços,
-Promotion/Opportunity Intelligence, Alert Engine, Application API V1,
-fundação de identidade, preferências, watchlists, matching personalizado e
-outbox persistente de notificações.
+Promotion/Opportunity Intelligence, Alert Engine, Application API, identidade
+de usuários, preferências, watchlists, matching personalizado e outbox
+persistente de notificações.
 
-A Fase 2 transforma essa infraestrutura em uma superfície utilizável por um
-usuário final.
-
-## Princípio da Fase 2
-
-A ordem é deliberadamente:
-
-1. estabilizar contrato e autenticação de usuário;
-2. expor capacidades já existentes;
-3. construir o cliente público mínimo;
-4. registrar dispositivos;
-5. ativar push real;
-6. expandir o produto com feed e novas superfícies.
-
-Não começar pelo push e não começar por um app completo evita colocar uma
-interface sobre contratos ainda instáveis.
+A Fase 2 transforma essa infraestrutura em produto público utilizável e evolui
+o sistema em direção a personalização, comunidade, reputação, gamificação e
+novas superfícies.
 
 ---
 
+## Princípios
+
+A evolução da Fase 2 segue estes princípios:
+
+1. contratos públicos antes da interface;
+2. identidade e autorização sempre derivadas server-side;
+3. clientes não recebem segredos de infraestrutura;
+4. push permanece fail-closed enquanto não estiver operacionalmente validado;
+5. nenhuma personalização é simulada;
+6. reputação, XP, missões, ranking ou recompensas só existem no produto quando
+   houver regras explícitas, persistência e proteção contra abuso;
+7. regras de negócio permanecem no backend;
+8. novas superfícies reutilizam contratos existentes.
+
+---
+
+# Ordem oficial
+
 ## Etapa 1 — User-Facing API V1
+
+**Status: CONCLUÍDA**
 
 ### Objetivo
 
-Expor de forma segura as capacidades de usuário que já existem internamente.
+Expor de forma segura as capacidades de usuário existentes internamente.
 
-### Escopo
+### Entregas
 
-- contrato público versionado para identidade de usuário;
-- fronteira explícita entre credencial de infraestrutura e sessão de usuário;
-- cadastro de conta;
+- contrato público de autenticação;
+- separação entre credencial de infraestrutura e sessão de usuário;
+- cadastro;
 - login;
-- logout/revogação de sessão;
-- leitura do usuário autenticado;
-- leitura e atualização de preferências;
-- leitura, adição, atualização e remoção de watchlist;
-- erros e respostas versionados;
-- rate limiting e proteção contra abuso onde aplicável;
-- testes de autorização entre usuários;
-- Application API pública sem acoplamento ao control plane administrativo.
+- logout;
+- `/me`;
+- preferências;
+- watchlist;
+- rate limiting;
+- controles contra abuso;
+- isolamento entre contas.
 
-### Gate arquitetural obrigatório
+### Gate
 
-Antes de abrir rotas, definir como coexistem:
+Um usuário deve conseguir administrar somente os próprios dados usando
+contratos públicos.
 
-- proteção de infraestrutura/transporte;
-- autenticação da sessão do usuário.
-
-O Bearer de infraestrutura não pode virar identidade de usuário e o token de
-sessão não deve ser confundido com uma credencial operacional.
-
-### Critério de conclusão
-
-Um cliente de referência deve conseguir criar uma conta, autenticar, consultar
-o próprio perfil, alterar preferências e administrar a própria watchlist sem
-acessar dados de outro usuário.
+Esse gate foi atingido.
 
 ---
 
 ## Etapa 2 — Public App MVP
 
+**Status: CONCLUÍDA COMO MVP**
+
 ### Objetivo
 
 Criar o primeiro cliente público utilizável.
 
-### Escopo mínimo
+### Entregas
 
-- login/cadastro;
+- React Native + Expo + TypeScript;
 - sessão persistente;
-- busca/consulta de produtos disponibilizados pela API;
-- tela de produto;
+- login e cadastro;
+- catálogo de ofertas;
+- detalhe do produto;
+- histórico de preço;
 - watchlist;
-- preço alvo;
-- preferências básicas;
-- estado de carregamento e erros;
-- nenhum segredo de infraestrutura embutido no app.
+- preço-alvo;
+- conta e preferências;
+- alertas;
+- integração somente com contratos públicos.
 
-### Boundary
+O MVP continua evoluindo através da frente App Público V3.
 
-O aplicativo Android privado de administração continua sendo outro produto e
-permanece fora do repositório público.
+### Gate
 
-### Critério de conclusão
+O aplicativo deve conseguir autenticar um usuário e utilizar as capacidades
+públicas sem depender do control plane administrativo.
 
-Um usuário consegue instalar o MVP, autenticar-se e administrar sua watchlist
-usando somente contratos públicos.
+Esse gate foi atingido para o escopo MVP.
 
 ---
 
 ## Etapa 3 — Device Registration V1
 
+**Status: IMPLEMENTADA — VALIDAÇÃO OPERACIONAL PENDENTE**
+
 ### Objetivo
 
-Associar instalações do app público a uma conta para permitir notificações
-push.
+Associar instalações do aplicativo público a contas para permitir push.
 
-### Escopo
+### Implementado
 
-- modelo de dispositivo;
-- registro e revogação de token;
+- persistência de dispositivos;
 - múltiplos dispositivos por conta;
+- ativação e revogação;
 - rotação de token;
-- estado ativo/inativo;
-- proteção de acesso por usuário;
-- nenhuma credencial de provedor exposta ao cliente.
+- isolamento entre contas;
+- `GET /api/v1/me/devices`;
+- `PUT /api/v1/me/devices/{instalacao_id}`;
+- `DELETE /api/v1/me/devices/{instalacao_id}`;
+- aquisição via `expo-notifications`;
+- bootstrap autenticado no app;
+- binding do dispositivo com o backend;
+- proteção para ambientes onde push remoto não está disponível.
 
-### Critério de conclusão
+### Gate restante
 
-O backend consegue saber quais dispositivos ativos pertencem a uma conta,
-sem enviar push ainda.
+Validar de forma controlada um push token real de development build chegando
+ao backend e participando do fluxo operacional.
+
+Até esse gate ser comprovado, a etapa não deve ser tratada como encerrada
+operacionalmente.
 
 ---
 
 ## Etapa 4 — Push Dispatcher V1
 
+**Status: IMPLEMENTADO EM FAIL-CLOSED — SMOKE REAL PENDENTE**
+
 ### Objetivo
 
-Conectar a outbox persistente do Bloco 30 a um provedor real de push.
+Conectar a Notification Outbox aos dispositivos reais por um provedor de push.
 
-### Escopo
+### Implementado
 
-- adapter de provedor;
-- credenciais fora do código-fonte;
-- consumo seguro da outbox;
-- envio para dispositivos ativos;
-- sucesso -> delivered;
-- falha recuperável -> retry;
-- token inválido -> tratamento/revogação;
-- falha terminal -> failed;
+- Expo Push Gateway;
+- envio em batch;
+- tickets;
+- receipts;
+- persistência das tentativas;
+- payload personalizado;
+- associação com dispositivos ativos;
+- retry;
+- tratamento de `DeviceNotRegistered`;
 - idempotência;
-- observabilidade;
-- limites e backoff.
+- worker contínuo;
+- integração ao Runtime Unificado;
+- supervisão e restart do processo;
+- proteção contra processamento stale;
+- redaction de push tokens em logs.
 
-### Critério de conclusão
+### Segurança operacional
 
-Um match elegível consegue virar uma notificação real no dispositivo correto,
-com retry e deduplicação preservados.
+O dispatcher permanece desativado por padrão por meio de
+`RUNTIME_PUSH_DISPATCHER_ATIVO=false`.
+
+Isso é deliberado: implementação disponível não equivale a entrega real
+validada.
+
+### Gate restante
+
+Executar smoke real controlado no dispositivo registrado, confirmar envio,
+ticket, receipt, transição de estado da outbox e comportamento de retry.
 
 ---
 
 ## Etapa 5 — Personalized Feed V1
 
+**Status: PRÓXIMA MACROETAPA**
+
 ### Objetivo
 
-Transformar os mesmos sinais personalizados em uma experiência consultável,
-não somente em notificações.
+Transformar sinais reais de usuário em uma superfície personalizada.
+
+### Fontes de sinal
+
+- watchlist;
+- preço-alvo;
+- preferências;
+- marketplaces preferidos;
+- histórico de interação;
+- oportunidades compatíveis;
+- relevância;
+- recência.
 
 ### Escopo
 
-- feed por usuário;
-- ordenação por relevância/recência;
-- produtos da watchlist;
-- oportunidades compatíveis com preferências;
+- endpoint público versionado;
+- feed por usuário autenticado;
+- ordenação real por relevância e recência;
 - paginação;
 - deduplicação;
-- contrato público versionado.
+- integração ao Public App;
+- estados loading/erro/vazio;
+- nenhuma personalização simulada no cliente.
 
-### Critério de conclusão
+### Gate
 
-O usuário autenticado consegue abrir o app e ver um feed personalizado sem
-depender de uma notificação push.
+O usuário deve receber conteúdo diferente quando seus sinais reais justificarem
+essa diferença.
 
 ---
 
-## Etapa 6 — Web, Extensão e Growth Surfaces
+## Etapa 6 — Gamification & Reputation V1
+
+**Status: PLANEJADA**
 
 ### Objetivo
 
-Expandir o mesmo backend para novas superfícies.
+Criar uma fundação persistente de progressão e reputação.
+
+### Escopo previsto
+
+- eventos de progresso;
+- XP;
+- níveis;
+- conquistas;
+- badges;
+- reputação;
+- histórico auditável;
+- regras versionadas;
+- limites contra farming e abuso.
+
+Gamificação não deve alterar a avaliação objetiva de preço ou qualidade de uma
+oferta.
+
+---
+
+## Etapa 7 — Missions & Community Rewards V1
+
+**Status: PLANEJADA**
+
+### Objetivo
+
+Transformar contribuições úteis em missões e recompensas verificáveis.
+
+### Escopo previsto
+
+- missões;
+- desafios;
+- objetivos;
+- progresso;
+- conclusão server-side;
+- recompensas;
+- integração com contribuições comunitárias;
+- proteção contra duplicação e abuso.
+
+A Descoberta Comunitária existente funciona como infraestrutura habilitadora
+desta etapa, mas não representa sua conclusão.
+
+---
+
+## Etapa 8 — Community Reputation & Trust V1
+
+**Status: PLANEJADA**
+
+### Objetivo
+
+Construir confiança mensurável em contribuições da comunidade.
+
+### Escopo previsto
+
+- reputação por contribuição;
+- qualidade histórica;
+- sinais confirmados e rejeitados;
+- confiança do contribuidor;
+- prevenção de manipulação;
+- moderação e auditoria;
+- separação entre reputação social e evidência objetiva do marketplace.
+
+---
+
+## Etapa 9 — Social / Competitive Layer V1
+
+**Status: PLANEJADA**
+
+### Objetivo
+
+Adicionar elementos sociais e competitivos sem degradar a qualidade do produto.
+
+### Escopo previsto
+
+- rankings;
+- comparações;
+- progressão pública opcional;
+- desafios comunitários;
+- perfis e conquistas compartilháveis;
+- controles de privacidade;
+- mecanismos anti-abuso.
+
+---
+
+## Etapa 10 — Web / Extensão / Growth Surfaces
+
+**Status: PLANEJADA**
+
+### Objetivo
+
+Expandir o mesmo backend para novas superfícies e canais de crescimento.
 
 ### Possíveis frentes
 
-- interface web pública;
+- aplicação web pública;
 - extensão de navegador;
-- ferramentas para criadores/afiliados;
-- páginas compartilháveis de produto;
-- onboarding e aquisição;
+- páginas compartilháveis;
+- ferramentas para criadores e afiliados;
+- onboarding;
+- aquisição;
 - métricas de produto;
 - experimentos de crescimento.
 
 ### Regra
 
-Essas superfícies reutilizam contratos existentes. Regras de negócio não
-devem ser copiadas para cada cliente.
+Novas superfícies reutilizam contratos existentes. Regras de negócio não devem
+ser copiadas para cada cliente.
 
 ---
 
-## Estado atual antes da Fase 2
+# Frente paralela — Descoberta Comunitária
 
-### Operacional ou comprovado neste review
+A Descoberta Comunitária já possui implementação própria e continua evoluindo
+em paralelo ao roadmap principal de produto.
 
-- Application API V1 saudável;
-- scrapers/pipeline;
-- Social Scout/Partner Scout conforme componentes existentes;
-- catálogo canônico;
-- inteligência de preços;
-- Promotion/Opportunity Intelligence;
-- Alert Engine;
-- transporte privado de cliente;
-- observabilidade/supervisão presentes no repositório.
+Ela fornece matéria-prima para futuras funcionalidades de:
 
-O control plane administrativo está implementado, porém sua disponibilidade
-de runtime não foi confirmada no review pós-roadmap e deve ser verificada
-separadamente antes de qualquer manutenção operacional nele.
+- reputação;
+- confiança;
+- missões;
+- recompensas;
+- gamificação;
+- comunidade.
 
-### Implementado internamente, ainda sem superfície pública de usuário
+Isso não antecipa o status das Etapas 6 a 9.
 
-- contas e sessões;
-- preferências;
-- watchlists;
-- matching personalizado;
-- outbox persistente de notificações.
-
-### Preparado, ainda não real
-
-- cadastro/login via API pública;
-- mutações de preferências/watchlists pela API pública;
-- registro de dispositivos;
-- push real;
-- feed personalizado;
-- app público;
-- web pública;
-- extensão de navegador.
+Uma contribuição comunitária continua sujeita às mesmas regras de validação,
+identidade, preço, segurança e fail-closed do restante do sistema.
 
 ---
 
-## Próximo passo
+# Estado consolidado da Fase 2
 
-Iniciar a Etapa 1 da Fase 2:
+| Etapa | Estado |
+| --- | --- |
+| 1. User-Facing API V1 | Concluída |
+| 2. Public App MVP | Concluída como MVP |
+| 3. Device Registration V1 | Implementada; validação operacional pendente |
+| 4. Push Dispatcher V1 | Implementado fail-closed; smoke real pendente |
+| 5. Personalized Feed V1 | Próxima macroetapa |
+| 6. Gamification & Reputation V1 | Planejada |
+| 7. Missions & Community Rewards V1 | Planejada |
+| 8. Community Reputation & Trust V1 | Planejada |
+| 9. Social / Competitive Layer V1 | Planejada |
+| 10. Web / Extensão / Growth Surfaces | Planejada |
 
-**User-Facing API V1**
+---
 
-Primeiro subpasso:
+# Próxima decisão de execução
 
-**formalizar o contrato e a fronteira de autenticação antes de criar rotas.**
+Antes de iniciar a implementação da Etapa 5, existem dois gates operacionais
+pendentes nas Etapas 3 e 4:
+
+1. validar Device Registration com token real;
+2. executar smoke real controlado do Push Dispatcher.
+
+Esses gates não exigem reabrir a arquitetura das etapas já implementadas.
+
+Depois deles, a próxima macroetapa de produto é:
+
+**Personalized Feed V1**
