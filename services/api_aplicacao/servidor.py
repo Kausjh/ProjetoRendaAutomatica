@@ -24,6 +24,7 @@ from services.api_aplicacao.user_facing_community_discovery import (
     UserFacingCommunityDiscoveryController,
 )
 from services.api_aplicacao.user_facing_devices import UserFacingDevicesController
+from services.api_aplicacao.user_facing_feed import UserFacingFeedController
 from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
     UserFacingHttpFoundation,
@@ -38,6 +39,7 @@ from services.community_discovery_service import CommunityDiscoveryService
 
 if TYPE_CHECKING:
     from models.user_identity import ContaUsuario
+    from services.personalized_feed_service import PersonalizedFeedService
     from services.user_identity_service import UserIdentityService
     from services.user_personalization_service import (
         UserPersonalizationService,
@@ -54,6 +56,7 @@ class ServidorApiAplicacao:
         token: str | None = None,
         user_identity_service: UserIdentityService | None = None,
         user_personalization_service: UserPersonalizationService | None = None,
+        personalized_feed_service: PersonalizedFeedService | None = None,
         community_discovery_service: CommunityDiscoveryService | None = None,
         user_facing_abuse_controls: UserFacingAbuseControls | None = None,
     ) -> None:
@@ -84,6 +87,9 @@ class ServidorApiAplicacao:
         )
         self.user_facing_watchlist = UserFacingWatchlistController(
             user_personalization_service,
+        )
+        self.user_facing_feed = UserFacingFeedController(
+            personalized_feed_service,
         )
 
         if community_discovery_service is None and user_identity_service is not None:
@@ -169,6 +175,7 @@ class ServidorApiAplicacao:
         user_facing_devices = self.user_facing_devices
         user_facing_preferences = self.user_facing_preferences
         user_facing_watchlist = self.user_facing_watchlist
+        user_facing_feed = self.user_facing_feed
         user_facing_community_discovery = self.user_facing_community_discovery
         abuse_controls = self.user_facing_abuse_controls
 
@@ -191,6 +198,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/preferences",
                         "/api/v1/me/watchlist",
                         "/api/v1/me/devices",
+                        "/api/v1/me/feed",
                         "/api/v1/me/discoveries",
                     }:
                         self._responder_erro_user_facing(
@@ -215,6 +223,27 @@ class ServidorApiAplicacao:
                     try:
                         status, dados = user_facing_community_discovery.listar(
                             conta,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
+                    return
+
+                if rota == "/api/v1/me/feed":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_feed.listar(
+                            conta,
+                            limite=query.get("limite", ["20"])[0],
+                            offset=query.get("offset", ["0"])[0],
                         )
                     except ErroHttpUserFacing as erro:
                         self._responder_erro_user_facing(erro)

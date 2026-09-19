@@ -24,6 +24,7 @@ from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
+from services.personalized_feed_service import PersonalizedFeedService
 from services.runtime.orquestrador import (
     DIRETORIO_PROJETO,
     ConfiguracoesRuntime,
@@ -88,10 +89,16 @@ def main() -> int:
         user_personalization_repository,
         user_identity_repository,
     )
+    personalized_feed_service = PersonalizedFeedService(
+        catalogo_repository=controlador_api.catalogo_repository,
+        price_intelligence_repository=controlador_api.price_intelligence_repository,
+        user_personalization_service=user_personalization_service,
+    )
     servidor_api = ServidorApiAplicacao(
         controlador=controlador_api,
         user_identity_service=user_identity_service,
         user_personalization_service=user_personalization_service,
+        personalized_feed_service=personalized_feed_service,
     )
 
     try:

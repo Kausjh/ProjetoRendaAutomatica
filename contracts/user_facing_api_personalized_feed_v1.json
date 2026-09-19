@@ -1,0 +1,61 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-personalized-feed",
+  "personalized_feed_http_version": 1,
+  "stage": "http",
+  "route": {
+    "method": "GET",
+    "path": "/api/v1/me/feed",
+    "requires_user_session": true,
+    "identity_source": "X-User-Session",
+    "client_account_id_accepted": false,
+    "query": {
+      "limite": {
+        "default": 20,
+        "minimum": 1,
+        "maximum": 50
+      },
+      "offset": {
+        "default": 0,
+        "minimum": 0
+      }
+    }
+  },
+  "response": {
+    "envelope": "user-facing-v1",
+    "fields": [
+      "total",
+      "limite",
+      "offset",
+      "itens"
+    ],
+    "item_fields": [
+      "canonical_key",
+      "nome_canonico",
+      "categoria",
+      "marca",
+      "modelo",
+      "score_relevancia",
+      "motivos",
+      "em_watchlist",
+      "preco_alvo",
+      "preco_atual",
+      "marketplace",
+      "identificador",
+      "link",
+      "atualizado_em"
+    ]
+  },
+  "security": {
+    "user_identity_from_query": false,
+    "user_identity_from_body": false,
+    "infrastructure_bearer_preserved": true,
+    "session_required": true
+  },
+  "boundaries": {
+    "public_app_integration": false,
+    "push_delivery": false,
+    "notification_outbox_consumption": false,
+    "feed_core_reused": true
+  },
+  "next_step": "personalized-feed-v1-public-app"
+}
