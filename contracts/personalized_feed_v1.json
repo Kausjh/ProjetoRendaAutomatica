@@ -1,0 +1,40 @@
+{
+  "schema": "projeto-renda-automatica.personalized-feed",
+  "personalized_feed_version": 1,
+  "stage": "core-service",
+  "ranking": {
+    "watchlist": 100,
+    "target_price_reached": 40,
+    "preferred_marketplace": 25,
+    "tie_breakers": [
+      "recency_desc",
+      "canonical_key_asc"
+    ]
+  },
+  "candidate_policy": {
+    "requires_real_user_signal": true,
+    "watchlist_is_signal": true,
+    "preferred_marketplace_is_signal": true,
+    "catalog_fallback_without_signal": false
+  },
+  "deduplication": {
+    "key": "canonical_key",
+    "enabled": true
+  },
+  "pagination": {
+    "after_ranking": true,
+    "default_limit": 20,
+    "maximum_limit": 50,
+    "offset_minimum": 0
+  },
+  "boundaries": {
+    "new_http_routes": false,
+    "public_app_integration": false,
+    "push_delivery": false,
+    "notification_outbox_consumption": false,
+    "user_personalization_is_reused": true,
+    "canonical_catalog_is_reused": true,
+    "price_intelligence_is_reused": true
+  },
+  "next_step": "personalized-feed-v1-http"
+}
