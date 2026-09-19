@@ -1,0 +1,37 @@
+{
+  "schema": "projeto-renda-automatica.public-app-personalized-feed-home",
+  "public_app_personalized_feed_home_version": 1,
+  "stage": "home-surface",
+  "surface": "apps/public-mobile/app/home.tsx",
+  "source": {
+    "hook": "usePersonalizedFeed",
+    "backend_route": "GET /api/v1/me/feed",
+    "generic_product_list_as_personalized_fallback": false,
+    "enabled_only_when_authenticated": true
+  },
+  "visible_signals": {
+    "reason_chips": true,
+    "watchlist": true,
+    "target_price_reached": true,
+    "preferred_marketplace": true,
+    "raw_relevance_score_visible": false
+  },
+  "preserved_capabilities": {
+    "product_detail_navigation": true,
+    "watchlist_quick_actions": true,
+    "pull_to_refresh": true,
+    "search_route": true,
+    "bottom_navigation": true
+  },
+  "empty_state": {
+    "generic_catalog_fallback": false,
+    "guides_user_to_watchlist_or_marketplace_preferences": true
+  },
+  "boundaries": {
+    "backend_changed": false,
+    "push_delivery_changed": false,
+    "expo_generated_files_changed": false,
+    "search_generic_catalog_changed": false
+  },
+  "next_step": "personalized-feed-v1-device-smoke"
+}

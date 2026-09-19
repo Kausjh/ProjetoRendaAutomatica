@@ -14,10 +14,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuthSession } from "@/src/auth";
 import {
-  ProductCard,
-  formatPrice,
-  useProductList,
-} from "@/src/offers";
+  PersonalizedFeedItem,
+  personalizedFeedReasonLabel,
+  usePersonalizedFeed,
+} from "@/src/feed";
+import { ProductCard, formatPrice } from "@/src/offers";
 import { appTheme } from "@/src/ui";
 import {
   useDeleteWatchlist,
@@ -28,7 +29,7 @@ import {
 export default function HomeScreen() {
   const { snapshot } = useAuthSession();
   const authenticated = snapshot.status === "authenticated";
-  const products = useProductList(50, 0);
+  const feed = usePersonalizedFeed(50, 0, authenticated);
   const watchlist = useWatchlist(authenticated);
   const upsertWatchlist = useUpsertWatchlist();
   const deleteWatchlist = useDeleteWatchlist();
@@ -49,7 +50,7 @@ export default function HomeScreen() {
   }
 
   const totalProducts =
-    products.data?.total ?? products.data?.items.length ?? 0;
+    feed.data?.total ?? feed.data?.items.length ?? 0;
 
   const watchedKeys = new Set(
     (watchlist.data?.items ?? []).map((item) => item.canonicalKey),
@@ -66,6 +67,7 @@ export default function HomeScreen() {
     try {
       if (watched) {
         await deleteWatchlist.mutateAsync(canonicalKey);
+        await feed.refetch();
         return;
       }
 
@@ -74,6 +76,7 @@ export default function HomeScreen() {
         targetPrice: null,
         notifyPriceDrop: true,
       });
+      await feed.refetch();
     } catch (caught) {
       Alert.alert(
         "Não foi possível atualizar a Lista",
@@ -116,19 +119,19 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroEyebrow}>OFERTAS MONITORADAS</Text>
+          <Text style={styles.heroEyebrow}>SELECIONADO PARA VOCÊ</Text>
           <Text style={styles.heroTitle}>
-            Preço bom sem perder tempo procurando.
+            Ofertas que fazem sentido para você.
           </Text>
           <Text style={styles.heroBody}>
-            O Radar acompanha marketplaces e organiza os melhores
-            preços encontrados para o seu setup.
+            O Radar cruza sua Lista, marketplaces preferidos e sinais
+            reais de preço para priorizar oportunidades.
           </Text>
 
           <View style={styles.heroStats}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{totalProducts}</Text>
-              <Text style={styles.statLabel}>produtos</Text>
+              <Text style={styles.statLabel}>oportunidades</Text>
             </View>
 
             <View style={styles.statDivider} />
@@ -175,7 +178,7 @@ export default function HomeScreen() {
         />
       </Pressable>
 
-      {products.isPending ? (
+      {feed.isPending ? (
         <View style={styles.centerState}>
           <ActivityIndicator
             size="large"
@@ -185,7 +188,7 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      {products.isError ? (
+      {feed.isError ? (
         <View style={styles.centerState}>
           <View style={styles.stateIcon}>
             <Ionicons
@@ -198,8 +201,8 @@ export default function HomeScreen() {
             Não foi possível carregar as ofertas
           </Text>
           <Text style={styles.body}>
-            {products.error instanceof Error
-              ? products.error.message
+            {feed.error instanceof Error
+              ? feed.error.message
               : "Falha desconhecida."}
           </Text>
 
@@ -207,7 +210,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             style={styles.primaryButton}
             onPress={() => {
-              void products.refetch();
+              void feed.refetch();
             }}
           >
             <Text style={styles.primaryButtonText}>
@@ -217,14 +220,14 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      {products.data ? (
+      {feed.data ? (
         <FlatList
-          data={[...products.data.items]}
+          data={[...feed.data.items]}
           keyExtractor={(item) => item.canonicalKey}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listContent,
-            products.data.items.length === 0 &&
+            feed.data.items.length === 0 &&
               styles.emptyListContent,
           ]}
           refreshControl={
@@ -232,11 +235,11 @@ export default function HomeScreen() {
               tintColor={appTheme.colors.accent}
               colors={[appTheme.colors.accent]}
               refreshing={
-                products.isRefetching || watchlist.isRefetching
+                feed.isRefetching || watchlist.isRefetching
               }
               onRefresh={() => {
                 void Promise.all([
-                  products.refetch(),
+                  feed.refetch(),
                   watchlist.refetch(),
                 ]);
               }}
@@ -245,8 +248,8 @@ export default function HomeScreen() {
           ListHeaderComponent={
             <View style={styles.feedHeader}>
               <View>
-                <Text style={styles.feedEyebrow}>AGORA</Text>
-                <Text style={styles.feedTitle}>Melhores preços</Text>
+                <Text style={styles.feedEyebrow}>PARA VOCÊ</Text>
+                <Text style={styles.feedTitle}>Seu radar personalizado</Text>
               </View>
 
               <View style={styles.liveBadge}>
@@ -265,31 +268,36 @@ export default function HomeScreen() {
                 />
               </View>
               <Text style={styles.stateTitle}>
-                Nenhuma oferta encontrada
+                Seu feed ainda está vazio
               </Text>
               <Text style={styles.body}>
-                O Radar respondeu normalmente, mas não há produtos
-                disponíveis agora.
+                Adicione produtos à Lista ou escolha marketplaces
+                preferidos para personalizar esta tela.
               </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <ProductCardView
-              item={item}
-              watched={watchedKeys.has(item.canonicalKey)}
-              watchlistBusy={watchlistBusy}
-              onToggleWatchlist={(canonicalKey, watched) =>
-                toggleWatchlist(canonicalKey, watched)
-              }
-              onPress={() =>
-                router.push({
-                  pathname: "/product/[canonicalKey]",
-                  params: {
-                    canonicalKey: item.canonicalKey,
-                  },
-                })
-              }
-            />
+            <View style={styles.personalizedCard}>
+              <PersonalizationReasons item={item} />
+              <ProductCardView
+                item={feedItemToProductCard(item)}
+                watched={
+                  watchedKeys.has(item.canonicalKey) || item.inWatchlist
+                }
+                watchlistBusy={watchlistBusy}
+                onToggleWatchlist={(canonicalKey, watched) =>
+                  toggleWatchlist(canonicalKey, watched)
+                }
+                onPress={() =>
+                  router.push({
+                    pathname: "/product/[canonicalKey]",
+                    params: {
+                      canonicalKey: item.canonicalKey,
+                    },
+                  })
+                }
+              />
+            </View>
           )}
         />
       ) : null}
@@ -297,6 +305,46 @@ export default function HomeScreen() {
   );
 }
 
+function feedItemToProductCard(
+  item: PersonalizedFeedItem,
+): ProductCard {
+  return {
+    canonicalKey: item.canonicalKey,
+    title: item.title,
+    marketplace: item.marketplace,
+    currentPrice: item.currentPrice,
+    originalPrice: null,
+    discountPercent: null,
+    productUrl: item.productUrl,
+  };
+}
+
+function PersonalizationReasons({
+  item,
+}: Readonly<{
+  item: PersonalizedFeedItem;
+}>) {
+  if (item.reasons.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.reasonRow}>
+      {item.reasons.slice(0, 3).map((reason) => (
+        <View key={reason} style={styles.reasonChip}>
+          <Ionicons
+            name="sparkles-outline"
+            size={12}
+            color={appTheme.colors.accent}
+          />
+          <Text style={styles.reasonText}>
+            {personalizedFeedReasonLabel(reason)}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 function ProductCardView({
   item,
   watched,
@@ -436,6 +484,31 @@ function ProductCardView({
 }
 
 const styles = StyleSheet.create({
+  personalizedCard: {
+    gap: 8,
+  },
+  reasonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    paddingHorizontal: 2,
+  },
+  reasonChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.border,
+    borderRadius: appTheme.radius.pill,
+    backgroundColor: appTheme.colors.accentSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  reasonText: {
+    color: appTheme.colors.accent,
+    fontSize: 10,
+    fontWeight: "800",
+  },
   screen: {
     flex: 1,
     backgroundColor: appTheme.colors.background,

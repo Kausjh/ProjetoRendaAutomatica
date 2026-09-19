@@ -9,7 +9,7 @@ FEED_TYPES = ROOT / "apps/public-mobile/src/feed/feed-types.ts"
 FEED_PRESENTER = ROOT / "apps/public-mobile/src/feed/feed-presenter.ts"
 FEED_QUERIES = ROOT / "apps/public-mobile/src/feed/feed-queries.ts"
 FEED_INDEX = ROOT / "apps/public-mobile/src/feed/index.ts"
-HOME = ROOT / "apps/public-mobile/app/home.tsx"
+
 CONTRACT = ROOT / "contracts/public_app_personalized_feed_v1.json"
 DOC = ROOT / "docs/46-public-app-personalized-feed-v1.md"
 
@@ -81,10 +81,11 @@ def test_feed_index_exporta_camadas():
     assert "feed-types" in source
 
 
-def test_home_ainda_nao_e_alterada_nesta_fase():
-    source = HOME.read_text(encoding="utf-8")
-    assert "usePersonalizedFeed" not in source
-    assert "personalizedFeedReasonLabel" not in source
+def test_contrato_preserva_fronteira_historica_da_5c1():
+    data = json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+    assert data["stage"] == "data-layer"
+    assert data["boundaries"]["home_surface_changed"] is False
 
 
 def test_documentacao_define_proximo_passo():
