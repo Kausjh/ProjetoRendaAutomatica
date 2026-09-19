@@ -198,44 +198,65 @@ pela orquestração real.
 
 ## Etapa 5 — Personalized Feed V1
 
-**Status: PRÓXIMA MACROETAPA**
+**Status: CONCLUÍDA**
 
 ### Objetivo
 
 Transformar sinais reais de usuário em uma superfície personalizada.
 
-### Fontes de sinal
+### Sinais consolidados na V1
 
 - watchlist;
 - preço-alvo;
-- preferências;
 - marketplaces preferidos;
-- histórico de interação;
-- oportunidades compatíveis;
-- relevância;
-- recência.
+- catálogo canônico e Price Intelligence;
+- score de relevância calculado no backend;
+- motivos de personalização devolvidos ao cliente.
 
-### Escopo
+Histórico comportamental de interação não faz parte do contrato fechado da
+V1 e permanece como possibilidade de evolução futura.
 
-- endpoint público versionado;
-- feed por usuário autenticado;
-- ordenação real por relevância e recência;
-- paginação;
-- deduplicação;
+### Escopo entregue
+
+- motor `PersonalizedFeedService`;
+- endpoint autenticado `GET /api/v1/me/feed`;
+- identidade derivada exclusivamente da sessão do usuário;
+- paginação versionada;
 - integração ao Public App;
-- estados loading/erro/vazio;
-- nenhuma personalização simulada no cliente.
+- Home usando o feed personalizado como fonte principal;
+- motivos visíveis para watchlist, preço-alvo atingido e marketplace preferido;
+- ações rápidas de Lista preservadas;
+- pull-to-refresh preservado;
+- estado vazio sem fallback genérico disfarçado;
+- pontuação numérica interna de relevância não exposta visualmente.
+
+### Evidências de conclusão
+
+- `df4d25a` — core do Personalized Feed;
+- `e2284ff` — exposição pela User-Facing API;
+- `bfc5707` — data layer do Public App;
+- `f61a044` — Home personalizada;
+- typecheck do Public App aprovado;
+- 43 testes direcionados aprovados antes e depois dos hooks;
+- pre-commit aprovado;
+- Application API atualizada e `GET /api/v1/me/feed` comprovado localmente;
+- mesma rota comprovada pelo transporte Tailscale usado pelo app;
+- smoke real aprovado no Samsung M52 com duas oportunidades da Lista
+  aparecendo em `Seu radar personalizado` com o motivo `Na sua watchlist`.
 
 ### Gate
 
-O usuário deve receber conteúdo diferente quando seus sinais reais justificarem
-essa diferença.
+**CUMPRIDO em 19/09/2026.**
+
+A Home autenticada passou a refletir sinais reais da conta sem recorrer ao
+catálogo genérico como falsa personalização. O smoke no Android físico
+confirmou que itens adicionados à Lista alimentam o feed personalizado real.
 
 ---
 
 ## Etapa 6 — Gamification & Reputation V1
 
-**Status: PLANEJADA**
+**Status: PRÓXIMA MACROETAPA**
 
 ### Objetivo
 
@@ -377,8 +398,8 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 2. Public App MVP | Concluída como MVP |
 | 3. Device Registration V1 | Concluída; token real validado |
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
-| 5. Personalized Feed V1 | Próxima macroetapa |
-| 6. Gamification & Reputation V1 | Planejada |
+| 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
+| 6. Gamification & Reputation V1 | Próxima macroetapa |
 | 7. Missions & Community Rewards V1 | Planejada |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada |

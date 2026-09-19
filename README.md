@@ -823,8 +823,12 @@ gamificação e novas superfícies.
   ticket e receipt Expo `ok` e entrega visual no dispositivo, enquanto as
   transições persistentes de outbox e os caminhos de retry permanecem cobertos
   pela suíte de orquestração.
-- **Etapa 5 — Personalized Feed V1:** próxima macroetapa de produto.
-- **Etapas 6 a 10:** planejadas.
+- **Etapa 5 — Personalized Feed V1:** concluída; motor de personalização,
+  rota autenticada `GET /api/v1/me/feed`, integração ao Public App e Home
+  personalizada foram validados de ponta a ponta em Android físico com sinais
+  reais da conta e transporte pelo túnel confiável.
+- **Etapa 6 — Gamification & Reputation V1:** próxima macroetapa.
+- **Etapas 7 a 10:** planejadas.
 
 O runtime automático do Push Dispatcher permanece fail-closed por padrão.
 
