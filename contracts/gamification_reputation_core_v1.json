@@ -1,0 +1,55 @@
+{
+  "schema": "projeto-renda-automatica.gamification-reputation-core",
+  "gamification_reputation_core_version": 1,
+  "stage": "core-ledger",
+  "database": "database/user_identity.sqlite3",
+  "tables": {
+    "events": "gamification_events",
+    "profiles": "gamification_profiles"
+  },
+  "event_ledger": {
+    "append_only": true,
+    "account_scoped": true,
+    "auditable": true,
+    "metadata_json": true,
+    "rule_version_persisted": true
+  },
+  "profiles": {
+    "materialized_transactionally": true,
+    "fields": [
+      "xp_total",
+      "reputacao_total",
+      "eventos_total"
+    ],
+    "level_derived_from_ruleset": true
+  },
+  "rules": {
+    "versioned": true,
+    "injected": true,
+    "production_rules_defined": false,
+    "client_controls_delta": false
+  },
+  "anti_abuse": {
+    "idempotency_per_account": true,
+    "atomic_window_limit_per_rule": true,
+    "retry_before_limit_check": true,
+    "idempotency_collision_fails_closed": true,
+    "window_uses_server_persistence_time": true
+  },
+  "authority": {
+    "client_can_set_xp": false,
+    "client_can_set_reputation": false,
+    "public_write_api": false
+  },
+  "boundaries": {
+    "runtime_wiring": false,
+    "public_api": false,
+    "public_app": false,
+    "community_discovery_wiring": false,
+    "missions": false,
+    "community_trust": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "gamification-reputation-v1-production-rules"
+}
