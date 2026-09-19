@@ -1,0 +1,40 @@
+{
+  "schema": "projeto-renda-automatica.gamification-reputation-event-wiring",
+  "gamification_reputation_event_wiring_version": 1,
+  "stage": "domain-event-wiring",
+  "source_rules_contract": "contracts/gamification_reputation_rules_v1.json",
+  "wiring": {
+    "identity_service": true,
+    "personalization_service": true,
+    "runtime_composition": false,
+    "reconciliation": false
+  },
+  "events": {
+    "onboarding_conta_criada": "after successful account persistence",
+    "onboarding_dispositivo_vinculado": "first device ever for account",
+    "onboarding_preferencias_definidas": "first persisted preferences",
+    "watchlist_produto_adicionado": "first creation of canonical key",
+    "watchlist_preco_alvo_definido": "first non-null target per canonical key"
+  },
+  "failure_policy": {
+    "gamification_failure_blocks_domain_action": false,
+    "event_wiring_fail_open": true,
+    "reconciliation_can_repair_missing_events": true
+  },
+  "idempotency": {
+    "remove_readd_product_rewards_again": false,
+    "change_target_rewards_again": false,
+    "extra_devices_reward_again": false,
+    "preference_updates_reward_again": false
+  },
+  "boundaries": {
+    "public_api": false,
+    "public_app": false,
+    "community_discovery": false,
+    "community_reputation": false,
+    "missions": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "runtime-composition-and-historical-reconciliation"
+}

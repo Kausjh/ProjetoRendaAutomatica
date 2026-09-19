@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from models.user_identity import ContaUsuario, DispositivoUsuario, SessaoUsuarioEmitida
 from repositories.user_identity_repository import UserIdentityRepository
+from services.gamification_event_wiring import GamificationEventWiring
 
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 _SCRYPT_N = 2**14
@@ -69,6 +70,12 @@ class UserIdentityService:
     def _agora() -> datetime:
         return datetime.now(UTC)
 
+    def configurar_gamificacao(
+        self,
+        gamification_event_wiring: GamificationEventWiring | None,
+    ) -> None:
+        self._gamification_event_wiring = gamification_event_wiring
+
     def criar_conta(
         self,
         *,
@@ -79,17 +86,33 @@ class UserIdentityService:
         self._validar_senha(senha)
 
         salt = secrets.token_bytes(_SALT_BYTES)
-        senha_hash = self._hash_senha(senha, salt)
+        senha_hash = self._hash_senha(
+            senha,
+            salt,
+        )
         agora = self._agora().isoformat()
 
-        return self.repository.criar_conta(
-            conta_id=f"usr_{uuid.uuid4().hex}",
-            email_normalizado=email_normalizado,
+        conta = self.repository.criar_conta(
+            conta_id=(f"usr_{uuid.uuid4().hex}"),
+            email_normalizado=(email_normalizado),
             email_exibicao=email.strip(),
             senha_salt=salt,
             senha_hash=senha_hash,
             criado_em=agora,
         )
+
+        wiring = getattr(
+            self,
+            "_gamification_event_wiring",
+            None,
+        )
+
+        if wiring is not None:
+            wiring.registrar_conta_criada(
+                conta_id=conta.id,
+            )
+
+        return conta
 
     def autenticar(
         self,
@@ -221,15 +244,37 @@ class UserIdentityService:
         plataforma_normalizada = self._validar_plataforma(plataforma)
         token = self._validar_push_token(push_token)
 
-        return self.repository.registrar_dispositivo(
-            dispositivo_id=f"dev_{uuid.uuid4().hex}",
-            conta_id=str(conta_id or "").strip(),
-            instalacao_id=instalacao,
-            plataforma=plataforma_normalizada,
-            push_token=token,
-            push_token_hash=self._hash_push_token(token),
-            agora=self._agora().isoformat(),
+        conta_normalizada = str(conta_id or "").strip()
+
+        dispositivos_antes = self.repository.listar_dispositivos(
+            conta_normalizada,
+            apenas_ativos=False,
         )
+
+        resultado = self.repository.registrar_dispositivo(
+            dispositivo_id=(f"dev_{uuid.uuid4().hex}"),
+            conta_id=conta_normalizada,
+            instalacao_id=instalacao,
+            plataforma=(plataforma_normalizada),
+            push_token=token,
+            push_token_hash=(self._hash_push_token(token)),
+            agora=(self._agora().isoformat()),
+        )
+
+        dispositivo, criado, _ = resultado
+
+        wiring = getattr(
+            self,
+            "_gamification_event_wiring",
+            None,
+        )
+
+        if wiring is not None and criado and not dispositivos_antes:
+            wiring.registrar_primeiro_dispositivo(
+                conta_id=(dispositivo.conta_id),
+            )
+
+        return resultado
 
     def obter_dispositivo_por_id(
         self,

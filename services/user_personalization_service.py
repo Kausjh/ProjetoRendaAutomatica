@@ -13,6 +13,7 @@ from repositories.user_identity_repository import UserIdentityRepository
 from repositories.user_personalization_repository import (
     UserPersonalizationRepository,
 )
+from services.gamification_event_wiring import GamificationEventWiring
 
 _MARKETPLACE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,49}$")
 _MAX_MARKETPLACES = 20
@@ -83,6 +84,12 @@ class UserPersonalizationService:
 
         return int(valor * 100)
 
+    def configurar_gamificacao(
+        self,
+        gamification_event_wiring: GamificationEventWiring | None,
+    ) -> None:
+        self._gamification_event_wiring = gamification_event_wiring
+
     def obter_preferencias(
         self,
         conta_id: str,
@@ -109,12 +116,27 @@ class UserPersonalizationService:
     ) -> PreferenciasUsuario:
         self._validar_conta_ativa(conta_id)
 
-        return self.repository.salvar_preferencias(
+        existentes = self.repository.obter_preferencias(conta_id)
+
+        preferencias = self.repository.salvar_preferencias(
             conta_id=conta_id,
             notificacoes_preco_habilitadas=bool(notificacoes_preco_habilitadas),
-            marketplaces_preferidos=self._normalizar_marketplaces(marketplaces_preferidos),
+            marketplaces_preferidos=(self._normalizar_marketplaces(marketplaces_preferidos)),
             atualizado_em=self._agora(),
         )
+
+        wiring = getattr(
+            self,
+            "_gamification_event_wiring",
+            None,
+        )
+
+        if wiring is not None and existentes is None:
+            wiring.registrar_preferencias_definidas(
+                conta_id=conta_id,
+            )
+
+        return preferencias
 
     def adicionar_ou_atualizar_watchlist(
         self,
@@ -127,7 +149,9 @@ class UserPersonalizationService:
         self._validar_conta_ativa(conta_id)
 
         chave = self._normalizar_canonical_key(canonical_key)
+
         centavos = self._preco_para_centavos(preco_alvo)
+
         agora = self._agora()
 
         existente = self.repository.obter_item_watchlist(
@@ -135,15 +159,40 @@ class UserPersonalizationService:
             canonical_key=chave,
         )
 
-        return self.repository.salvar_item_watchlist(
+        item = self.repository.salvar_item_watchlist(
             item_id=(existente.id if existente is not None else f"wat_{uuid.uuid4().hex}"),
             conta_id=conta_id,
             canonical_key=chave,
-            preco_alvo_centavos=centavos,
+            preco_alvo_centavos=(centavos),
             notificar_queda_preco=bool(notificar_queda_preco),
             criado_em=(existente.criado_em if existente is not None else agora),
             atualizado_em=agora,
         )
+
+        wiring = getattr(
+            self,
+            "_gamification_event_wiring",
+            None,
+        )
+
+        if wiring is not None:
+            if existente is None:
+                wiring.registrar_produto_watchlist(
+                    conta_id=conta_id,
+                    canonical_key=chave,
+                )
+
+            preco_alvo_novo = centavos is not None and (
+                existente is None or existente.preco_alvo is None
+            )
+
+            if preco_alvo_novo:
+                wiring.registrar_preco_alvo(
+                    conta_id=conta_id,
+                    canonical_key=chave,
+                )
+
+        return item
 
     def listar_watchlist(
         self,
