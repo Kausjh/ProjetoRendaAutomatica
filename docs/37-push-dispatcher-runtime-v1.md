@@ -61,9 +61,25 @@ Esta fase:
 - nao grava tokens em logs;
 - nao faz chamadas externas nos testes.
 
-O proximo passo e um smoke real controlado usando o dispositivo ja registrado,
-sem imprimir o token.
+## Validacao operacional real
 
+Concluida em 19/09/2026.
+
+O transporte real foi validado em um dispositivo Android registrado:
+
+- ticket Expo `ok`;
+- receipt Expo `ok`;
+- notificacao exibida fisicamente;
+- nenhum token exposto;
+- runtime automatico permaneceu desligado.
+
+As transicoes persistentes da outbox e os caminhos de retry permanecem
+validados pela suite de orquestracao usando SQLite isolado e os mesmos
+repositories/services do runtime.
+
+A outbox de producao nao foi consumida pelo smoke controlado.
+
+O proximo passo de produto e a Etapa 5 - Personalized Feed V1.
 ## Hardening de processing stale
 
 O runtime revisa itens da outbox que permaneceram em `processing` alem da janela usada

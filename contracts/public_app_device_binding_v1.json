@@ -37,7 +37,9 @@
     "expo_go_remote_push_supported": false,
     "development_build_required_for_remote_push": true,
     "expo_go_binding_deferred_without_error": true,
-    "real_push_token_validation_completed": false
+    "real_push_token_validation_completed": true,
+    "real_push_token_validation_date": "2026-09-19",
+    "real_push_token_validation_platform": "android"
   },
   "delivery": {
     "push_delivery_implemented": false,

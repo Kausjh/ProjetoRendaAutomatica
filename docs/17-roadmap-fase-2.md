@@ -99,8 +99,7 @@ Esse gate foi atingido para o escopo MVP.
 
 ## Etapa 3 — Device Registration V1
 
-**Status: IMPLEMENTADA — VALIDAÇÃO OPERACIONAL PENDENTE**
-
+**Status: CONCLUÍDA — VALIDADA EM ANDROID REAL**
 ### Objetivo
 
 Associar instalações do aplicativo público a contas para permitir push.
@@ -120,20 +119,24 @@ Associar instalações do aplicativo público a contas para permitir push.
 - binding do dispositivo com o backend;
 - proteção para ambientes onde push remoto não está disponível.
 
-### Gate restante
+### Validação operacional
 
-Validar de forma controlada um push token real de development build chegando
-ao backend e participando do fluxo operacional.
+Gate concluído em 19/09/2026.
 
-Até esse gate ser comprovado, a etapa não deve ser tratada como encerrada
-operacionalmente.
+Um development build Android real:
+
+- obteve um Expo Push Token válido;
+- vinculou a instalação autenticada;
+- persistiu um dispositivo Android ativo no backend;
+- manteve o token fora dos logs.
+
+A validação foi realizada em dispositivo físico.
 
 ---
 
 ## Etapa 4 — Push Dispatcher V1
 
-**Status: IMPLEMENTADO EM FAIL-CLOSED — SMOKE REAL PENDENTE**
-
+**Status: CONCLUÍDA — SMOKE REAL VALIDADO**
 ### Objetivo
 
 Conectar a Notification Outbox aos dispositivos reais por um provedor de push.
@@ -164,10 +167,32 @@ O dispatcher permanece desativado por padrão por meio de
 Isso é deliberado: implementação disponível não equivale a entrega real
 validada.
 
-### Gate restante
+### Validação operacional
 
-Executar smoke real controlado no dispositivo registrado, confirmar envio,
-ticket, receipt, transição de estado da outbox e comportamento de retry.
+Gate concluído em 19/09/2026 pela combinação de validação real e cobertura
+persistente da orquestração.
+
+O smoke controlado em Android físico comprovou:
+
+- um único push real;
+- ticket Expo com `status=ok`;
+- receipt Expo com `status=ok`;
+- entrega visual da notificação no aparelho;
+- nenhum push token exposto;
+- runtime automático permaneceu desligado.
+
+A suíte da orquestração cobre adicionalmente:
+
+- reserva da outbox em `processing`;
+- permanência em `processing` até receipt;
+- transição para `delivered` após receipt `ok`;
+- retry em falhas recuperáveis;
+- falha terminal quando aplicável;
+- tratamento de `DeviceNotRegistered`.
+
+O smoke físico não consumiu a outbox de produção. As transições persistentes
+foram validadas em SQLite isolado com os mesmos repositories e services usados
+pela orquestração real.
 
 ---
 
@@ -350,8 +375,8 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | --- | --- |
 | 1. User-Facing API V1 | Concluída |
 | 2. Public App MVP | Concluída como MVP |
-| 3. Device Registration V1 | Implementada; validação operacional pendente |
-| 4. Push Dispatcher V1 | Implementado fail-closed; smoke real pendente |
+| 3. Device Registration V1 | Concluída; token real validado |
+| 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Próxima macroetapa |
 | 6. Gamification & Reputation V1 | Planejada |
 | 7. Missions & Community Rewards V1 | Planejada |
@@ -363,14 +388,18 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 
 # Próxima decisão de execução
 
-Antes de iniciar a implementação da Etapa 5, existem dois gates operacionais
-pendentes nas Etapas 3 e 4:
+Os gates operacionais das Etapas 3 e 4 foram concluídos em 19/09/2026.
 
-1. validar Device Registration com token real;
-2. executar smoke real controlado do Push Dispatcher.
+A evidência consolidada inclui:
 
-Esses gates não exigem reabrir a arquitetura das etapas já implementadas.
+1. Device Registration com Expo Push Token real em Android físico;
+2. Push Dispatcher com ticket Expo `ok`;
+3. receipt Expo `ok`;
+4. entrega visual confirmada no dispositivo;
+5. transições persistentes da outbox e caminhos de retry validados pela suíte de
+   orquestração;
+6. runtime automático mantido fail-closed.
 
-Depois deles, a próxima macroetapa de produto é:
+A próxima macroetapa de produto é:
 
-**Personalized Feed V1**
+**Etapa 5 — Personalized Feed V1**

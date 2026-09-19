@@ -29,5 +29,18 @@
     "auto_enable": false,
     "app_notification_tap_navigation": false
   },
-  "next_step": "controlled_real_push_smoke"
+  "next_step": "personalized-feed-v1",
+  "operational_validation": {
+    "controlled_real_smoke_completed": true,
+    "validated_at": "2026-09-19",
+    "platform": "android",
+    "ticket_status_ok": true,
+    "receipt_status_ok": true,
+    "visual_delivery_confirmed": true,
+    "persistent_outbox_transitions_verified_by_tests": true,
+    "retry_behavior_verified_by_tests": true,
+    "production_outbox_consumed_during_smoke": false,
+    "automatic_runtime_enabled_during_smoke": false,
+    "push_token_logged": false
+  }
 }

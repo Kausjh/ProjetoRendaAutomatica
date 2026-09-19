@@ -817,13 +817,16 @@ gamificação e novas superfícies.
 
 - **Etapa 1 — User-Facing API V1:** concluída.
 - **Etapa 2 — Public App MVP:** concluída como MVP; o App V3 continua evoluindo.
-- **Etapa 3 — Device Registration V1:** backend e binding do app implementados;
-  validação operacional com push token real permanece como gate.
-- **Etapa 4 — Push Dispatcher V1:** provider, orquestração e runtime
-  supervisionado implementados em modo fail-closed; o smoke real controlado
-  permanece como gate operacional.
+- **Etapa 3 — Device Registration V1:** concluída; backend, binding e validação
+  operacional com Expo Push Token real foram comprovados em Android físico.
+- **Etapa 4 — Push Dispatcher V1:** concluída; transporte real validado com
+  ticket e receipt Expo `ok` e entrega visual no dispositivo, enquanto as
+  transições persistentes de outbox e os caminhos de retry permanecem cobertos
+  pela suíte de orquestração.
 - **Etapa 5 — Personalized Feed V1:** próxima macroetapa de produto.
 - **Etapas 6 a 10:** planejadas.
+
+O runtime automático do Push Dispatcher permanece fail-closed por padrão.
 
 A Descoberta Comunitária é uma frente habilitadora para comunidade, reputação,
 missões e gamificação. Sua existência não implica que as Etapas 6 a 9 estejam

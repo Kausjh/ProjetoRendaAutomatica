@@ -130,7 +130,7 @@ def test_contract_keeps_dispatcher_out_and_marks_real_token_validation_pending()
     assert contract["push_token"]["token_logged"] is False
     assert contract["runtime"]["expo_go_remote_push_supported"] is False
     assert contract["runtime"]["development_build_required_for_remote_push"] is True
-    assert contract["runtime"]["real_push_token_validation_completed"] is False
+    assert contract["runtime"]["real_push_token_validation_completed"] is True
     assert contract["delivery"]["push_delivery_implemented"] is False
     assert contract["delivery"]["dispatcher_implemented"] is False
     assert (

@@ -83,5 +83,15 @@ Esta fase ainda não:
 - inventa ou versiona `projectId` fictício;
 - valida token remoto real dentro do Expo Go.
 
-O próximo passo é configurar o projeto/credenciais de desenvolvimento, gerar um
-development build e validar um Expo Push Token real chegando ao backend.
+## Validação operacional real
+
+Concluída em 19/09/2026.
+
+Um development build Android real:
+
+- obteve um Expo Push Token válido;
+- vinculou a instalação autenticada;
+- persistiu o dispositivo Android ativo no backend;
+- manteve o push token fora dos logs.
+
+O gate operacional do Device Registration V1 está encerrado.
