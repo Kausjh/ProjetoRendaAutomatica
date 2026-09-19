@@ -1,0 +1,28 @@
+{
+  "schema": "projeto-renda-automatica.public-app-personalized-feed",
+  "public_app_personalized_feed_version": 1,
+  "stage": "data-layer",
+  "backend_route": "GET /api/v1/me/feed",
+  "transport": {
+    "requires_user_session": true,
+    "uses_infrastructure_bearer_via_shared_transport": true,
+    "response_mode": "user-facing-envelope",
+    "pagination": {
+      "default_limit": 20,
+      "default_offset": 0
+    }
+  },
+  "presentation": {
+    "dedicated_feed_types": true,
+    "dedicated_feed_presenter": true,
+    "dedicated_react_query_hook": true
+  },
+  "boundaries": {
+    "home_surface_changed": false,
+    "generic_product_list_replaced": false,
+    "push_delivery_changed": false,
+    "backend_changed": false,
+    "expo_generated_files_changed": false
+  },
+  "next_step": "public-app-personalized-feed-home-surface"
+}

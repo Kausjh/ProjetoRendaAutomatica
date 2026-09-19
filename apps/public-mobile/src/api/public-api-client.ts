@@ -154,6 +154,17 @@ export class PublicApiClient {
     });
   }
 
+  getPersonalizedFeed<T = unknown>(
+    pagination: PaginationParams = {},
+  ): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/feed",
+      query: pagination,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
   getWatchlist<T = unknown>(): Promise<T> {
     return this.transport.request<T>({
       path: "/me/watchlist",
