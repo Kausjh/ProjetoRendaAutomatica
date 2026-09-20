@@ -1,0 +1,41 @@
+{
+  "public_app_missions_surface_version": 1,
+  "phase": "7F1",
+  "backend": {
+    "path": "/api/v1/me/missions",
+    "requires_user_session": true,
+    "writes_state": false
+  },
+  "architecture": {
+    "public_api_client_method": "getMissions",
+    "presenter": "presentMissions",
+    "query_hook": "useMissions",
+    "query_key": [
+      "missions",
+      "me"
+    ],
+    "dedicated_route": false,
+    "bottom_nav_entry": false,
+    "ui_panel_in_7f1": false
+  },
+  "source_of_truth": {
+    "mission_progress": "server",
+    "completion": "server",
+    "reward_status": "server",
+    "client_recalculates_progress": false,
+    "client_grants_rewards": false
+  },
+  "supported_reward_statuses": [
+    "locked",
+    "pending",
+    "granted"
+  ],
+  "boundaries": {
+    "xp_write": false,
+    "mission_write": false,
+    "reward_settlement": false,
+    "community_reputation": false,
+    "offer_scoring_change": false
+  },
+  "next_step": "7F2-public-app-missions-panel"
+}
