@@ -79,7 +79,37 @@ A segunda parte da 7E adiciona:
 O parametro `conta_id` enviado pelo cliente nao seleciona outra conta.
 A conta usada pela leitura sempre vem da sessao autenticada.
 
+## Validacao operacional
+
+A validacao real foi concluida em 20/09/2026 sobre o commit `cba7423`.
+
+O runtime foi reciclado cirurgicamente e voltou como PID `16144`, com
+o supervisor preservado e a Application API saudavel.
+
+O smoke autenticado confirmou:
+
+- `GET /api/v1/me/missions` com HTTP 200;
+- ruleset `missions-community-rewards-production-v1`;
+- 3 missoes retornadas;
+- 1 missao concluida e 2 em andamento;
+- 1 reward `granted` e 0 `pending`;
+- estado real de progresso e rewards serializado corretamente;
+- nenhuma alteracao em missions ou Gamification causada pela leitura;
+- sessao temporaria revogada ao final;
+- SQLite integro;
+- 0 erros de foreign key.
+
+## Estado atual
+
+A 7E esta concluida e validada em producao.
+
+O servidor continua sendo a unica autoridade sobre progresso,
+conclusao e rewards. O cliente recebe apenas uma representacao
+somente-leitura desse estado.
+
 ## Proximo passo
 
-Validar a rota no runtime real e executar um smoke controlado antes de
-fechar formalmente a 7E e seguir para a 7F.
+**7F - Public App Missions Surface**
+
+Consumir `GET /api/v1/me/missions` no aplicativo e apresentar o estado
+das missoes sem recalcular progresso ou recompensas no cliente.

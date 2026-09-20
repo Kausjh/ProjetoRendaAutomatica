@@ -310,7 +310,7 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2 E 7D CONCLUÍDAS; 7E PRÓXIMA**
+**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2, 7D E 7E CONCLUÍDAS; 7F PRÓXIMA**
 
 ### Objetivo
 
@@ -347,8 +347,10 @@ Transformar contribuições úteis em missões e recompensas verificáveis.
   - **7D3 — Guarded Runtime Wiring:** concluída.
   - **7D4 — Controlled Production Activation:** concluída.
   - **7D5 — Live Reward Settlement:** concluída, ativa e validada em produção.
-- **7E — Missions Read API:** próxima.
-- **7F — Public App Missions Surface:** planejada.
+- **7E — Missions Read API:** concluída e validada em produção.
+  - **7E1 — Mission Read Core:** concluída.
+  - **7E2 — HTTP Wiring:** concluída.
+- **7F — Public App Missions Surface:** próxima.
 - **7G — Fechamento operacional:** planejada.
 
 ### Validação operacional da 7C2
@@ -404,11 +406,31 @@ A produção confirmou:
 
 Durante o canário final, o estado de Gamification permaneceu em 190 XP, 10 eventos e reputação 0 antes e depois da execução.
 
+### Validação operacional da 7E
+
+Concluída em 20/09/2026 sobre o commit `cba7423`.
+
+O ambiente real confirmou:
+
+- runtime reciclado cirurgicamente para o PID `16144`, com supervisor preservado;
+- Application API `HEALTHY` em produção;
+- `GET /api/v1/me/missions` ativo e protegido por `X-User-Session`;
+- smoke autenticado real com HTTP 200;
+- 3 missões retornadas pelo ruleset `missions-community-rewards-production-v1`;
+- 1 missão concluída, 2 em andamento, 0 não iniciadas;
+- 1 reward `granted`, 0 `pending`;
+- `community_primeira_aprovada` em 1/1 com 20 XP concedidos;
+- `community_cinco_aprovadas` em 1/5 com reward de 50 XP ainda `locked`;
+- `community_dez_aprovadas` em 1/10 com reward de 100 XP ainda `locked`;
+- leitura comprovadamente read-only, sem alteração de missions ou Gamification;
+- sessão temporária do canário revogada ao final;
+- SQLite íntegro e 0 erros de foreign key.
+
 ### Próxima subetapa
 
-**7E — Missions Read API**
+**7F — Public App Missions Surface**
 
-A 7E deve expor o estado de missões de forma somente-leitura para o cliente, preservando progresso, conclusão e recompensas como autoridade server-side.
+A 7F deve consumir a Missions Read API no aplicativo e apresentar progresso, conclusão e recompensas sem recalcular estado de missão no cliente.
 
 Community Reputation & Trust permanece reservada para a Etapa 8.
 
@@ -632,7 +654,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2 e 7D concluídas; 7E próxima |
+| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2, 7D e 7E concluídas; 7F próxima |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
@@ -665,8 +687,8 @@ A 7D foi validada em produção em 20/09/2026:
 
 A próxima subetapa é:
 
-**7E — Missions Read API**
+**7F — Public App Missions Surface**
 
-A 7E deve expor progresso, conclusão e recompensas para leitura pelo cliente, sem permitir escrita client-side sobre XP, reputação ou estado das missões.
+A 7F deve integrar a Missions Read API ao aplicativo, apresentando progresso, conclusão e recompensas sem permitir que o cliente se torne autoridade sobre XP, reputação ou estado das missões.
 
 Community Reputation & Trust continua reservada para a Etapa 8 e a camada social/competitiva continua reservada para a Etapa 9.
