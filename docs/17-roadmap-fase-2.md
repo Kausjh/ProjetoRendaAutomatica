@@ -310,21 +310,21 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: EM EXECUÇÃO — 7A, 7B E 7C1 CONCLUÍDAS; 7C2 EM IMPLEMENTAÇÃO**
+**Status: EM EXECUÇÃO — 7A, 7B, 7C1 E 7C2 CONCLUÍDAS; 7D PRÓXIMA**
 
 ### Objetivo
 
 Transformar contribuições úteis em missões e recompensas verificáveis.
 
-### Regras já fechadas
+### Regras fechadas
 
 - progresso server-side;
 - conclusão server-side;
 - reward grant auditável;
-- idempotência;
-- apenas `community_discovery_approved` gera progresso;
-- missões V1 lifetime;
-- teto inicial de 170 XP;
+- idempotência por conta, missão, ruleset, instância e chave;
+- apenas `community_discovery_approved` gera progresso na V1;
+- missões V1 `lifetime`;
+- teto inicial de recompensas: 170 XP;
 - reputação comunitária permanece fora da Etapa 7.
 
 ### Catálogo V1
@@ -340,20 +340,39 @@ Transformar contribuições úteis em missões e recompensas verificáveis.
 - **7A — Mission Engine Core:** concluída.
 - **7B — Production Mission Catalog & Reward Policy:** concluída.
 - **7C1 — Approved Wiring + Reconciliation Service:** concluída.
-- **7C2 — Controlled Runtime Activation:** em implementação.
-- **7D — Reward Settlement to Gamification:** planejada.
+- **7C2 — Controlled Runtime Activation:** concluída e validada em produção.
+- **7D — Reward Settlement to Gamification:** próxima.
 - **7E — Missions Read API:** planejada.
 - **7F — Public App Missions Surface:** planejada.
 - **7G — Fechamento operacional:** planejada.
 
-### Regra da 7C2
+### Validação operacional da 7C2
 
-A reconciliação histórica deve terminar sem falhas antes do live wiring.
+Concluída em 20/09/2026 sobre o commit `c2e05f6`.
 
-Falhas do Mission Engine não podem desfazer uma descoberta já persistida
-como `approved`.
+O ambiente real confirmou:
+
+- três tabelas `mission_*`;
+- três eventos de missão;
+- três snapshots de progresso;
+- um reward `pending` de 20 XP;
+- segunda reconciliação com 0 eventos novos e 3 idempotentes;
+- runtime final `HEALTHY`;
+- supervisor preservado;
+- Chrome/CDP preservado;
+- SQLite íntegro;
+- zero erros de foreign key;
+- gamification preservada em 140 XP, 7 eventos e reputação 0.
+
+### Próxima subetapa
+
+**7D — Reward Settlement to Gamification**
+
+A 7D deve liquidar rewards pendentes no ledger de gamification de maneira
+idempotente e auditável sem antecipar Reputation & Trust da Etapa 8.
 
 ---
+
 ## Etapa 8 — Community Reputation & Trust V1
 
 **Status: PLANEJADA**
@@ -572,7 +591,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B e 7C1 concluídas; 7C2 em implementação |
+| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1 e 7C2 concluídas; 7D próxima |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
@@ -590,16 +609,21 @@ A proxima macroetapa de produto e:
 
 A Etapa 7 está em execução.
 
-7A, 7B e 7C1 estão concluídas. A 7C2 prepara a ativação controlada
-do Mission Engine no runtime real.
+7A, 7B, 7C1 e 7C2 estão concluídas.
 
-A próxima validação deve comprovar:
+A 7C2 foi validada em produção em 20/09/2026:
 
-- criação das três tabelas `mission_*`;
-- reconciliação da descoberta `approved` existente;
-- três eventos criados na primeira reconciliação;
-- três eventos idempotentes na segunda;
+- três tabelas `mission_*`;
+- três eventos de missão;
+- três snapshots de progresso;
 - um reward `pending` de 20 XP;
-- gamification preservada em 140 XP, 7 eventos e reputação 0;
-- live wiring somente depois da reconciliação bem-sucedida;
-- settlement de XP desligado até a 7D.
+- segunda reconciliação com 0 novos e 3 idempotentes;
+- runtime `HEALTHY`;
+- gamification preservada em 140 XP, 7 eventos e reputação 0.
+
+A próxima subetapa é:
+
+**7D — Reward Settlement to Gamification**
+
+A 7D não deve antecipar reputação comunitária, contributor trust,
+rankings ou outras responsabilidades das Etapas 8 e 9.

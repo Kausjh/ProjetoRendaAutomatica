@@ -9,7 +9,7 @@
     "live_wiring_enabled_only_after_success": true,
     "activation_environment_flag": "MISSIONS_COMMUNITY_RUNTIME_ATIVO",
     "pipeline_child_inherits_runtime_environment": true,
-    "production_activation_run": false
+    "production_activation_run": true
   },
   "live_wiring": {
     "approval_persisted_before_hook": true,
@@ -63,5 +63,30 @@
     "offer_scoring_change": false,
     "price_intelligence_change": false
   },
-  "next_step": "7C2-review-commit-and-controlled-production-restart"
+  "next_step": "7D-reward-settlement-to-gamification",
+  "operational_validation": {
+    "validated_at": "2026-09-20",
+    "commit": "c2e05f6",
+    "backup_pre_activation_validated": true,
+    "supervisor_preserved": true,
+    "runtime_recreated": true,
+    "health_after_restart": "HEALTHY",
+    "cdp_preserved_online": true,
+    "sqlite_integrity": "ok",
+    "foreign_key_errors": 0,
+    "approved_rows": 1,
+    "mission_tables": 3,
+    "mission_progress_events": 3,
+    "mission_progress_rows": 3,
+    "mission_reward_grants": 1,
+    "pending_rewards": 1,
+    "pending_reward_xp": 20,
+    "second_reconciliation_created": 0,
+    "second_reconciliation_idempotent": 3,
+    "second_reconciliation_rewards_created": 0,
+    "second_reconciliation_failures": 0,
+    "gamification_xp": 140,
+    "gamification_events": 7,
+    "community_reputation": 0
+  }
 }

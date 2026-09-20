@@ -387,7 +387,7 @@ def test_contract_e_roadmap_7c2():
 
     assert data["runtime"]["live_wiring_enabled_only_after_success"] is True
 
-    assert data["runtime"]["production_activation_run"] is False
+    assert data["runtime"]["production_activation_run"] is True
 
     assert data["live_wiring"]["approval_persisted_before_hook"] is True
 
@@ -401,7 +401,7 @@ def test_contract_e_roadmap_7c2():
 
     assert "status: em execucao" in roadmap_fold
 
-    assert "7a, 7b e 7c1" in roadmap_fold
+    assert "7a, 7b, 7c1 e 7c2" in roadmap_fold
 
     assert "comentarios vinculados" in roadmap_fold
 
@@ -418,3 +418,55 @@ def test_contract_e_roadmap_7c2():
     assert "etapa 7" in readme_fold
     assert "em execucao" in readme_fold
     assert "visual polish" in readme_fold
+
+
+def test_operational_validation_7c2():
+    data = json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+    validation = data["operational_validation"]
+
+    assert data["runtime"]["production_activation_run"] is True
+
+    assert validation["backup_pre_activation_validated"] is True
+
+    assert validation["supervisor_preserved"] is True
+
+    assert validation["runtime_recreated"] is True
+
+    assert validation["health_after_restart"] == "HEALTHY"
+
+    assert validation["cdp_preserved_online"] is True
+
+    assert validation["sqlite_integrity"] == "ok"
+
+    assert validation["foreign_key_errors"] == 0
+
+    assert validation["approved_rows"] == 1
+
+    assert validation["mission_tables"] == 3
+
+    assert validation["mission_progress_events"] == 3
+
+    assert validation["mission_progress_rows"] == 3
+
+    assert validation["mission_reward_grants"] == 1
+
+    assert validation["pending_rewards"] == 1
+
+    assert validation["pending_reward_xp"] == 20
+
+    assert validation["second_reconciliation_created"] == 0
+
+    assert validation["second_reconciliation_idempotent"] == 3
+
+    assert validation["second_reconciliation_rewards_created"] == 0
+
+    assert validation["second_reconciliation_failures"] == 0
+
+    assert validation["gamification_xp"] == 140
+
+    assert validation["gamification_events"] == 7
+
+    assert validation["community_reputation"] == 0
+
+    assert data["next_step"] == ("7D-reward-settlement-to-gamification")

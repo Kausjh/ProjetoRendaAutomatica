@@ -88,7 +88,39 @@ A 7C2 nao implementa:
 - mudanca de offer scoring;
 - mudanca de Price Intelligence.
 
-## Proximo passo
+## Validação operacional de produção
 
-Review e commit da implementacao 7C2, seguidos de restart controlado de
-producao e auditoria do SQLite real.
+Concluída em 20/09/2026 sobre o commit `c2e05f6`.
+
+A ativação controlada comprovou:
+
+- backup SQLite pré-ativação íntegro;
+- supervisor preservado durante o restart;
+- runtime antigo encerrado;
+- novo runtime criado pelo supervisor;
+- runtime final `HEALTHY`;
+- Chrome/CDP preservado online;
+- três tabelas `mission_*` criadas;
+- três eventos de progresso persistidos;
+- três snapshots de progresso persistidos;
+- um reward grant `pending`;
+- 20 XP pendentes;
+- uma descoberta histórica `approved` reconciliada;
+- segunda reconciliação com 0 eventos novos;
+- segunda reconciliação com 3 eventos idempotentes;
+- zero rewards adicionais no replay;
+- gamification preservada em 140 XP;
+- ledger de gamification preservado em 7 eventos;
+- reputação comunitária preservada em 0;
+- SQLite íntegro;
+- zero erros de foreign key.
+
+O settlement do reward permaneceu desligado.
+
+## Próximo passo
+
+**7D — Reward Settlement to Gamification**
+
+A próxima subetapa deve liquidar os rewards `pending` no ledger de
+gamification com idempotência determinística e recuperação segura entre
+os dois ledgers.
