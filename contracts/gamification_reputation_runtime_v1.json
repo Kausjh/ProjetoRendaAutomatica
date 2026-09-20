@@ -1,0 +1,38 @@
+{
+  "schema": "projeto-renda-automatica.gamification-reputation-runtime",
+  "gamification_reputation_runtime_version": 1,
+  "stage": "runtime-composition-and-reconciliation",
+  "source_contracts": [
+    "contracts/gamification_reputation_core_v1.json",
+    "contracts/gamification_reputation_rules_v1.json",
+    "contracts/gamification_reputation_event_wiring_v1.json"
+  ],
+  "runtime": {
+    "composition_defined": true,
+    "reconciliation_before_wiring": true,
+    "wiring_enabled_only_after_success": true,
+    "gamification_failure_blocks_main_runtime": false
+  },
+  "reconciliation": {
+    "active_accounts_only": true,
+    "idempotent": true,
+    "uses_same_event_semantics_as_live_wiring": true,
+    "partial_progress_recoverable_on_restart": true,
+    "historical_removed_watchlist_recoverable": false
+  },
+  "database": {
+    "path": "database/user_identity.sqlite3",
+    "tables_created_by_gamification_repository": true,
+    "production_database_mutated_by_this_patch": false
+  },
+  "boundaries": {
+    "public_api": false,
+    "public_app": false,
+    "community_discovery": false,
+    "community_reputation": false,
+    "missions": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "controlled-production-reconciliation"
+}

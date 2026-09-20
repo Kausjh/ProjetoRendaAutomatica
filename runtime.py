@@ -23,6 +23,7 @@ from repositories.user_personalization_repository import (
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
+from services.gamification_runtime import ativar_gamificacao_runtime
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
 from services.personalized_feed_service import PersonalizedFeedService
 from services.runtime.orquestrador import (
@@ -68,27 +69,47 @@ def main() -> int:
         controlador=orquestrador.controle_administrativo,
     )
     controlador_api = ControladorApiAplicacao()
+    user_identity_db = os.path.join(
+        DIRETORIO_PROJETO,
+        "database",
+        "user_identity.sqlite3",
+    )
     user_identity_repository = UserIdentityRepository(
-        os.path.join(
-            DIRETORIO_PROJETO,
-            "database",
-            "user_identity.sqlite3",
-        )
+        user_identity_db,
     )
     user_identity_service = UserIdentityService(
         user_identity_repository,
     )
     user_personalization_repository = UserPersonalizationRepository(
-        os.path.join(
-            DIRETORIO_PROJETO,
-            "database",
-            "user_identity.sqlite3",
-        )
+        user_identity_db,
     )
     user_personalization_service = UserPersonalizationService(
         user_personalization_repository,
         user_identity_repository,
     )
+
+    gamification_runtime = ativar_gamificacao_runtime(
+        caminho_banco=user_identity_db,
+        user_identity_repository=(user_identity_repository),
+        user_identity_service=(user_identity_service),
+        user_personalization_repository=(user_personalization_repository),
+        user_personalization_service=(user_personalization_service),
+    )
+
+    if gamification_runtime.ativo:
+        reconciliacao = gamification_runtime.reconciliacao
+
+        logger.info(
+            "Gamification runtime ativo | " "contas=%s criados=%s " "idempotentes=%s",
+            (reconciliacao.contas_processadas if reconciliacao is not None else 0),
+            (reconciliacao.eventos_criados if reconciliacao is not None else 0),
+            (reconciliacao.eventos_idempotentes if reconciliacao is not None else 0),
+        )
+    else:
+        logger.error(
+            "Gamification runtime inativo | erro=%s",
+            gamification_runtime.erro,
+        )
     personalized_feed_service = PersonalizedFeedService(
         catalogo_repository=controlador_api.catalogo_repository,
         price_intelligence_repository=controlador_api.price_intelligence_repository,
