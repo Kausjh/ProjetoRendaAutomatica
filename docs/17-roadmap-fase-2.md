@@ -310,7 +310,7 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2, 7D, 7E E 7F CONCLUÍDAS; 7G PRÓXIMA**
+**Status: CONCLUÍDA — 7A, 7B, 7C1, 7C2, 7D, 7E, 7F E 7G CONCLUÍDAS**
 
 ### Objetivo
 
@@ -354,7 +354,7 @@ Transformar contribuições úteis em missões e recompensas verificáveis.
   - **7F1 — Client / Read Model:** concluída no commit `3a3c65c`.
   - **7F2 — Public App Missions Panel:** concluída no commit `b3393c8`.
   - **7F3 — Real Android Validation:** concluída no Samsung SM-M526B / Android 13.
-- **7G — Fechamento operacional:** próxima.
+- **7G — Fechamento operacional:** concluída.
 
 ### Validação operacional da 7C2
 
@@ -457,13 +457,36 @@ A validação real confirmou:
 - estados `granted` e `locked` apresentados corretamente;
 - nenhum erro `ReactNativeJS`, `FATAL EXCEPTION`, `AndroidRuntime`, `TypeError`, `ReferenceError` ou exceção não tratada observado no smoke final.
 
-### Próxima subetapa
+### Validação operacional da 7G
 
-**7G — Fechamento operacional**
+Concluída em 20/09/2026.
 
-A 7G deve consolidar a Etapa 7, revisar contratos, documentação, estado operacional e invariantes antes da transição para a Etapa 8.
+A auditoria final da Etapa 7 confirmou:
 
-Community Reputation & Trust permanece reservada para a Etapa 8.
+- todos os contratos de Missions & Community Rewards V1 presentes e parseáveis;
+- `MISSIONS_COMMUNITY_LIVE_REWARD_SETTLEMENT_ATIVO=true`;
+- Application API com HTTP 200 e `status=ok`;
+- `GET /api/v1/me/missions` protegido por sessão de usuário, retornando HTTP 401 sem sessão;
+- `user_identity.sqlite3` com `integrity_check=ok`;
+- zero erros de foreign key;
+- 3 registros em `mission_progress`;
+- 3 registros em `mission_progress_events`;
+- 1 registro em `mission_reward_grants`;
+- 1 reward `granted` e 0 rewards `pending`;
+- test drift da 7F3 identificado e corrigido no commit `b34ff75`;
+- 15/15 testes direcionados da Public App Missions aprovados;
+- 180/180 testes finais de Missions, Gamification e superfícies relacionadas aprovados;
+- TypeScript da Public App aprovado com `tsc --noEmit`;
+- nenhum arquivo produtivo alterado durante a auditoria;
+- arquivos locais persistentes de Expo e Mercado Livre preservados.
+
+A Etapa 7 — Missions & Community Rewards V1 está operacionalmente concluída.
+
+### Próxima macroetapa
+
+**Etapa 8 — Community Reputation & Trust V1**
+
+A Etapa 8 deve evoluir confiança e reputação comunitária sem alterar retroativamente as garantias estabelecidas pela Etapa 7.
 
 ---
 
@@ -685,7 +708,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2, 7D, 7E e 7F concluídas; 7G próxima |
+| 7. Missions & Community Rewards V1 | Concluída; 7A, 7B, 7C1, 7C2, 7D, 7E, 7F e 7G concluídas |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
@@ -695,13 +718,13 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 
 # Proxima decisao de execucao
 
-As Etapas 1 a 6 estao concluidas.
+As Etapas 1 a 7 estao concluidas.
 
-A macroetapa de produto atualmente em execução é:
+A próxima macroetapa de produto é:
 
-**Etapa 7 - Missions & Community Rewards V1**
+**Etapa 8 - Community Reputation & Trust V1**
 
-7A, 7B, 7C1, 7C2 e 7D estão concluídas.
+Fechamento da Etapa 7:
 
 A 7D foi validada em produção em 20/09/2026:
 
@@ -718,10 +741,12 @@ A 7D foi validada em produção em 20/09/2026:
 
 A 7F foi concluída e validada no Android real, com a Missions Read API integrada à tela de Conta e sem transferir autoridade de XP, rewards ou estado das missões para o cliente.
 
-A próxima subetapa é:
+A 7G concluiu a auditoria operacional da Etapa 7 com API saudável, boundary de sessão preservado, SQLite íntegro, 0 rewards pendentes, 180 testes aprovados e TypeScript aprovado.
 
-**7G — Fechamento operacional**
+A Etapa 7 — Missions & Community Rewards V1 está concluída.
 
-A 7G deve consolidar os contratos, evidências, invariantes e estado operacional da Etapa 7 antes de sua conclusão formal.
+A próxima macroetapa é:
 
-Community Reputation & Trust continua reservada para a Etapa 8 e a camada social/competitiva continua reservada para a Etapa 9.
+**Etapa 8 — Community Reputation & Trust V1**
+
+A camada social/competitiva continua reservada para a Etapa 9.
