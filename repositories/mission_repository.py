@@ -379,6 +379,23 @@ class MissionRepository:
 
         return [self._evento_da_linha(linha) for linha in linhas]
 
+    def obter_recompensa(
+        self,
+        *,
+        conta_id: str,
+        missao_codigo: str,
+        regra_versao: str,
+        instancia_chave: str = "lifetime",
+    ) -> ConcessaoRecompensaMissao | None:
+        with self._conectar() as conexao:
+            return self._obter_recompensa_conexao(
+                conexao,
+                conta_id=conta_id,
+                missao_codigo=missao_codigo,
+                regra_versao=regra_versao,
+                instancia_chave=instancia_chave,
+            )
+
     def listar_recompensas_pendentes(
         self,
         *,

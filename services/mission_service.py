@@ -171,6 +171,27 @@ class MissionService:
         ) as erro:
             raise ConflitoEventoMissao(str(erro)) from erro
 
+    def obter_recompensa(
+        self,
+        *,
+        conta_id: str,
+        missao_codigo: str,
+        instancia_chave: str = "lifetime",
+    ) -> ConcessaoRecompensaMissao | None:
+        conta = self._validar_conta(conta_id)
+
+        missao = self.ruleset.obter(missao_codigo)
+
+        if missao is None:
+            raise MissaoDesconhecida("Missao desconhecida.")
+
+        return self.repository.obter_recompensa(
+            conta_id=conta,
+            missao_codigo=missao.codigo,
+            regra_versao=self.ruleset.versao,
+            instancia_chave=(str(instancia_chave or "").strip() or "lifetime"),
+        )
+
     def listar_recompensas_pendentes(
         self,
         *,

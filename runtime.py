@@ -26,6 +26,7 @@ from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
+from services.mission_read_service import MissionReadService
 from services.mission_reward_settlement_runtime import (
     ativar_reward_settlement_runtime,
 )
@@ -120,6 +121,8 @@ def main() -> int:
             "Gamification runtime inativo | erro=%s",
             gamification_runtime.erro,
         )
+    mission_read_service = None
+
     mission_runtime = ativar_missoes_runtime(
         caminho_banco=user_identity_db,
         user_identity_repository=(user_identity_repository),
@@ -127,6 +130,11 @@ def main() -> int:
 
     if mission_runtime.ativo:
         os.environ["MISSIONS_COMMUNITY_RUNTIME_ATIVO"] = "1"
+
+        if mission_runtime.service is not None:
+            mission_read_service = MissionReadService(
+                mission_runtime.service,
+            )
 
         mission_reconciliacao = mission_runtime.reconciliacao
 
@@ -230,6 +238,7 @@ def main() -> int:
         user_personalization_service=user_personalization_service,
         personalized_feed_service=personalized_feed_service,
         gamification_read_service=gamification_read_service,
+        mission_read_service=mission_read_service,
     )
 
     try:

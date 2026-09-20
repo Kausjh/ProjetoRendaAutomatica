@@ -401,7 +401,9 @@ def test_contract_e_roadmap_7c2():
 
     assert "status: em execucao" in roadmap_fold
 
-    assert "7a, 7b, 7c1 e 7c2" in roadmap_fold
+    assert "controlled runtime activation:** " "concluida e validada em producao." in roadmap_fold
+
+    assert "validacao operacional da 7c2" in roadmap_fold
 
     assert "comentarios vinculados" in roadmap_fold
 

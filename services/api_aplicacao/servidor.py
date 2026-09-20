@@ -30,6 +30,7 @@ from services.api_aplicacao.user_facing_http import (
     ErroHttpUserFacing,
     UserFacingHttpFoundation,
 )
+from services.api_aplicacao.user_facing_missions import UserFacingMissionsController
 from services.api_aplicacao.user_facing_preferences import (
     UserFacingPreferencesController,
 )
@@ -38,6 +39,7 @@ from services.api_aplicacao.user_facing_watchlist import (
 )
 from services.community_discovery_service import CommunityDiscoveryService
 from services.gamification_read_service import GamificationReadService
+from services.mission_read_service import MissionReadService
 
 if TYPE_CHECKING:
     from models.user_identity import ContaUsuario
@@ -62,6 +64,7 @@ class ServidorApiAplicacao:
         gamification_read_service: GamificationReadService | None = None,
         community_discovery_service: CommunityDiscoveryService | None = None,
         user_facing_abuse_controls: UserFacingAbuseControls | None = None,
+        mission_read_service: MissionReadService | None = None,
     ) -> None:
         load_dotenv()
 
@@ -97,6 +100,7 @@ class ServidorApiAplicacao:
         self.user_facing_gamification = UserFacingGamificationController(
             gamification_read_service,
         )
+        self.user_facing_missions = UserFacingMissionsController(mission_read_service)
 
         if community_discovery_service is None and user_identity_service is not None:
             identity_repository = getattr(
@@ -183,6 +187,7 @@ class ServidorApiAplicacao:
         user_facing_watchlist = self.user_facing_watchlist
         user_facing_feed = self.user_facing_feed
         user_facing_gamification = self.user_facing_gamification
+        user_facing_missions = self.user_facing_missions
         user_facing_community_discovery = self.user_facing_community_discovery
         abuse_controls = self.user_facing_abuse_controls
 
@@ -207,6 +212,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/devices",
                         "/api/v1/me/feed",
                         "/api/v1/me/gamification",
+                        "/api/v1/me/missions",
                         "/api/v1/me/discoveries",
                     }:
                         self._responder_erro_user_facing(
@@ -249,6 +255,25 @@ class ServidorApiAplicacao:
 
                     try:
                         status, dados = user_facing_gamification.obter(
+                            conta,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
+                    return
+
+                if rota == "/api/v1/me/missions":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_missions.obter(
                             conta,
                         )
                     except ErroHttpUserFacing as erro:

@@ -1,0 +1,77 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-missions",
+  "missions_read_http_version": 1,
+  "stage": "missions-read-api",
+  "route": {
+    "method": "GET",
+    "path": "/api/v1/me/missions",
+    "requires_user_session": true,
+    "identity_source": "X-User-Session",
+    "client_account_id_accepted": false,
+    "writes_state": false
+  },
+  "response": {
+    "envelope": "user-facing-v1",
+    "fields": [
+      "ruleset_version",
+      "instancia_chave",
+      "resumo",
+      "missoes"
+    ],
+    "summary_fields": [
+      "total",
+      "concluidas",
+      "em_andamento",
+      "nao_iniciadas",
+      "rewards_pending",
+      "rewards_granted"
+    ],
+    "mission_fields": [
+      "codigo",
+      "titulo",
+      "descricao",
+      "progresso_atual",
+      "progresso_alvo",
+      "percentual",
+      "concluida",
+      "concluida_em",
+      "atualizado_em",
+      "recompensa"
+    ],
+    "reward_fields": [
+      "tipo",
+      "quantidade",
+      "status",
+      "concedida_em"
+    ],
+    "reward_statuses": [
+      "locked",
+      "pending",
+      "granted"
+    ]
+  },
+  "source_of_truth": {
+    "mission_definition": "production mission catalog",
+    "progress": "mission_progress",
+    "rewards": "mission_reward_grants",
+    "client_computed_progress": false
+  },
+  "security": {
+    "account_id_from_query": false,
+    "account_id_from_body": false,
+    "session_required": true,
+    "infrastructure_bearer_preserved": true
+  },
+  "boundaries": {
+    "event_history_exposed": false,
+    "reward_grant_id_exposed": false,
+    "gamification_reference_exposed": false,
+    "write_api": false,
+    "public_app_integration": false,
+    "community_reputation": false,
+    "social_rankings": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "missions-read-api-production-validation-v1"
+}
