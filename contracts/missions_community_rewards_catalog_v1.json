@@ -1,0 +1,76 @@
+{
+  "schema": "projeto-renda-automatica.missions-community-rewards-catalog",
+  "version": 1,
+  "stage": "7B-production-mission-catalog-reward-policy",
+  "ruleset_version": "missions-community-rewards-production-v1",
+  "missions": [
+    {
+      "code": "community_primeira_aprovada",
+      "source_event": "community_discovery_approved",
+      "target": 1,
+      "reward_xp": 20,
+      "settlement_event_type": "mission_reward_community_primeira_aprovada"
+    },
+    {
+      "code": "community_cinco_aprovadas",
+      "source_event": "community_discovery_approved",
+      "target": 5,
+      "reward_xp": 50,
+      "settlement_event_type": "mission_reward_community_cinco_aprovadas"
+    },
+    {
+      "code": "community_dez_aprovadas",
+      "source_event": "community_discovery_approved",
+      "target": 10,
+      "reward_xp": 100,
+      "settlement_event_type": "mission_reward_community_dez_aprovadas"
+    }
+  ],
+  "instance_policy": {
+    "scope": "account_lifetime",
+    "instance_key": "lifetime",
+    "recurring": false,
+    "daily": false,
+    "weekly": false,
+    "monthly": false
+  },
+  "community_event_policy": {
+    "origin": "community_discovery_v1",
+    "count_status": "approved",
+    "count_received": false,
+    "count_processing": false,
+    "count_retry": false,
+    "count_rejected": false,
+    "idempotency_key": "v1:community-approved:{discovery_id}"
+  },
+  "reward_policy": {
+    "type": "xp",
+    "lifetime_cap_xp": 170,
+    "reputation": 0,
+    "grant_initial_status": "pending",
+    "settlement_to_gamification": false,
+    "settlement_event_types_fixed": true
+  },
+  "reconciliation_policy": {
+    "existing_approved": true,
+    "strategy": "replay-approved-discoveries-idempotently",
+    "source_identity": "discovery_id",
+    "activate_live_wiring_only_after_success": true
+  },
+  "boundaries": {
+    "community_discovery_wiring": false,
+    "community_discovery_reconciliation_run": false,
+    "gamification_rules_extended": false,
+    "reward_settlement_runtime": false,
+    "runtime_wiring": false,
+    "public_api": false,
+    "public_app": false,
+    "missions_ui": false,
+    "community_reputation": false,
+    "contributor_trust": false,
+    "social_ranking": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "7C-community-approved-wiring-reconciliation"
+}
