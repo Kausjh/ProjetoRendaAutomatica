@@ -800,10 +800,12 @@ A Fase 1 foi concluída com 30/30 blocos.
 
 - **Etapas 1 a 6:** concluídas.
 - **Etapa 7 — Missions & Community Rewards V1:** em execução;
-  7A, 7B, 7C1, 7C2, 7D e 7E concluídas; 7F é a próxima subetapa.
+  7A, 7B, 7C1, 7C2, 7D, 7E e 7F concluídas; 7G é a próxima subetapa.
   A 7D foi validada em produção, incluindo o Live Reward Settlement.
   A 7E foi validada em produção com `GET /api/v1/me/missions`
   autenticado e somente-leitura.
+  A 7F foi validada no Android real com o painel `Missões da comunidade`
+  integrado à tela de Conta, usando estado server-side e rewards reais.
 - **Etapa 8 — Community Reputation & Trust V1:** planejada.
 - **Etapa 9 — Social / Competitive Layer V1:** planejada com comentários,
   respostas, reações, perfis públicos opcionais e rankings.

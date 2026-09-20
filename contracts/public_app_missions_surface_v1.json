@@ -1,6 +1,6 @@
 {
   "public_app_missions_surface_version": 1,
-  "phase": "7F2",
+  "phase": "7F3",
   "backend": {
     "path": "/api/v1/me/missions",
     "requires_user_session": true,
@@ -39,7 +39,7 @@
     "community_reputation": false,
     "offer_scoring_change": false
   },
-  "next_step": "7F3-public-app-missions-real-validation",
+  "next_step": "7G-operational-close",
   "ui": {
     "summary_metrics": true,
     "mission_progress_bar": true,
@@ -48,5 +48,48 @@
     "manual_refresh": true,
     "loading_state": true,
     "error_retry_state": true
+  },
+  "status": "completed",
+  "real_validation": {
+    "validated": true,
+    "date": "2026-09-20",
+    "device": "Samsung SM-M526B",
+    "android_version": "13",
+    "package": "com.rendaautomatica.app",
+    "development_client": true,
+    "metro_transport": "adb-reverse",
+    "metro_port": 8081,
+    "api_transport": "adb-reverse",
+    "api_port": 8766,
+    "api_health": "ok",
+    "runtime_errors_observed": false,
+    "observed_summary": {
+      "completed": 1,
+      "in_progress": 2,
+      "rewards_granted": 1
+    },
+    "observed_missions": [
+      {
+        "code": "community_primeira_aprovada",
+        "progress": "1/1",
+        "percent": 100,
+        "reward": "20 XP",
+        "reward_status": "granted"
+      },
+      {
+        "code": "community_cinco_aprovadas",
+        "progress": "1/5",
+        "percent": 20,
+        "reward": "50 XP",
+        "reward_status": "locked"
+      },
+      {
+        "code": "community_dez_aprovadas",
+        "progress": "1/10",
+        "percent": 10,
+        "reward": "100 XP",
+        "reward_status": "locked"
+      }
+    ]
   }
 }

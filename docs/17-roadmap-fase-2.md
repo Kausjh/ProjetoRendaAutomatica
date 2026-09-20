@@ -310,7 +310,7 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2, 7D E 7E CONCLUÍDAS; 7F PRÓXIMA**
+**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2, 7D, 7E E 7F CONCLUÍDAS; 7G PRÓXIMA**
 
 ### Objetivo
 
@@ -350,8 +350,11 @@ Transformar contribuições úteis em missões e recompensas verificáveis.
 - **7E — Missions Read API:** concluída e validada em produção.
   - **7E1 — Mission Read Core:** concluída.
   - **7E2 — HTTP Wiring:** concluída.
-- **7F — Public App Missions Surface:** próxima.
-- **7G — Fechamento operacional:** planejada.
+- **7F — Public App Missions Surface:** concluída e validada no Android real.
+  - **7F1 — Client / Read Model:** concluída no commit `3a3c65c`.
+  - **7F2 — Public App Missions Panel:** concluída no commit `b3393c8`.
+  - **7F3 — Real Android Validation:** concluída no Samsung SM-M526B / Android 13.
+- **7G — Fechamento operacional:** próxima.
 
 ### Validação operacional da 7C2
 
@@ -426,11 +429,39 @@ O ambiente real confirmou:
 - sessão temporária do canário revogada ao final;
 - SQLite íntegro e 0 erros de foreign key.
 
+### Validação operacional da 7F
+
+Concluída em 20/09/2026.
+
+A 7F integrou a Missions Read API ao aplicativo público sem transferir autoridade de progresso, conclusão ou rewards para o cliente.
+
+A implementação foi dividida em três passos:
+
+- **7F1 — Client / Read Model:** cliente autenticado, presenter e React Query; commit `3a3c65c`;
+- **7F2 — Public App Missions Panel:** painel integrado à tela de Conta; commit `b3393c8`;
+- **7F3 — Real Android Validation:** validação ponta a ponta em dispositivo Android real.
+
+A validação real confirmou:
+
+- Samsung SM-M526B com Android 13;
+- development client `com.rendaautomatica.app`;
+- Metro acessado por `adb reverse` na porta 8081;
+- Application API acessada por `adb reverse` na porta 8766;
+- configuração e sessão existentes preservadas;
+- painel `Missões da comunidade` renderizado na tela de Conta;
+- resumo real com 1 missão concluída, 2 em andamento e 1 reward recebido;
+- `community_primeira_aprovada` em 1/1, 100%, com 20 XP recebidos;
+- `community_cinco_aprovadas` em 1/5, 20%, com 50 XP bloqueados;
+- `community_dez_aprovadas` em 1/10, 10%, com 100 XP bloqueados;
+- barras de progresso coerentes com os valores server-side;
+- estados `granted` e `locked` apresentados corretamente;
+- nenhum erro `ReactNativeJS`, `FATAL EXCEPTION`, `AndroidRuntime`, `TypeError`, `ReferenceError` ou exceção não tratada observado no smoke final.
+
 ### Próxima subetapa
 
-**7F — Public App Missions Surface**
+**7G — Fechamento operacional**
 
-A 7F deve consumir a Missions Read API no aplicativo e apresentar progresso, conclusão e recompensas sem recalcular estado de missão no cliente.
+A 7G deve consolidar a Etapa 7, revisar contratos, documentação, estado operacional e invariantes antes da transição para a Etapa 8.
 
 Community Reputation & Trust permanece reservada para a Etapa 8.
 
@@ -654,7 +685,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2, 7D e 7E concluídas; 7F próxima |
+| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2, 7D, 7E e 7F concluídas; 7G próxima |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
@@ -685,10 +716,12 @@ A 7D foi validada em produção em 20/09/2026:
 - runtime e Chrome/CDP `HEALTHY`;
 - SQLite íntegro e sem erros de foreign key.
 
+A 7F foi concluída e validada no Android real, com a Missions Read API integrada à tela de Conta e sem transferir autoridade de XP, rewards ou estado das missões para o cliente.
+
 A próxima subetapa é:
 
-**7F — Public App Missions Surface**
+**7G — Fechamento operacional**
 
-A 7F deve integrar a Missions Read API ao aplicativo, apresentando progresso, conclusão e recompensas sem permitir que o cliente se torne autoridade sobre XP, reputação ou estado das missões.
+A 7G deve consolidar os contratos, evidências, invariantes e estado operacional da Etapa 7 antes de sua conclusão formal.
 
 Community Reputation & Trust continua reservada para a Etapa 8 e a camada social/competitiva continua reservada para a Etapa 9.
