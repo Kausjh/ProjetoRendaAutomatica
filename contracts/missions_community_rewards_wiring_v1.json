@@ -1,0 +1,57 @@
+{
+  "schema": "projeto-renda-automatica.missions-community-rewards-wiring",
+  "version": 1,
+  "stage": "7C1-community-approved-wiring-reconciliation-service",
+  "source_event": {
+    "type": "community_discovery_approved",
+    "source": "server-side-approved-transition",
+    "origin": "community_discovery_v1",
+    "required_status": "approved",
+    "received_counts": false,
+    "processing_counts": false,
+    "retry_counts": false,
+    "rejected_counts": false
+  },
+  "wiring": {
+    "missions_per_approved": 3,
+    "idempotency_key": "v1:community-approved:{discovery_id}",
+    "instance_key": "lifetime",
+    "metadata": {
+      "status": "approved"
+    },
+    "errors_are_reported": true,
+    "live_queue_injection": false
+  },
+  "reconciliation": {
+    "source": "existing-approved-community-discoveries",
+    "ordering": "created_at_then_id",
+    "batching": true,
+    "idempotent_replay": true,
+    "must_succeed_before_live_wiring": true,
+    "run_on_production_database": false
+  },
+  "expected_single_approved": {
+    "mission_events_created_first_run": 3,
+    "mission_events_idempotent_second_run": 3,
+    "missions_completed_first_run": 1,
+    "pending_rewards_first_run": 1,
+    "reward_xp_pending": 20
+  },
+  "boundaries": {
+    "production_database_mutation": false,
+    "mission_tables_real_activation": false,
+    "community_queue_modified": false,
+    "live_wiring": false,
+    "runtime_wiring": false,
+    "reward_settlement": false,
+    "gamification_rules_extended": false,
+    "public_api": false,
+    "public_app": false,
+    "community_reputation": false,
+    "contributor_trust": false,
+    "social_ranking": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "7C2-controlled-runtime-activation"
+}
