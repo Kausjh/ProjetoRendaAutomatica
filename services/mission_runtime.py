@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,15 +20,43 @@ from repositories.user_identity_repository import (
 from services.mission_community_approved_wiring import (
     MissionCommunityApprovedWiring,
 )
+from services.mission_community_live_settlement_wiring import (
+    MissionCommunityLiveSettlementWiring,
+)
 from services.mission_community_reconciliation_service import (
     MissionCommunityReconciliationService,
 )
 from services.mission_production_catalog import (
     criar_catalogo_missoes_producao_v1,
 )
+from services.mission_reward_settlement_runtime import (
+    criar_componentes_reward_settlement,
+)
 from services.mission_service import (
     MissionService,
 )
+
+logger = logging.getLogger(__name__)
+
+LIVE_REWARD_SETTLEMENT_FLAG = "MISSIONS_COMMUNITY_LIVE_REWARD_SETTLEMENT_ATIVO"
+
+
+def _live_reward_settlement_ativo() -> bool:
+    valor = (
+        os.getenv(
+            LIVE_REWARD_SETTLEMENT_FLAG,
+            "",
+        )
+        .strip()
+        .casefold()
+    )
+
+    return valor in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,15 +100,40 @@ def _criar_service_e_wiring(
 def criar_wiring_missoes_live(
     *,
     caminho_banco: str | Path,
-) -> MissionCommunityApprovedWiring:
+) -> MissionCommunityApprovedWiring | MissionCommunityLiveSettlementWiring:
     identity_repository = UserIdentityRepository(caminho_banco)
 
-    _, wiring = _criar_service_e_wiring(
+    mission_service, wiring = _criar_service_e_wiring(
         caminho_banco=caminho_banco,
         user_identity_repository=(identity_repository),
     )
 
-    return wiring
+    if not _live_reward_settlement_ativo():
+        return wiring
+
+    try:
+        (
+            settlement_service,
+            _,
+        ) = criar_componentes_reward_settlement(
+            caminho_banco=caminho_banco,
+            user_identity_repository=(identity_repository),
+            mission_service=mission_service,
+        )
+
+        return MissionCommunityLiveSettlementWiring(
+            mission_wiring=wiring,
+            settlement_service=settlement_service,
+        )
+
+    except Exception:
+        logger.exception(
+            "Live reward settlement indisponivel; "
+            "mission wiring permanecera ativo "
+            "sem settlement live."
+        )
+
+        return wiring
 
 
 def ativar_missoes_runtime(

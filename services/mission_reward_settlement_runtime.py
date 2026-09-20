@@ -34,6 +34,37 @@ class ResultadoAtivacaoRewardSettlement:
     erro: str | None
 
 
+def criar_componentes_reward_settlement(
+    *,
+    caminho_banco: str | Path,
+    user_identity_repository: UserIdentityRepository,
+    mission_service: MissionService,
+) -> tuple[
+    MissionRewardSettlementService,
+    GamificationService,
+]:
+    catalogo = criar_catalogo_missoes_producao_v1()
+
+    ruleset = criar_ruleset_gamificacao_com_rewards_missoes_v1(catalogo)
+
+    gamification_service = GamificationService(
+        GamificationRepository(caminho_banco),
+        user_identity_repository,
+        ruleset,
+    )
+
+    settlement_service = MissionRewardSettlementService(
+        mission_service=mission_service,
+        gamification_service=gamification_service,
+        catalogo=catalogo,
+    )
+
+    return (
+        settlement_service,
+        gamification_service,
+    )
+
+
 def ativar_reward_settlement_runtime(
     *,
     caminho_banco: str | Path,
@@ -42,20 +73,13 @@ def ativar_reward_settlement_runtime(
     limite: int = 100,
 ) -> ResultadoAtivacaoRewardSettlement:
     try:
-        catalogo = criar_catalogo_missoes_producao_v1()
-
-        ruleset = criar_ruleset_gamificacao_com_rewards_missoes_v1(catalogo)
-
-        gamification_service = GamificationService(
-            GamificationRepository(caminho_banco),
-            user_identity_repository,
-            ruleset,
-        )
-
-        settlement_service = MissionRewardSettlementService(
-            mission_service=(mission_service),
-            gamification_service=(gamification_service),
-            catalogo=catalogo,
+        (
+            settlement_service,
+            gamification_service,
+        ) = criar_componentes_reward_settlement(
+            caminho_banco=caminho_banco,
+            user_identity_repository=(user_identity_repository),
+            mission_service=mission_service,
         )
 
         reconciliacao = settlement_service.liquidar_pendentes(limite=limite)
