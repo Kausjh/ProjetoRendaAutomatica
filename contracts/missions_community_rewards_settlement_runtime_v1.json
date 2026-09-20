@@ -1,0 +1,55 @@
+{
+  "schema": "projeto-renda-automatica.missions-community-rewards-settlement-runtime",
+  "version": 1,
+  "stage": "7D2-runtime-settlement-reconciliation",
+  "depends_on": {
+    "core_stage": "7D1-reward-settlement-core",
+    "core_commit": "3dcdbaa"
+  },
+  "runtime_component": {
+    "function": "ativar_reward_settlement_runtime",
+    "mission_service_injected": true,
+    "dedicated_gamification_service": true,
+    "compound_ruleset": true,
+    "pending_rewards_reconciled": true,
+    "batch_failure_reported": true,
+    "exceptions_captured": true
+  },
+  "ordering_contract": {
+    "gamification_reconciliation_first": true,
+    "mission_reconciliation_second": true,
+    "reward_settlement_third": true,
+    "personalized_feed_after_settlement": true,
+    "runtime_py_wiring_currently_present": false
+  },
+  "recovery": {
+    "strategy": "recoverable-two-step",
+    "retry_safe": true,
+    "reward_grant_id_is_dedup_source": true,
+    "partial_batch_possible": true,
+    "partial_batch_retry_safe": true
+  },
+  "boundaries": {
+    "runtime_py_modified": false,
+    "production_activation_run": false,
+    "production_database_mutation": false,
+    "real_reward_settled": false,
+    "public_api": false,
+    "public_app": false,
+    "community_reputation": false,
+    "contributor_trust": false,
+    "social_ranking": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "expected_real_state": {
+    "pending_rewards": 1,
+    "pending_reward_xp": 20,
+    "granted_rewards": 0,
+    "mission_reward_events": 0,
+    "gamification_xp": 140,
+    "gamification_events": 7,
+    "community_reputation": 0
+  },
+  "next_step": "7D3-controlled-runtime-wiring"
+}
