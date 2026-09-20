@@ -23,6 +23,7 @@ from repositories.user_personalization_repository import (
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
 from services.controle.servidor_status import ServidorStatusAdministrativo
+from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
 from services.personalized_feed_service import PersonalizedFeedService
@@ -96,8 +97,13 @@ def main() -> int:
         user_personalization_service=(user_personalization_service),
     )
 
+    gamification_read_service = None
+
     if gamification_runtime.ativo:
         reconciliacao = gamification_runtime.reconciliacao
+
+        if gamification_runtime.service is not None:
+            gamification_read_service = GamificationReadService(gamification_runtime.service)
 
         logger.info(
             "Gamification runtime ativo | " "contas=%s criados=%s " "idempotentes=%s",
@@ -120,6 +126,7 @@ def main() -> int:
         user_identity_service=user_identity_service,
         user_personalization_service=user_personalization_service,
         personalized_feed_service=personalized_feed_service,
+        gamification_read_service=gamification_read_service,
     )
 
     try:

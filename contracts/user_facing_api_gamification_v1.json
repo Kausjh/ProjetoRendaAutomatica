@@ -1,0 +1,67 @@
+{
+  "schema": "projeto-renda-automatica.user-facing-api-gamification",
+  "gamification_read_http_version": 1,
+  "stage": "gamification-read-api",
+  "route": {
+    "method": "GET",
+    "path": "/api/v1/me/gamification",
+    "requires_user_session": true,
+    "identity_source": "X-User-Session",
+    "client_account_id_accepted": false,
+    "writes_state": false
+  },
+  "response": {
+    "envelope": "user-facing-v1",
+    "fields": [
+      "perfil",
+      "progresso_nivel",
+      "conquistas",
+      "badges_desbloqueadas",
+      "ruleset_version"
+    ],
+    "perfil_fields": [
+      "xp_total",
+      "nivel",
+      "reputacao_total",
+      "eventos_total",
+      "atualizado_em"
+    ],
+    "level_progress_fields": [
+      "nivel_atual",
+      "xp_total",
+      "xp_inicio_nivel",
+      "xp_proximo_nivel",
+      "xp_no_nivel",
+      "xp_necessario_no_nivel",
+      "xp_faltante",
+      "percentual",
+      "nivel_maximo"
+    ],
+    "achievement_fields": [
+      "codigo",
+      "nome",
+      "descricao",
+      "badge",
+      "desbloqueada",
+      "progresso_atual",
+      "progresso_alvo"
+    ]
+  },
+  "source_of_truth": {
+    "xp_and_reputation": "gamification ledger/profile",
+    "levels": "production ruleset",
+    "achievements": "gamification_achievements",
+    "client_computed_progress": false
+  },
+  "boundaries": {
+    "event_history_exposed": false,
+    "write_api": false,
+    "public_app_integration": false,
+    "missions": false,
+    "community_reputation": false,
+    "community_discovery_scoring": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "gamification-public-app-surface-v1"
+}

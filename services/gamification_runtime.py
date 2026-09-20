@@ -39,6 +39,7 @@ from services.user_personalization_service import (
 @dataclass(frozen=True, slots=True)
 class ResultadoAtivacaoGamificacao:
     ativo: bool
+    service: GamificationService | None
     reconciliacao: ResultadoReconciliacaoGamificacao | None
     erro: str | None
 
@@ -74,6 +75,7 @@ def ativar_gamificacao_runtime(
         if not reconciliacao.sucesso:
             return ResultadoAtivacaoGamificacao(
                 ativo=False,
+                service=None,
                 reconciliacao=reconciliacao,
                 erro=("reconciliacao_incompleta"),
             )
@@ -84,6 +86,7 @@ def ativar_gamificacao_runtime(
 
         return ResultadoAtivacaoGamificacao(
             ativo=True,
+            service=gamification_service,
             reconciliacao=reconciliacao,
             erro=None,
         )
@@ -91,6 +94,7 @@ def ativar_gamificacao_runtime(
     except Exception as exc:
         return ResultadoAtivacaoGamificacao(
             ativo=False,
+            service=None,
             reconciliacao=None,
             erro=(f"{type(exc).__name__}: " f"{exc}"),
         )
