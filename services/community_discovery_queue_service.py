@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 from models.community_discovery import DescobertaComunitaria
 from repositories.community_discovery_repository import (
     CommunityDiscoveryRepository,
 )
+
+
+class ResultadoCommunityApprovalHook(Protocol):
+    sucesso: bool
+    falhas: tuple[str, ...]
+
+
+class CommunityApprovalHook(Protocol):
+    def processar_aprovacao(
+        self,
+        *,
+        descoberta_id: str,
+        conta_id: str,
+        status: str,
+        ocorrido_em: str,
+    ) -> ResultadoCommunityApprovalHook: ...
+
+
+logger = logging.getLogger(__name__)
 
 
 class CommunityDiscoveryQueueService:
@@ -21,6 +42,7 @@ class CommunityDiscoveryQueueService:
         atraso_max_segundos: int = 3600,
         timeout_processamento_segundos: int = 900,
         agora_provider: Callable[[], datetime] | None = None,
+        approval_hook: CommunityApprovalHook | None = None,
     ) -> None:
         if max_tentativas < 1:
             raise ValueError("max_tentativas precisa ser positivo.")
@@ -37,6 +59,7 @@ class CommunityDiscoveryQueueService:
         self.atraso_max_segundos = int(atraso_max_segundos)
         self.timeout_processamento_segundos = int(timeout_processamento_segundos)
         self.agora_provider = agora_provider or (lambda: datetime.now(UTC))
+        self.approval_hook = approval_hook
 
     def _agora(self) -> datetime:
         agora = self.agora_provider()
@@ -96,7 +119,36 @@ class CommunityDiscoveryQueueService:
         ):
             raise ValueError("Somente descoberta em processing pode ser aprovada.")
 
-        return self._obter_obrigatoria(descoberta_id)
+        aprovada = self._obter_obrigatoria(descoberta_id)
+
+        if self.approval_hook is not None:
+            try:
+                resultado = self.approval_hook.processar_aprovacao(
+                    descoberta_id=(aprovada.id),
+                    conta_id=(aprovada.conta_id),
+                    status=(aprovada.status),
+                    ocorrido_em=(aprovada.atualizado_em),
+                )
+
+                if not resultado.sucesso:
+                    logger.error(
+                        "Community approved persistido, "
+                        "mas hook pos-aprovacao "
+                        "retornou falha | "
+                        "descoberta=%s falhas=%s",
+                        aprovada.id,
+                        resultado.falhas,
+                    )
+
+            except Exception:
+                logger.exception(
+                    "Community approved persistido, "
+                    "mas hook pos-aprovacao falhou | "
+                    "descoberta=%s",
+                    aprovada.id,
+                )
+
+        return aprovada
 
     def rejeitar(
         self,

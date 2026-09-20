@@ -310,27 +310,50 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: PRÓXIMA MACROETAPA**
+**Status: EM EXECUÇÃO — 7A, 7B E 7C1 CONCLUÍDAS; 7C2 EM IMPLEMENTAÇÃO**
+
 ### Objetivo
 
 Transformar contribuições úteis em missões e recompensas verificáveis.
 
-### Escopo previsto
+### Regras já fechadas
 
-- missões;
-- desafios;
-- objetivos;
-- progresso;
+- progresso server-side;
 - conclusão server-side;
-- recompensas;
-- integração com contribuições comunitárias;
-- proteção contra duplicação e abuso.
+- reward grant auditável;
+- idempotência;
+- apenas `community_discovery_approved` gera progresso;
+- missões V1 lifetime;
+- teto inicial de 170 XP;
+- reputação comunitária permanece fora da Etapa 7.
 
-A Descoberta Comunitária existente funciona como infraestrutura habilitadora
-desta etapa, mas não representa sua conclusão.
+### Catálogo V1
+
+| Missão | Alvo | Recompensa |
+| --- | ---: | ---: |
+| Primeira descoberta aprovada | 1 | 20 XP |
+| Cinco descobertas aprovadas | 5 | 50 XP |
+| Dez descobertas aprovadas | 10 | 100 XP |
+
+### Subetapas
+
+- **7A — Mission Engine Core:** concluída.
+- **7B — Production Mission Catalog & Reward Policy:** concluída.
+- **7C1 — Approved Wiring + Reconciliation Service:** concluída.
+- **7C2 — Controlled Runtime Activation:** em implementação.
+- **7D — Reward Settlement to Gamification:** planejada.
+- **7E — Missions Read API:** planejada.
+- **7F — Public App Missions Surface:** planejada.
+- **7G — Fechamento operacional:** planejada.
+
+### Regra da 7C2
+
+A reconciliação histórica deve terminar sem falhas antes do live wiring.
+
+Falhas do Mission Engine não podem desfazer uma descoberta já persistida
+como `approved`.
 
 ---
-
 ## Etapa 8 — Community Reputation & Trust V1
 
 **Status: PLANEJADA**
@@ -346,31 +369,152 @@ Construir confiança mensurável em contribuições da comunidade.
 - sinais confirmados e rejeitados;
 - confiança do contribuidor;
 - prevenção de manipulação;
-- moderação e auditoria;
-- separação entre reputação social e evidência objetiva do marketplace.
+- moderação;
+- denúncia;
+- auditoria;
+- indicadores contextuais de contribuidor confiável;
+- separação entre evidência objetiva, reputação social e opinião.
+
+### Regra
+
+Comentários, votos e reações podem gerar sinais auxiliares, mas não
+substituem automaticamente evidência objetiva do marketplace.
 
 ---
-
 ## Etapa 9 — Social / Competitive Layer V1
 
-**Status: PLANEJADA**
+**Status: PLANEJADA — ESCOPO EXPANDIDO**
 
 ### Objetivo
 
-Adicionar elementos sociais e competitivos sem degradar a qualidade do produto.
+Adicionar interação comunitária e competição sem transformar o Radar em
+uma rede social genérica.
 
-### Escopo previsto
+### Princípio
 
-- rankings;
-- comparações;
-- progressão pública opcional;
-- desafios comunitários;
-- perfis e conquistas compartilháveis;
-- controles de privacidade;
-- mecanismos anti-abuso.
+**O Radar é uma plataforma de ofertas com pessoas ao redor das ofertas.**
+
+### Comentários em ofertas
+
+- comentários vinculados a uma promoção;
+- respostas a comentários;
+- threads rasas e controladas;
+- curtida ou marcação de comentário útil;
+- edição e remoção do próprio comentário;
+- denúncia;
+- moderação;
+- paginação;
+- anti-spam;
+- rate limiting.
+
+### Interações da promoção
+
+- gostei;
+- acabou?;
+- compartilhar;
+- salvar;
+- cupom expirado;
+- oferta encerrada;
+- preço alterado;
+- disponibilidade;
+- agregação server-side;
+- mecanismos antiabuso.
+
+### Perfil público opcional
+
+Pode apresentar:
+
+- avatar;
+- nome público;
+- nível;
+- XP;
+- badges;
+- conquistas;
+- missões;
+- contribuições aprovadas;
+- comentários úteis;
+- reputação/trust;
+- posição em rankings;
+- controles de privacidade.
+
+Stories, DMs, feed pessoal e follower graph não fazem parte do núcleo.
+
+### Rankings
+
+- ranking geral;
+- ranking de XP;
+- ranking de contribuições;
+- ranking de missões/desafios;
+- ranking por período;
+- visualização da própria posição;
+- privacidade;
+- anti-farming;
+- anti-Sybil.
+
+### Gamificação visual
+
+- badges;
+- cards de conquistas;
+- progresso;
+- posição em ranking;
+- marcos;
+- celebrações discretas.
 
 ---
 
+## Frente transversal — Public App Experience / Visual Polish
+
+**Status: EVOLUÇÃO CONTÍNUA**
+
+Esta frente evolui durante as demais etapas e não precisa esperar a Etapa 9.
+
+### Oferta / promoção
+
+- imagem real do produto;
+- fallback sem imagem;
+- cards de oferta mais ricos;
+- imagem de destaque;
+- marketplace;
+- preço atual;
+- preço anterior confiável;
+- desconto;
+- cupom;
+- CTA principal;
+- tags;
+- histórico de preço;
+- sinais de confiança.
+
+### Feed e sistema visual
+
+- melhor hierarquia;
+- imagens;
+- skeletons;
+- placeholders;
+- microinterações;
+- tipografia;
+- espaçamento;
+- grid;
+- iconografia;
+- contraste;
+- acessibilidade;
+- dark mode consistente;
+- componentes reutilizáveis;
+- animações discretas;
+- identidade visual própria.
+
+### Perfil
+
+- avatar;
+- nível;
+- XP;
+- badges;
+- missões;
+- conquistas;
+- estatísticas;
+- ranking quando disponível;
+- separação entre dados públicos e privados.
+
+---
 ## Etapa 10 — Web / Extensão / Growth Surfaces
 
 **Status: PLANEJADA**
@@ -428,10 +572,11 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Próxima macroetapa |
+| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B e 7C1 concluídas; 7C2 em implementação |
 | 8. Community Reputation & Trust V1 | Planejada |
-| 9. Social / Competitive Layer V1 | Planejada |
+| 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
+| Public App Experience / Visual Polish | Frente transversal ativa |
 
 ---
 
@@ -443,5 +588,18 @@ A proxima macroetapa de produto e:
 
 **Etapa 7 - Missions & Community Rewards V1**
 
-A Etapa 7 deve construir missoes, objetivos, progresso e recompensas
-server-side sem antecipar Community Reputation & Trust V1 da Etapa 8.
+A Etapa 7 está em execução.
+
+7A, 7B e 7C1 estão concluídas. A 7C2 prepara a ativação controlada
+do Mission Engine no runtime real.
+
+A próxima validação deve comprovar:
+
+- criação das três tabelas `mission_*`;
+- reconciliação da descoberta `approved` existente;
+- três eventos criados na primeira reconciliação;
+- três eventos idempotentes na segunda;
+- um reward `pending` de 20 XP;
+- gamification preservada em 140 XP, 7 eventos e reputação 0;
+- live wiring somente depois da reconciliação bem-sucedida;
+- settlement de XP desligado até a 7D.

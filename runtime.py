@@ -26,6 +26,7 @@ from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
+from services.mission_runtime import ativar_missoes_runtime
 from services.personalized_feed_service import PersonalizedFeedService
 from services.runtime.orquestrador import (
     DIRETORIO_PROJETO,
@@ -116,6 +117,40 @@ def main() -> int:
             "Gamification runtime inativo | erro=%s",
             gamification_runtime.erro,
         )
+    mission_runtime = ativar_missoes_runtime(
+        caminho_banco=user_identity_db,
+        user_identity_repository=(user_identity_repository),
+    )
+
+    if mission_runtime.ativo:
+        os.environ["MISSIONS_COMMUNITY_RUNTIME_ATIVO"] = "1"
+
+        mission_reconciliacao = mission_runtime.reconciliacao
+
+        logger.info(
+            "Missions runtime ativo | " "descobertas=%s criados=%s " "idempotentes=%s rewards=%s",
+            (
+                mission_reconciliacao.descobertas_processadas
+                if mission_reconciliacao is not None
+                else 0
+            ),
+            (mission_reconciliacao.eventos_criados if mission_reconciliacao is not None else 0),
+            (
+                mission_reconciliacao.eventos_idempotentes
+                if mission_reconciliacao is not None
+                else 0
+            ),
+            (mission_reconciliacao.recompensas_criadas if mission_reconciliacao is not None else 0),
+        )
+
+    else:
+        os.environ["MISSIONS_COMMUNITY_RUNTIME_ATIVO"] = "0"
+
+        logger.error(
+            "Missions runtime inativo | " "erro=%s",
+            mission_runtime.erro,
+        )
+
     personalized_feed_service = PersonalizedFeedService(
         catalogo_repository=controlador_api.catalogo_repository,
         price_intelligence_repository=controlador_api.price_intelligence_repository,

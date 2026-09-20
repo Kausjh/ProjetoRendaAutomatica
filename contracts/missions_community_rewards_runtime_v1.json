@@ -1,0 +1,67 @@
+{
+  "schema": "projeto-renda-automatica.missions-community-rewards-runtime",
+  "version": 1,
+  "stage": "7C2-controlled-runtime-activation",
+  "runtime": {
+    "mission_tables_initialized": true,
+    "reconciliation_before_live_wiring": true,
+    "historical_approved_source": true,
+    "live_wiring_enabled_only_after_success": true,
+    "activation_environment_flag": "MISSIONS_COMMUNITY_RUNTIME_ATIVO",
+    "pipeline_child_inherits_runtime_environment": true,
+    "production_activation_run": false
+  },
+  "live_wiring": {
+    "approval_persisted_before_hook": true,
+    "hook_failure_reverts_approval": false,
+    "hook_failure_is_logged": true,
+    "scraper_builds_hook_only_when_runtime_active": true,
+    "source_event": "community_discovery_approved"
+  },
+  "expected_first_production_activation": {
+    "approved_rows": 1,
+    "mission_tables": 3,
+    "events_created": 3,
+    "events_idempotent": 0,
+    "missions_completed_now": 1,
+    "pending_rewards": 1,
+    "pending_reward_xp": 20
+  },
+  "expected_second_reconciliation": {
+    "events_created": 0,
+    "events_idempotent": 3,
+    "new_rewards": 0
+  },
+  "gamification_boundary": {
+    "reward_settlement": false,
+    "xp_before_activation": 140,
+    "xp_after_activation_expected": 140,
+    "events_before_activation": 7,
+    "events_after_activation_expected": 7,
+    "community_reputation_expected": 0
+  },
+  "product_roadmap": {
+    "stage7_status": "in-progress",
+    "stage8_community_trust": true,
+    "stage9_comments": true,
+    "stage9_comment_replies": true,
+    "stage9_comment_reactions": true,
+    "stage9_optional_public_profiles": true,
+    "stage9_rankings": true,
+    "visual_polish_transversal": true,
+    "product_images": true,
+    "rich_offer_cards": true
+  },
+  "boundaries": {
+    "reward_settlement": false,
+    "gamification_rules_extended": false,
+    "missions_read_api": false,
+    "missions_public_app": false,
+    "community_reputation": false,
+    "contributor_trust": false,
+    "social_layer_implemented": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "7C2-review-commit-and-controlled-production-restart"
+}

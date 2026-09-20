@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from models.oferta import Oferta
 from repositories.community_discovery_repository import (
@@ -14,6 +15,9 @@ from services.community_discovery_marketplace_adapter import (
 )
 from services.community_discovery_queue_service import (
     CommunityDiscoveryQueueService,
+)
+from services.mission_runtime import (
+    criar_wiring_missoes_live,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +48,31 @@ class CommunityDiscoveryScraper(BaseScraper):
     ) -> None:
         if queue_service is None:
             repository = CommunityDiscoveryRepository(caminho_banco)
-            queue_service = CommunityDiscoveryQueueService(repository)
+
+            approval_hook = None
+
+            if (
+                os.getenv(
+                    "MISSIONS_COMMUNITY_RUNTIME_ATIVO",
+                    "",
+                ).strip()
+                == "1"
+            ):
+                try:
+                    approval_hook = criar_wiring_missoes_live(caminho_banco=(caminho_banco))
+
+                except Exception:
+                    logger.exception(
+                        "Mission live wiring "
+                        "indisponivel no worker; "
+                        "Community Discovery "
+                        "continuara fail-open."
+                    )
+
+            queue_service = CommunityDiscoveryQueueService(
+                repository,
+                approval_hook=approval_hook,
+            )
 
         self.queue_service = queue_service
         self.adapter = adapter or CommunityDiscoveryMarketplaceAdapter()

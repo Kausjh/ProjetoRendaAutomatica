@@ -796,50 +796,20 @@ Documentação: `docs/16-notification-outbox.md`.
 
 A Fase 1 foi concluída com 30/30 blocos.
 
-A Fase 2 transforma a infraestrutura construída em produto utilizável por
-usuários finais e expande progressivamente personalização, comunidade,
-gamificação e novas superfícies.
-
-### Ordem oficial
-
-1. User-Facing API V1
-2. Public App MVP
-3. Device Registration V1
-4. Push Dispatcher V1
-5. Personalized Feed V1
-6. Gamification & Reputation V1
-7. Missions & Community Rewards V1
-8. Community Reputation & Trust V1
-9. Social / Competitive Layer V1
-10. Web / Extensão / Growth Surfaces
-
 ### Estado atual
 
-- **Etapa 1 — User-Facing API V1:** concluída.
-- **Etapa 2 — Public App MVP:** concluída como MVP; o App V3 continua evoluindo.
-- **Etapa 3 — Device Registration V1:** concluída; backend, binding e validação
-  operacional com Expo Push Token real foram comprovados em Android físico.
-- **Etapa 4 — Push Dispatcher V1:** concluída; transporte real validado com
-  ticket e receipt Expo `ok` e entrega visual no dispositivo, enquanto as
-  transições persistentes de outbox e os caminhos de retry permanecem cobertos
-  pela suíte de orquestração.
-- **Etapa 5 — Personalized Feed V1:** concluída; motor de personalização,
-  rota autenticada `GET /api/v1/me/feed`, integração ao Public App e Home
-  personalizada foram validados de ponta a ponta em Android físico com sinais
-  reais da conta e transporte pelo túnel confiável.
-- **Etapa 6 — Gamification & Reputation V1:** concluída; ledger, regras, runtime, API autenticada e superfície Android real foram validados de ponta a ponta.
-- **Etapa 7 — Missions & Community Rewards V1:** próxima macroetapa de produto.
-- **Etapas 8 a 10:** planejadas.
+- **Etapas 1 a 6:** concluídas.
+- **Etapa 7 — Missions & Community Rewards V1:** em execução;
+  7A, 7B e 7C1 concluídas; 7C2 em implementação.
+- **Etapa 8 — Community Reputation & Trust V1:** planejada.
+- **Etapa 9 — Social / Competitive Layer V1:** planejada com comentários,
+  respostas, reações, perfis públicos opcionais e rankings.
+- **Etapa 10 — Web / Extensão / Growth Surfaces:** planejada.
+- **Public App Experience / Visual Polish:** frente transversal ativa para
+  imagens de produtos, cards ricos e evolução estética.
 
-O runtime automático do Push Dispatcher permanece fail-closed por padrão.
-
-A Descoberta Comunitária é uma frente habilitadora para comunidade, reputação,
-missões e gamificação. Sua existência não implica que as Etapas 6 a 9 estejam
-concluídas.
-
-A regra continua sendo não simular capacidade na interface: personalização,
-reputação, ranking, recompensas e competição só devem ser apresentadas como
-funcionais quando existirem regras e dados reais no backend.
+Princípio social: o Radar é uma plataforma de ofertas com pessoas ao redor
+das ofertas, não uma rede social genérica.
 
 Documentação completa: `docs/17-roadmap-fase-2.md`.
 <!-- fase2-roadmap:end -->
