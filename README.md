@@ -827,8 +827,9 @@ gamificação e novas superfícies.
   rota autenticada `GET /api/v1/me/feed`, integração ao Public App e Home
   personalizada foram validados de ponta a ponta em Android físico com sinais
   reais da conta e transporte pelo túnel confiável.
-- **Etapa 6 — Gamification & Reputation V1:** próxima macroetapa.
-- **Etapas 7 a 10:** planejadas.
+- **Etapa 6 — Gamification & Reputation V1:** concluída; ledger, regras, runtime, API autenticada e superfície Android real foram validados de ponta a ponta.
+- **Etapa 7 — Missions & Community Rewards V1:** próxima macroetapa de produto.
+- **Etapas 8 a 10:** planejadas.
 
 O runtime automático do Push Dispatcher permanece fail-closed por padrão.
 

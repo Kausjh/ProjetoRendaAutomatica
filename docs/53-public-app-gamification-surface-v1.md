@@ -54,7 +54,33 @@ A 6E nao permite escrita de gamificacao.
 Ela nao implementa missoes, reputacao comunitaria, trust, historico de
 eventos, alteracao do scoring de ofertas ou Price Intelligence.
 
-## Proximo passo
+## Validacao operacional real
 
-Depois do commit da 6E sera executado smoke no dispositivo Android real e,
-se aprovado, a Etapa 6 sera encerrada formalmente.
+Concluida em 20/09/2026.
+
+O Public App foi validado em um Samsung SM-M526B real usando o development
+client existente e o backend real.
+
+Este smoke no dispositivo Android real confirmou a superficie de
+gamificacao de ponta a ponta.
+
+A tela Perfil exibiu corretamente:
+
+- nivel 2;
+- 140 XP;
+- 40/150 XP no nivel;
+- 110 XP restantes;
+- 27% de progresso;
+- reputacao 0;
+- 3 badges;
+- 3 de 6 conquistas desbloqueadas.
+
+O UI dump confirmou os textos principais da superficie.
+
+Durante a primeira tentativa, ainda na Home, o development client exibiu um
+warning de React sobre state update antes do mount. O warning nao reapareceu
+no reteste da tela Perfil e nao foi atribuido a gamificacao.
+
+A observacao permanece separada e nao invalida o gate da Etapa 6.
+
+Gamification & Reputation V1 esta concluida de ponta a ponta.

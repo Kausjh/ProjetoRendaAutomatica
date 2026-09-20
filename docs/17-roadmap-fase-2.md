@@ -256,13 +256,12 @@ confirmou que itens adicionados à Lista alimentam o feed personalizado real.
 
 ## Etapa 6 — Gamification & Reputation V1
 
-**Status: PRÓXIMA MACROETAPA**
-
+**Status: CONCLUÍDA — VALIDADA DE PONTA A PONTA**
 ### Objetivo
 
 Criar uma fundação persistente de progressão e reputação.
 
-### Escopo previsto
+### Implementado
 
 - eventos de progresso;
 - XP;
@@ -277,12 +276,41 @@ Criar uma fundação persistente de progressão e reputação.
 Gamificação não deve alterar a avaliação objetiva de preço ou qualidade de uma
 oferta.
 
+### Validacao operacional
+
+Concluida em 20/09/2026.
+
+A Etapa 6 foi validada de ponta a ponta com estado real:
+
+- ledger persistente;
+- reconciliacao de usuarios existentes;
+- regras versionadas;
+- idempotencia e limites anti-farming;
+- runtime ativo e fail-safe;
+- API autenticada `GET /api/v1/me/gamification`;
+- 140 XP reais;
+- nivel 2 derivado do ruleset;
+- reputacao 0;
+- 7 eventos no ledger;
+- progresso de 40/150 XP;
+- 110 XP restantes;
+- conquistas e badges derivados server-side;
+- superficie real no Public App;
+- smoke visual aprovado em Samsung SM-M526B.
+
+O nivel continua derivado dos thresholds do ruleset e nao e persistido como
+fonte paralela em `gamification_profiles`.
+
+O cliente nao pode escrever XP, reputacao ou eventos.
+
+Missoes e recompensas comunitarias permanecem reservadas para a Etapa 7.
+Community Reputation & Trust permanece reservada para a Etapa 8.
+
 ---
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: PLANEJADA**
-
+**Status: PRÓXIMA MACROETAPA**
 ### Objetivo
 
 Transformar contribuições úteis em missões e recompensas verificáveis.
@@ -399,28 +427,21 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 3. Device Registration V1 | Concluída; token real validado |
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
-| 6. Gamification & Reputation V1 | Próxima macroetapa |
-| 7. Missions & Community Rewards V1 | Planejada |
+| 6. Gamification & Reputation V1 | Concluída |
+| 7. Missions & Community Rewards V1 | Próxima macroetapa |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
 
 ---
 
-# Próxima decisão de execução
+# Proxima decisao de execucao
 
-Os gates operacionais das Etapas 3 e 4 foram concluídos em 19/09/2026.
+As Etapas 1 a 6 estao concluidas.
 
-A evidência consolidada inclui:
+A proxima macroetapa de produto e:
 
-1. Device Registration com Expo Push Token real em Android físico;
-2. Push Dispatcher com ticket Expo `ok`;
-3. receipt Expo `ok`;
-4. entrega visual confirmada no dispositivo;
-5. transições persistentes da outbox e caminhos de retry validados pela suíte de
-   orquestração;
-6. runtime automático mantido fail-closed.
+**Etapa 7 - Missions & Community Rewards V1**
 
-A próxima macroetapa de produto é:
-
-**Etapa 5 — Personalized Feed V1**
+A Etapa 7 deve construir missoes, objetivos, progresso e recompensas
+server-side sem antecipar Community Reputation & Trust V1 da Etapa 8.
