@@ -1,0 +1,54 @@
+{
+  "schema": "projeto-renda-automatica.missions-community-rewards-core",
+  "version": 1,
+  "stage": "7A-mission-engine-core",
+  "source_of_truth": {
+    "progress": "server-side",
+    "completion": "server-side",
+    "reward_entitlement": "server-side",
+    "client_can_progress": false,
+    "client_can_complete": false,
+    "client_can_grant_reward": false
+  },
+  "persistence": {
+    "progress_event_ledger": true,
+    "progress_snapshot": true,
+    "reward_grant_ledger": true,
+    "same_identity_database": true,
+    "production_database_initialized_by_patch": false
+  },
+  "idempotency": {
+    "scope": [
+      "account",
+      "mission",
+      "ruleset",
+      "instance",
+      "idempotency_key"
+    ],
+    "semantic_collision_fails_closed": true,
+    "completion_creates_one_reward": true,
+    "events_after_completion_ignored": true
+  },
+  "rewards": {
+    "core_reward_type": "xp",
+    "grant_status_initial": "pending",
+    "settlement_to_gamification": false,
+    "reputation_reward": false,
+    "settlement_reference_idempotent": true
+  },
+  "boundaries": {
+    "production_mission_catalog": false,
+    "community_discovery_wiring": false,
+    "community_discovery_reconciliation": false,
+    "runtime_wiring": false,
+    "public_api": false,
+    "public_app": false,
+    "missions_ui": false,
+    "stage8_community_reputation": false,
+    "stage8_contributor_trust": false,
+    "stage9_social_ranking": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "7B-production-mission-catalog-and-reward-policy"
+}
