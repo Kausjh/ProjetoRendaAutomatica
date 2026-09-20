@@ -310,7 +310,7 @@ Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ## Etapa 7 — Missions & Community Rewards V1
 
-**Status: EM EXECUÇÃO — 7A, 7B, 7C1 E 7C2 CONCLUÍDAS; 7D PRÓXIMA**
+**Status: EM EXECUÇÃO — 7A, 7B, 7C1, 7C2 E 7D CONCLUÍDAS; 7E PRÓXIMA**
 
 ### Objetivo
 
@@ -341,8 +341,13 @@ Transformar contribuições úteis em missões e recompensas verificáveis.
 - **7B — Production Mission Catalog & Reward Policy:** concluída.
 - **7C1 — Approved Wiring + Reconciliation Service:** concluída.
 - **7C2 — Controlled Runtime Activation:** concluída e validada em produção.
-- **7D — Reward Settlement to Gamification:** próxima.
-- **7E — Missions Read API:** planejada.
+- **7D — Reward Settlement to Gamification:** concluída e validada em produção.
+  - **7D1 — Core Settlement:** concluída.
+  - **7D2 — Runtime Reconciliation:** concluída.
+  - **7D3 — Guarded Runtime Wiring:** concluída.
+  - **7D4 — Controlled Production Activation:** concluída.
+  - **7D5 — Live Reward Settlement:** concluída, ativa e validada em produção.
+- **7E — Missions Read API:** próxima.
 - **7F — Public App Missions Surface:** planejada.
 - **7G — Fechamento operacional:** planejada.
 
@@ -364,12 +369,48 @@ O ambiente real confirmou:
 - zero erros de foreign key;
 - gamification preservada em 140 XP, 7 eventos e reputação 0.
 
+### Validação operacional da 7D
+
+Concluída em 20/09/2026.
+
+A 7D implementa settlement de rewards de missão para Gamification de forma idempotente e auditável.
+
+A implementação foi dividida em cinco passos:
+
+- **7D1 — Core Settlement:** settlement recoverable e idempotente por reward grant;
+- **7D2 — Runtime Reconciliation:** reconciliação de rewards pendentes;
+- **7D3 — Guarded Runtime Wiring:** integração ao runtime atrás de feature flag;
+- **7D4 — Controlled Production Activation:** primeira liquidação real validada;
+- **7D5 — Live Reward Settlement:** settlement executado durante o fluxo live de aprovação.
+
+A implementação live da 7D5 foi commitada em `93533dc` (`feat: add live mission reward settlement`).
+
+A produção confirmou:
+
+- `MISSIONS_COMMUNITY_LIVE_REWARD_SETTLEMENT_ATIVO=true`;
+- wiring real `MissionCommunityLiveSettlementWiring`;
+- um reward de `community_primeira_aprovada` concedido com 20 XP;
+- zero rewards `pending` ao final;
+- um reward `granted`;
+- um evento `mission_reward_*`;
+- canário idempotente com 0 eventos novos e 3 eventos de missão idempotentes;
+- 0 novos rewards no canário;
+- 0 novos eventos de Gamification no canário;
+- 0 XP duplicado;
+- reputação comunitária preservada em 0;
+- SQLite `integrity_check=ok`;
+- zero erros de foreign key;
+- runtime e Chrome/CDP `HEALTHY`.
+
+Durante o canário final, o estado de Gamification permaneceu em 190 XP, 10 eventos e reputação 0 antes e depois da execução.
+
 ### Próxima subetapa
 
-**7D — Reward Settlement to Gamification**
+**7E — Missions Read API**
 
-A 7D deve liquidar rewards pendentes no ledger de gamification de maneira
-idempotente e auditável sem antecipar Reputation & Trust da Etapa 8.
+A 7E deve expor o estado de missões de forma somente-leitura para o cliente, preservando progresso, conclusão e recompensas como autoridade server-side.
+
+Community Reputation & Trust permanece reservada para a Etapa 8.
 
 ---
 
@@ -591,7 +632,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 4. Push Dispatcher V1 | Concluída; smoke real e receipt validados |
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
-| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1 e 7C2 concluídas; 7D próxima |
+| 7. Missions & Community Rewards V1 | Em execução; 7A, 7B, 7C1, 7C2 e 7D concluídas; 7E próxima |
 | 8. Community Reputation & Trust V1 | Planejada |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
@@ -603,27 +644,29 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 
 As Etapas 1 a 6 estao concluidas.
 
-A proxima macroetapa de produto e:
+A macroetapa de produto atualmente em execução é:
 
 **Etapa 7 - Missions & Community Rewards V1**
 
-A Etapa 7 está em execução.
+7A, 7B, 7C1, 7C2 e 7D estão concluídas.
 
-7A, 7B, 7C1 e 7C2 estão concluídas.
+A 7D foi validada em produção em 20/09/2026:
 
-A 7C2 foi validada em produção em 20/09/2026:
-
-- três tabelas `mission_*`;
-- três eventos de missão;
-- três snapshots de progresso;
-- um reward `pending` de 20 XP;
-- segunda reconciliação com 0 novos e 3 idempotentes;
-- runtime `HEALTHY`;
-- gamification preservada em 140 XP, 7 eventos e reputação 0.
+- settlement core recoverable e idempotente;
+- reconciliação de rewards pendentes no startup;
+- primeiro reward real de 20 XP liquidado;
+- Live Reward Settlement ativo no fluxo de aprovação;
+- canário live idempotente aprovado;
+- 0 rewards pendentes ao final;
+- 0 XP duplicado;
+- 0 eventos de Gamification duplicados;
+- runtime e Chrome/CDP `HEALTHY`;
+- SQLite íntegro e sem erros de foreign key.
 
 A próxima subetapa é:
 
-**7D — Reward Settlement to Gamification**
+**7E — Missions Read API**
 
-A 7D não deve antecipar reputação comunitária, contributor trust,
-rankings ou outras responsabilidades das Etapas 8 e 9.
+A 7E deve expor progresso, conclusão e recompensas para leitura pelo cliente, sem permitir escrita client-side sobre XP, reputação ou estado das missões.
+
+Community Reputation & Trust continua reservada para a Etapa 8 e a camada social/competitiva continua reservada para a Etapa 9.

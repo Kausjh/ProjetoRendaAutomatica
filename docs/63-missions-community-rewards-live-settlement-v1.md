@@ -84,19 +84,64 @@ Valores aceitos para ativacao:
 
 Valor ausente ou desconhecido permanece fail-closed.
 
-## Estado desta implementacao
+## Estado atual
 
-O codigo da 7D5 pode ser commitado com a flag OFF.
+A implementacao da 7D5 foi commitada em `93533dc`
+(`feat: add live mission reward settlement`).
 
-A implementacao nao:
+A ativacao controlada em producao foi concluida em 20/09/2026.
 
-- altera o SQLite real;
-- reinicia o runtime;
-- habilita a feature em producao;
-- altera o scraper manual do Mercado Livre;
-- altera arquivos locais do Expo.
+No ambiente real:
+
+- `MISSIONS_COMMUNITY_LIVE_REWARD_SETTLEMENT_ATIVO=true`;
+- o runtime real foi reciclado cirurgicamente;
+- o supervisor foi preservado;
+- Chrome/CDP permaneceu `HEALTHY`;
+- a factory retornou `MissionCommunityLiveSettlementWiring`;
+- o caminho live foi executado sobre uma descoberta ja aprovada.
+
+## Validacao operacional
+
+O canario idempotente confirmou:
+
+- 0 eventos de missao novos;
+- 3 eventos de missao idempotentes;
+- 0 novas conclusoes de missao;
+- 0 novos rewards;
+- 0 rewards pendentes encontrados pelo settlement;
+- 0 eventos de Gamification criados pelo canario;
+- 0 XP duplicado;
+- 0 rewards duplicados;
+- reputacao comunitaria inalterada;
+- SQLite integro;
+- 0 erros de foreign key.
+
+O estado antes e depois do canario permaneceu:
+
+- 3 `mission_progress_events`;
+- 3 `mission_progress`;
+- 1 reward `granted`;
+- 0 rewards `pending`;
+- 1 evento `mission_reward_*`;
+- 20 XP provenientes de reward de missao;
+- 190 XP totais;
+- 10 eventos totais de Gamification;
+- reputacao 0.
+
+## Fechamento
+
+A 7D esta concluida.
+
+O startup reconciliation permanece como mecanismo de recuperacao.
+O Live Reward Settlement liquida novos rewards durante o fluxo
+normal de aprovacao comunitaria, sem depender de restart.
+
+A 7D continua concedendo apenas XP.
+Community Reputation & Trust permanece responsabilidade da Etapa 8.
 
 ## Proximo passo
 
-Executar ativacao controlada da 7D5 em producao e provar o caminho live
-sem duplicacao de XP.
+**7E - Missions Read API**
+
+A 7E deve expor progresso, conclusao e rewards para leitura pelo cliente
+sem permitir que o cliente escreva XP, reputacao ou estado das missoes.

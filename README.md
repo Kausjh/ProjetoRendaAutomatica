@@ -800,7 +800,8 @@ A Fase 1 foi concluída com 30/30 blocos.
 
 - **Etapas 1 a 6:** concluídas.
 - **Etapa 7 — Missions & Community Rewards V1:** em execução;
-  7A, 7B, 7C1 e 7C2 concluídas; 7D é a próxima subetapa.
+  7A, 7B, 7C1, 7C2 e 7D concluídas; 7E é a próxima subetapa.
+  A 7D foi validada em produção, incluindo o Live Reward Settlement.
 - **Etapa 8 — Community Reputation & Trust V1:** planejada.
 - **Etapa 9 — Social / Competitive Layer V1:** planejada com comentários,
   respostas, reações, perfis públicos opcionais e rankings.
