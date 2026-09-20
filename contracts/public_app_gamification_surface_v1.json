@@ -1,0 +1,59 @@
+{
+  "schema": "projeto-renda-automatica.public-app-gamification-surface",
+  "public_app_gamification_surface_version": 1,
+  "stage": "account-surface",
+  "backend": {
+    "method": "GET",
+    "path": "/api/v1/me/gamification",
+    "requires_user_session": true,
+    "client_account_id": false,
+    "writes_state": false
+  },
+  "architecture": {
+    "module": "apps/public-mobile/src/gamification",
+    "surface": "apps/public-mobile/app/account.tsx",
+    "dedicated_route": false,
+    "bottom_nav_entry": false,
+    "react_query": true,
+    "presenter_between_transport_and_ui": true,
+    "ui_knows_transport_headers": false
+  },
+  "visible": {
+    "level": true,
+    "xp_total": true,
+    "level_progress": true,
+    "xp_to_next_level": true,
+    "reputation": true,
+    "badge_count": true,
+    "achievements": true,
+    "achievement_progress": true,
+    "manual_refresh": true
+  },
+  "source_of_truth": {
+    "xp": "backend",
+    "level": "backend",
+    "level_progress": "backend",
+    "reputation": "backend",
+    "achievements": "backend",
+    "badges": "backend",
+    "client_recalculates_progress": false
+  },
+  "security": {
+    "user_session_via_transport": true,
+    "session_token_visible_to_ui": false,
+    "infrastructure_token_visible_to_ui": false,
+    "account_id_sent_by_client": false
+  },
+  "boundaries": {
+    "xp_write": false,
+    "reputation_write": false,
+    "event_write": false,
+    "event_history": false,
+    "missions": false,
+    "community_reputation": false,
+    "community_discovery_scoring": false,
+    "offer_scoring_change": false,
+    "price_intelligence_change": false
+  },
+  "next_step": "real-device-smoke-and-stage-6-closure"
+}

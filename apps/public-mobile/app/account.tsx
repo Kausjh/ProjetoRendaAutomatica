@@ -20,6 +20,7 @@ import {
   useSaveAccountPreferences,
 } from "@/src/account";
 import { useAuthSession } from "@/src/auth";
+import { GamificationPanel } from "@/src/gamification";
 import { appTheme } from "@/src/ui";
 
 function accountField(
@@ -214,6 +215,8 @@ export default function AccountScreen() {
             )}
           </Pressable>
         </View>
+
+        <GamificationPanel enabled={authenticated} />
 
         <View style={styles.section}>
           <Text style={styles.sectionEyebrow}>PREFERÊNCIAS</Text>

@@ -114,6 +114,14 @@ export class PublicApiClient {
     });
   }
 
+  getGamification<T = unknown>(): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/gamification",
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
   getPreferences<T = unknown>(): Promise<T> {
     return this.transport.request<T>({
       path: "/me/preferences",
