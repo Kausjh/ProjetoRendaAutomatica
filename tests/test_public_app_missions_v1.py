@@ -12,6 +12,8 @@ TYPES = MISSIONS / "mission-types.ts"
 PRESENTER = MISSIONS / "mission-presenter.ts"
 QUERIES = MISSIONS / "mission-queries.ts"
 INDEX = MISSIONS / "index.ts"
+PANEL = MISSIONS / "mission-panel.tsx"
+ACCOUNT = APP / "app" / "account.tsx"
 
 CONTRACT = ROOT / "contracts" / "public_app_missions_surface_v1.json"
 
@@ -25,6 +27,7 @@ def test_missions_source_files_exist():
         TYPES,
         PRESENTER,
         QUERIES,
+        PANEL,
         INDEX,
     )
 
@@ -138,7 +141,7 @@ def test_contract_is_read_only_and_server_authoritative():
     data = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
     assert data["public_app_missions_surface_version"] == 1
-    assert data["phase"] == "7F1"
+    assert data["phase"] == "7F2"
 
     assert data["backend"]["path"] == "/api/v1/me/missions"
 
@@ -150,7 +153,7 @@ def test_contract_is_read_only_and_server_authoritative():
 
     assert data["architecture"]["bottom_nav_entry"] is False
 
-    assert data["architecture"]["ui_panel_in_7f1"] is False
+    assert data["architecture"]["ui_panel_in_7f2"] is True
 
     assert data["source_of_truth"]["client_recalculates_progress"] is False
 
@@ -170,4 +173,96 @@ def test_contract_is_read_only_and_server_authoritative():
     assert boundaries["community_reputation"] is False
     assert boundaries["offer_scoring_change"] is False
 
-    assert data["next_step"] == "7F2-public-app-missions-panel"
+    assert data["next_step"] == "7F3-public-app-missions-real-validation"
+
+
+def test_missions_panel_uses_read_model_and_server_progress():
+    source = read(PANEL)
+
+    expected = (
+        "MissionsPanel",
+        "useMissions",
+        "data.summary.completed",
+        "data.summary.inProgress",
+        "data.summary.rewardsGranted",
+        "data.missions.map",
+        "mission.currentProgress",
+        "mission.targetProgress",
+        "mission.percent",
+        "mission.reward.status",
+        "missions.refetch",
+    )
+
+    for value in expected:
+        assert value in source
+
+
+def test_missions_panel_exposes_all_reward_states():
+    source = read(PANEL)
+
+    assert "recebido" in source
+    assert "pendente" in source
+    assert "bloqueado" in source
+
+
+def test_missions_panel_is_exported():
+    source = read(INDEX)
+
+    assert 'export * from "@/src/missions/mission-panel";' in source
+
+
+def test_account_integrates_missions_panel():
+    source = read(ACCOUNT)
+
+    assert 'import { MissionsPanel } from "@/src/missions";' in source
+
+    assert "<MissionsPanel enabled={authenticated} />" in source
+
+    assert source.index("<GamificationPanel") < source.index("<MissionsPanel")
+
+
+def test_missions_ui_does_not_handle_transport_or_identity():
+    combined = "\n".join(
+        (
+            read(PANEL),
+            read(ACCOUNT),
+        )
+    )
+
+    forbidden = (
+        "X-User-Session",
+        "Authorization",
+        "Bearer ",
+        "API_APLICACAO_TOKEN",
+        "infrastructureToken",
+        "conta_id",
+    )
+
+    for value in forbidden:
+        assert value not in combined
+
+
+def test_contract_describes_7f2_account_panel():
+    data = json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+    architecture = data["architecture"]
+    ui = data["ui"]
+
+    assert data["phase"] == "7F2"
+
+    assert architecture["panel_component"] == "MissionsPanel"
+
+    assert architecture["integrated_surface"] == "account"
+
+    assert architecture["dedicated_route"] is False
+    assert architecture["bottom_nav_entry"] is False
+
+    assert ui["summary_metrics"] is True
+    assert ui["mission_progress_bar"] is True
+
+    assert ui["mission_progress_source"] == "server"
+
+    assert ui["reward_status_visible"] is True
+    assert ui["manual_refresh"] is True
+    assert ui["loading_state"] is True
+    assert ui["error_retry_state"] is True

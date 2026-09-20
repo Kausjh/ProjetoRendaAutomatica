@@ -1,6 +1,6 @@
 {
   "public_app_missions_surface_version": 1,
-  "phase": "7F1",
+  "phase": "7F2",
   "backend": {
     "path": "/api/v1/me/missions",
     "requires_user_session": true,
@@ -16,7 +16,9 @@
     ],
     "dedicated_route": false,
     "bottom_nav_entry": false,
-    "ui_panel_in_7f1": false
+    "panel_component": "MissionsPanel",
+    "integrated_surface": "account",
+    "ui_panel_in_7f2": true
   },
   "source_of_truth": {
     "mission_progress": "server",
@@ -37,5 +39,14 @@
     "community_reputation": false,
     "offer_scoring_change": false
   },
-  "next_step": "7F2-public-app-missions-panel"
+  "next_step": "7F3-public-app-missions-real-validation",
+  "ui": {
+    "summary_metrics": true,
+    "mission_progress_bar": true,
+    "mission_progress_source": "server",
+    "reward_status_visible": true,
+    "manual_refresh": true,
+    "loading_state": true,
+    "error_retry_state": true
+  }
 }
