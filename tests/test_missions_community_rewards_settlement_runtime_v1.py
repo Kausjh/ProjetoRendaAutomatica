@@ -319,12 +319,26 @@ def test_excecao_de_bootstrap_retorna_inativo(
     assert resultado.erro == ("RuntimeError: " "simulated-bootstrap-failure")
 
 
-def test_runtime_py_ainda_nao_possui_wiring_7d2():
-    runtime = (ROOT / "runtime.py").read_text(encoding="utf-8")
+def test_7d2_registra_boundary_historico_sem_wiring():
+    data = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
-    assert "mission_reward_settlement_runtime" not in runtime
+    assert data["stage"] == ("7D2-runtime-settlement-" "reconciliation")
 
-    assert "ativar_reward_settlement_runtime" not in runtime
+    ordering = data["ordering_contract"]
+
+    assert ordering["runtime_py_wiring_currently_present"] is False
+
+    boundaries = data["boundaries"]
+
+    assert boundaries["runtime_py_modified"] is False
+
+    assert boundaries["production_activation_run"] is False
+
+    assert boundaries["production_database_mutation"] is False
+
+    assert boundaries["real_reward_settled"] is False
+
+    assert data["next_step"] == "7D3-controlled-runtime-wiring"
 
 
 def test_contract_7d2_preserva_activation_boundary():

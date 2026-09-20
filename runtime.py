@@ -26,6 +26,9 @@ from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
 from services.launcher.chrome_launcher import encerrar_chrome_automacao
+from services.mission_reward_settlement_runtime import (
+    ativar_reward_settlement_runtime,
+)
 from services.mission_runtime import ativar_missoes_runtime
 from services.personalized_feed_service import PersonalizedFeedService
 from services.runtime.orquestrador import (
@@ -150,6 +153,71 @@ def main() -> int:
             "Missions runtime inativo | " "erro=%s",
             mission_runtime.erro,
         )
+
+    reward_settlement_runtime = None
+
+    if configuracoes.mission_reward_settlement_ativo:
+        prerequisites_ok = (
+            gamification_runtime.ativo
+            and mission_runtime.ativo
+            and mission_runtime.service is not None
+        )
+
+        if prerequisites_ok:
+            reward_settlement_runtime = ativar_reward_settlement_runtime(
+                caminho_banco=user_identity_db,
+                user_identity_repository=(user_identity_repository),
+                mission_service=(mission_runtime.service),
+            )
+
+            settlement_reconciliacao = reward_settlement_runtime.reconciliacao
+
+            if reward_settlement_runtime.ativo:
+                logger.info(
+                    "Mission reward settlement ativo | "
+                    "pendentes=%s eventos_criados=%s "
+                    "eventos_idempotentes=%s "
+                    "rewards_marcados=%s",
+                    (
+                        settlement_reconciliacao.recompensas_encontradas
+                        if settlement_reconciliacao is not None
+                        else 0
+                    ),
+                    (
+                        settlement_reconciliacao.eventos_criados
+                        if settlement_reconciliacao is not None
+                        else 0
+                    ),
+                    (
+                        settlement_reconciliacao.eventos_idempotentes
+                        if settlement_reconciliacao is not None
+                        else 0
+                    ),
+                    (
+                        settlement_reconciliacao.recompensas_marcadas
+                        if settlement_reconciliacao is not None
+                        else 0
+                    ),
+                )
+
+            else:
+                logger.error(
+                    "Mission reward settlement inativo | erro=%s",
+                    reward_settlement_runtime.erro,
+                )
+
+        else:
+            logger.error(
+                "Mission reward settlement bloqueado | "
+                "gamification_ativo=%s missions_ativo=%s "
+                "mission_service=%s",
+                gamification_runtime.ativo,
+                mission_runtime.ativo,
+                mission_runtime.service is not None,
+            )
+
+    else:
+        logger.info("Mission reward settlement desativado por feature flag.")
 
     personalized_feed_service = PersonalizedFeedService(
         catalogo_repository=controlador_api.catalogo_repository,

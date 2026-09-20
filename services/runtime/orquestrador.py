@@ -62,6 +62,8 @@ class ConfiguracoesRuntime:
     push_dispatcher_receipt_min_age_segundos: int = 900
     push_dispatcher_max_envios_por_ciclo: int = 10
 
+    mission_reward_settlement_ativo: bool = False
+
     aguardar_internet_ao_iniciar: bool = True
     intervalo_verificacao_rede_segundos: float = 10.0
     timeout_verificacao_rede_segundos: float = 3.0
@@ -116,6 +118,10 @@ class ConfiguracoesRuntime:
             push_dispatcher_max_envios_por_ciclo=_buscar_inteiro(
                 "RUNTIME_PUSH_MAX_ENVIOS_POR_CICLO",
                 10,
+            ),
+            mission_reward_settlement_ativo=_buscar_booleano(
+                "RUNTIME_MISSION_REWARD_SETTLEMENT_ATIVO",
+                False,
             ),
             aguardar_internet_ao_iniciar=_buscar_booleano(
                 "RUNTIME_AGUARDAR_INTERNET_AO_INICIAR",
