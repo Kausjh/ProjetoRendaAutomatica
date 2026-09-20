@@ -141,7 +141,9 @@ def test_contract_is_read_only_and_server_authoritative():
     data = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
     assert data["public_app_missions_surface_version"] == 1
-    assert data["phase"] == "7F2"
+    assert data["phase"] == "7F3"
+    assert data["status"] == "completed"
+    assert data["next_step"] == "7G-operational-close"
 
     assert data["backend"]["path"] == "/api/v1/me/missions"
 
@@ -172,8 +174,6 @@ def test_contract_is_read_only_and_server_authoritative():
     assert boundaries["reward_settlement"] is False
     assert boundaries["community_reputation"] is False
     assert boundaries["offer_scoring_change"] is False
-
-    assert data["next_step"] == "7F3-public-app-missions-real-validation"
 
 
 def test_missions_panel_uses_read_model_and_server_progress():
@@ -242,13 +242,13 @@ def test_missions_ui_does_not_handle_transport_or_identity():
         assert value not in combined
 
 
-def test_contract_describes_7f2_account_panel():
+def test_contract_preserves_7f2_account_panel_in_7f3():
     data = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
     architecture = data["architecture"]
     ui = data["ui"]
 
-    assert data["phase"] == "7F2"
+    assert data["phase"] == "7F3"
 
     assert architecture["panel_component"] == "MissionsPanel"
 
@@ -266,3 +266,39 @@ def test_contract_describes_7f2_account_panel():
     assert ui["manual_refresh"] is True
     assert ui["loading_state"] is True
     assert ui["error_retry_state"] is True
+
+
+def test_contract_records_7f3_real_android_validation():
+    data = json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+    assert data["phase"] == "7F3"
+    assert data["status"] == "completed"
+    assert data["next_step"] == "7G-operational-close"
+
+    validation = data["real_validation"]
+
+    assert validation["validated"] is True
+    assert validation["android_version"] == "13"
+    assert validation["package"] == "com.rendaautomatica.app"
+    assert validation["development_client"] is True
+    assert validation["metro_transport"] == "adb-reverse"
+    assert validation["api_transport"] == "adb-reverse"
+    assert validation["api_health"] == "ok"
+    assert validation["runtime_errors_observed"] is False
+
+    assert validation["observed_summary"] == {
+        "completed": 1,
+        "in_progress": 2,
+        "rewards_granted": 1,
+    }
+
+    missions = {item["code"]: item for item in validation["observed_missions"]}
+
+    assert missions["community_primeira_aprovada"]["progress"] == "1/1"
+    assert missions["community_primeira_aprovada"]["reward_status"] == "granted"
+
+    assert missions["community_cinco_aprovadas"]["progress"] == "1/5"
+    assert missions["community_cinco_aprovadas"]["reward_status"] == "locked"
+
+    assert missions["community_dez_aprovadas"]["progress"] == "1/10"
+    assert missions["community_dez_aprovadas"]["reward_status"] == "locked"
