@@ -1,0 +1,61 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-core",
+  "community_trust_core_version": 1,
+  "stage": "8B-community-trust-core-ledger",
+  "status": "implementation-complete-validation-pending",
+  "source_model_contract": "contracts/community_trust_model_v1.json",
+  "database": "database/user_identity.sqlite3",
+  "tables": {
+    "evidence": "community_trust_evidence",
+    "profiles": "community_trust_profiles"
+  },
+  "ledger": {
+    "append_only": true,
+    "account_scoped": true,
+    "auditable": true,
+    "metadata_json": true,
+    "idempotency_per_account": true,
+    "idempotency_collision_fails_closed": true
+  },
+  "evidence": {
+    "classifications": [
+      "positive",
+      "negative",
+      "neutral"
+    ],
+    "numeric_score": false,
+    "numeric_weight": false,
+    "reason_supported": true,
+    "policy_version_supported": true,
+    "origin_trace_required": true
+  },
+  "profile": {
+    "materialized_transactionally": true,
+    "rebuildable_from_ledger": true,
+    "fields": [
+      "evidencias_total",
+      "positivas_total",
+      "negativas_total",
+      "neutras_total"
+    ],
+    "trust_score_field": false
+  },
+  "authority": {
+    "ledger_is_source_of_truth": true,
+    "profile_is_projection": true,
+    "client_can_write": false,
+    "public_write_api": false
+  },
+  "boundaries": {
+    "production_numeric_policy": false,
+    "community_discovery_wiring": false,
+    "runtime_wiring": false,
+    "gamification_projection": false,
+    "reputation_total_write": false,
+    "public_api": false,
+    "public_app": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "8B-live-schema-validation"
+}
