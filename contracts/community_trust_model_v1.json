@@ -1,0 +1,60 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-model",
+  "community_trust_model_version": 1,
+  "stage": "8A-community-trust-model-boundaries",
+  "status": "completed",
+  "authority": {
+    "source_of_truth": "community_trust_evidence_ledger",
+    "gamification_reputation_total_role": "downstream_projection_reserved",
+    "client_can_write_trust": false,
+    "public_write_api": false
+  },
+  "evidence": {
+    "primary_domain": "community_discovery",
+    "eligible_terminal_statuses": [
+      "approved",
+      "rejected"
+    ],
+    "non_terminal_statuses": [
+      "received",
+      "processing",
+      "retry"
+    ],
+    "approved_is_positive_candidate": true,
+    "rejected_is_automatic_negative": false,
+    "rejected_requires_reason_classification": true,
+    "reason_source_field": "motivo_status",
+    "technical_or_system_rejection_is_neutral_by_default": true
+  },
+  "separation": {
+    "xp_and_level": "gamification",
+    "contributor_trust": "community_trust",
+    "social_opinion": "auxiliary_future_signal",
+    "objective_marketplace_evidence": "separate_authority"
+  },
+  "scoring": {
+    "numeric_policy_defined": false,
+    "score_formula_defined": false,
+    "negative_evidence_requires_classification": true,
+    "terminal_status_alone_is_not_policy": true
+  },
+  "gamification_projection": {
+    "reputation_total_may_receive_projection_later": true,
+    "enabled_in_8a": false,
+    "direct_dual_write": false,
+    "projection_must_be_server_side": true,
+    "projection_must_be_idempotent": true
+  },
+  "boundaries": {
+    "runtime_wiring": false,
+    "database_schema_change": false,
+    "gamification_write": false,
+    "community_discovery_write": false,
+    "public_app": false,
+    "moderation_actions": false,
+    "social_reactions_as_objective_trust": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "8B-community-trust-core-ledger"
+}

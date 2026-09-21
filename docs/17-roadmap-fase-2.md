@@ -492,7 +492,7 @@ A Etapa 8 deve evoluir confiança e reputação comunitária sem alterar retroat
 
 ## Etapa 8 — Community Reputation & Trust V1
 
-**Status: PLANEJADA**
+**Status: EM EXECUÇÃO — 8A CONCLUÍDA; 8B PRÓXIMA**
 
 ### Objetivo
 
@@ -515,6 +515,28 @@ Construir confiança mensurável em contribuições da comunidade.
 
 Comentários, votos e reações podem gerar sinais auxiliares, mas não
 substituem automaticamente evidência objetiva do marketplace.
+
+### Subetapas
+
+- **8A — Community Trust Model & Boundaries:** concluída.
+- **8B — Community Trust Core Ledger:** próxima.
+- **8C — Production Trust Policy & Anti-Abuse:** planejada.
+- **8D — Community Discovery Wiring & Reconciliation:** planejada.
+- **8E — Moderation & Reporting Foundation:** planejada.
+- **8F — Trust Read API + Public App Surface:** planejada.
+- **8G — Real Validation & Operational Close:** planejada.
+
+### Arquitetura fechada na 8A
+
+- Community Trust terá ledger autoritativo próprio;
+- XP e nível permanecem em Gamification;
+- `reputacao_total` fica reservado como projeção futura;
+- `approved` pode gerar evidência positiva;
+- `rejected` não gera penalidade automática;
+- `motivo_status` precisa ser classificado antes de evidência negativa;
+- rejeições técnicas ou sistêmicas são neutras por padrão;
+- scoring numérico fica reservado para a 8C;
+- Offer Scoring e Price Intelligence permanecem fora do Trust V1.
 
 ---
 ## Etapa 9 — Social / Competitive Layer V1
@@ -709,7 +731,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
 | 7. Missions & Community Rewards V1 | Concluída; 7A, 7B, 7C1, 7C2, 7D, 7E, 7F e 7G concluídas |
-| 8. Community Reputation & Trust V1 | Planejada |
+| 8. Community Reputation & Trust V1 | Em execução; 8A concluída; 8B próxima |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
 | Public App Experience / Visual Polish | Frente transversal ativa |

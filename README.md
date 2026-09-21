@@ -808,7 +808,7 @@ A Fase 1 foi concluída com 30/30 blocos.
   integrado à tela de Conta, usando estado server-side e rewards reais.
   A 7G encerrou a auditoria operacional com 180 testes aprovados,
   TypeScript aprovado, SQLite íntegro e 0 rewards pendentes.
-- **Etapa 8 — Community Reputation & Trust V1:** próxima.
+- **Etapa 8 — Community Reputation & Trust V1:** em execução; 8A concluída e 8B próxima.
 - **Etapa 9 — Social / Competitive Layer V1:** planejada com comentários,
   respostas, reações, perfis públicos opcionais e rankings.
 - **Etapa 10 — Web / Extensão / Growth Surfaces:** planejada.
