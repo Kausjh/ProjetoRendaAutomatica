@@ -479,3 +479,39 @@ def test_contract_requires_negative_authority():
     assert data["anti_abuse_runtime_requirements"]["negative_requires_reason_and_authority"] is True
 
     assert data["audit"]["authoritative_abuse_confirmation_preserved"] is True
+
+
+def test_8c_contract_closed_for_8d():
+    data = load(POLICY_CONTRACT)
+
+    assert data["status"] == "completed"
+
+    assert data["next_step"] == "8D-community-discovery-wiring-reconciliation"
+
+    validation = data["validation"]
+
+    assert validation["policy_tests_passed"] == 40
+
+    assert validation["stage_8abc_tests_passed"] == 64
+
+    assert validation["pre_commit_passed"] is True
+
+    assert validation["cached_diff_check_passed"] is True
+
+    assert validation["doc_normalization_ok"] is True
+
+    assert validation["live_evidence_total"] == 0
+
+    assert validation["live_profile_total"] == 0
+
+    assert validation["integrity_check"] == "ok"
+
+    assert validation["foreign_key_errors"] == 0
+
+    assert validation["live_database_write"] is False
+
+    assert validation["runtime_wiring"] is False
+
+    assert validation["gamification_write"] is False
+
+    assert validation["implementation_commit"] == "d12d8cb"

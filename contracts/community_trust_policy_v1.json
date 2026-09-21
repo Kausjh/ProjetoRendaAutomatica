@@ -3,7 +3,7 @@
   "community_trust_policy_version": 1,
   "policy_version": "community-trust-production-v1",
   "stage": "8C-production-trust-policy-anti-abuse",
-  "status": "implementation-complete-validation-pending",
+  "status": "completed",
   "source_contracts": [
     "contracts/community_trust_model_v1.json",
     "contracts/community_trust_core_v1.json",
@@ -104,7 +104,7 @@
     "offer_scoring_influence": false,
     "price_intelligence_influence": false
   },
-  "next_step": "8C-policy-validation-and-review",
+  "next_step": "8D-community-discovery-wiring-reconciliation",
   "anti_abuse_runtime_requirements": {
     "account_scope": true,
     "server_side_only": true,
@@ -113,5 +113,20 @@
     "concurrent_positive_overrun_must_fail_closed": true,
     "caller_supplied_count_not_authoritative": true,
     "negative_requires_reason_and_authority": true
+  },
+  "validation": {
+    "policy_tests_passed": 40,
+    "stage_8abc_tests_passed": 64,
+    "pre_commit_passed": true,
+    "cached_diff_check_passed": true,
+    "doc_normalization_ok": true,
+    "live_evidence_total": 0,
+    "live_profile_total": 0,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "live_database_write": false,
+    "runtime_wiring": false,
+    "gamification_write": false,
+    "implementation_commit": "d12d8cb"
   }
 }

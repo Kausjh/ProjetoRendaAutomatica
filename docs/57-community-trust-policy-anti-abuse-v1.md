@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTACAO CONCLUIDA; VALIDACAO E REVIEW PENDENTES.
+CONCLUIDA.
 
 ## Objetivo
 
@@ -149,6 +149,27 @@ A 8C nao faz:
 
 O wiring server-side pertence a 8D.
 
+## Validacao final
+
+A implementacao da 8C foi validada antes do fechamento:
+
+- 40 testes da Production Trust Policy V1 aprovados;
+- 64 testes acumulados de 8A + 8B + 8C aprovados;
+- pre-commit aprovado;
+- `git diff --cached --check` aprovado;
+- documentacao normalizada;
+- ledger live permaneceu com 0 evidencias;
+- perfis live permaneceram em 0;
+- `PRAGMA integrity_check = ok`;
+- 0 erros de foreign key;
+- nenhuma escrita no banco live durante a 8C;
+- nenhum runtime wiring ativado;
+- nenhuma escrita em Gamification ativada;
+- implementation commit: `d12d8cb`.
+
+A 8C definiu a politica e os requisitos de antiabuso.
+O enforcement server-side atomico e o wiring real pertencem a 8D.
+
 ## Proximo passo
 
-Validar e revisar a Production Trust Policy V1.
+Executar 8D - Community Discovery Wiring & Reconciliation.
