@@ -1,0 +1,117 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-policy",
+  "community_trust_policy_version": 1,
+  "policy_version": "community-trust-production-v1",
+  "stage": "8C-production-trust-policy-anti-abuse",
+  "status": "implementation-complete-validation-pending",
+  "source_contracts": [
+    "contracts/community_trust_model_v1.json",
+    "contracts/community_trust_core_v1.json",
+    "contracts/community_discovery_v1.json",
+    "contracts/gamification_reputation_rules_v1.json"
+  ],
+  "source_domain": "community_discovery",
+  "eligibility": {
+    "terminal_statuses": [
+      "approved",
+      "rejected"
+    ],
+    "non_terminal_statuses": [
+      "received",
+      "processing",
+      "retry"
+    ],
+    "non_terminal_creates_evidence": false,
+    "terminal_status_alone_defines_classification": false
+  },
+  "idempotency": {
+    "scope": "account_source_object_lifetime",
+    "key_template": "v1:community-discovery:{discovery_id}",
+    "one_source_object_one_evidence": true,
+    "ledger_collision_fails_closed": true
+  },
+  "numeric_policy": {
+    "defined": true,
+    "impact_units": {
+      "positive": 1,
+      "neutral": 0,
+      "negative": -1
+    },
+    "aggregate_score_formula_defined": false,
+    "trust_score_field_added": false,
+    "gamification_reputation_projection": false
+  },
+  "positive_policy": {
+    "approved_reason_families": [
+      "pipeline_processada"
+    ],
+    "downstream_duplicate_reason_families": [
+      "coletor_duplicada"
+    ],
+    "downstream_duplicate_classification": "neutral",
+    "rolling_window": {
+      "limit": 10,
+      "window_seconds": 86400,
+      "on_limit": "neutral",
+      "basis": "counted positive trust evidence for the account",
+      "pattern_source": "existing gamification 10-per-24h anti-abuse pattern",
+      "runtime_count_source": "community_trust_evidence_server_side",
+      "runtime_enforcement_must_be_atomic_with_write": true,
+      "policy_function_input_is_not_runtime_authority": true
+    }
+  },
+  "negative_policy": {
+    "automatic_rejected_negative": false,
+    "requires_explicit_confirmed_abuse": true,
+    "confirmed_abuse_reason_families": [
+      "abuso_confirmado",
+      "spam_confirmado",
+      "fraude_confirmada",
+      "link_malicioso_confirmado"
+    ],
+    "technical_or_system_rejection": "neutral",
+    "unsupported_capability_rejection": "neutral",
+    "market_or_quality_rejection": "neutral",
+    "unknown_rejection": "neutral",
+    "current_discovery_pipeline_emits_confirmed_abuse": false,
+    "reason_text_alone_is_authority": false,
+    "requires_authoritative_confirmation_context": true,
+    "missing_authority_on_confirmed_reason": "neutral"
+  },
+  "upstream_controls": {
+    "community_discovery_hourly_submission_limit": 30,
+    "same_account_same_normalized_url_idempotent": true,
+    "upstream_limit_replaces_trust_policy_cap": false
+  },
+  "audit": {
+    "policy_version_required": true,
+    "source_status_preserved": true,
+    "source_reason_preserved": true,
+    "canonical_key_preserved_when_available": true,
+    "attempt_count_preserved": true,
+    "positive_window_context_preserved": true,
+    "authoritative_abuse_confirmation_preserved": true
+  },
+  "boundaries": {
+    "community_discovery_runtime_wiring": false,
+    "trust_ledger_write": false,
+    "database_schema_change": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "public_api": false,
+    "public_app": false,
+    "moderation_action": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "8C-policy-validation-and-review",
+  "anti_abuse_runtime_requirements": {
+    "account_scope": true,
+    "server_side_only": true,
+    "positive_window_count_from_ledger": true,
+    "positive_window_count_and_write_atomic": true,
+    "concurrent_positive_overrun_must_fail_closed": true,
+    "caller_supplied_count_not_authoritative": true,
+    "negative_requires_reason_and_authority": true
+  }
+}
