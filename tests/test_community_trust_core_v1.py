@@ -264,6 +264,20 @@ def test_core_contract_freezes_8b_boundaries():
     data = json.loads(CORE_CONTRACT.read_text(encoding="utf-8"))
 
     assert data["stage"] == ("8B-community-trust-core-ledger")
+    assert data["status"] == "completed"
+    assert data["next_step"] == ("8C-production-trust-policy-anti-abuse")
+
+    validation = data["validation"]
+
+    assert validation["targeted_tests_passed"] == 16
+    assert validation["live_schema_initialized"] is True
+    assert validation["live_schema_second_init_idempotent"] is True
+    assert validation["live_evidence_total_after_init"] == 0
+    assert validation["live_profile_total_after_init"] == 0
+    assert validation["integrity_check"] == "ok"
+    assert validation["foreign_key_errors"] == 0
+    assert validation["preexisting_schema_preserved"] is True
+    assert validation["backup_validated"] is True
 
     assert data["profile"]["rebuildable_from_ledger"] is True
 

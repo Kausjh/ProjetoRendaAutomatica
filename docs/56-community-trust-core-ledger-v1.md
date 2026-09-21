@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTACAO CONCLUIDA; VALIDACAO DO SCHEMA REAL PENDENTE.
+CONCLUIDA.
 
 ## Objetivo
 
@@ -88,11 +88,28 @@ A 8B nao define:
 
 ## Validacao
 
-Os testes desta fase usam bancos SQLite temporarios.
+A 8B foi validada com 16 testes direcionados em bancos SQLite temporarios.
 
-O banco real `database/user_identity.sqlite3` nao deve ser alterado antes da
-validacao controlada posterior da 8B.
+Antes da alteracao real foi criado e validado um backup consistente de
+`database/user_identity.sqlite3`.
+
+O schema real foi inicializado de forma controlada.
+
+Resultado final:
+
+- `community_trust_evidence` criada e vazia;
+- `community_trust_profiles` criada e vazia;
+- segunda inicializacao idempotente;
+- `integrity_check=ok`;
+- `foreign_key_check=0`;
+- objetos preexistentes do schema preservados;
+- nenhuma evidencia de Trust criada;
+- nenhum perfil de Trust materializado;
+- nenhum score numerico habilitado;
+- nenhuma escrita em Gamification;
+- nenhum wiring com Community Discovery;
+- nenhuma mudanca de API ou Public App.
 
 ## Proximo passo
 
-Inicializacao e validacao controlada do schema real da 8B.
+8C - Production Trust Policy & Anti-Abuse.

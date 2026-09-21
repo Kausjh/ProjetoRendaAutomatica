@@ -492,7 +492,7 @@ A Etapa 8 deve evoluir confiança e reputação comunitária sem alterar retroat
 
 ## Etapa 8 — Community Reputation & Trust V1
 
-**Status: EM EXECUÇÃO — 8A CONCLUÍDA; 8B PRÓXIMA**
+**Status: EM EXECUÇÃO — 8A E 8B CONCLUÍDAS; 8C PRÓXIMA**
 
 ### Objetivo
 
@@ -519,8 +519,8 @@ substituem automaticamente evidência objetiva do marketplace.
 ### Subetapas
 
 - **8A — Community Trust Model & Boundaries:** concluída.
-- **8B — Community Trust Core Ledger:** próxima.
-- **8C — Production Trust Policy & Anti-Abuse:** planejada.
+- **8B — Community Trust Core Ledger:** concluída.
+- **8C — Production Trust Policy & Anti-Abuse:** próxima.
 - **8D — Community Discovery Wiring & Reconciliation:** planejada.
 - **8E — Moderation & Reporting Foundation:** planejada.
 - **8F — Trust Read API + Public App Surface:** planejada.
@@ -731,7 +731,7 @@ identidade, preço, segurança e fail-closed do restante do sistema.
 | 5. Personalized Feed V1 | Concluída; smoke real no Android validado |
 | 6. Gamification & Reputation V1 | Concluída |
 | 7. Missions & Community Rewards V1 | Concluída; 7A, 7B, 7C1, 7C2, 7D, 7E, 7F e 7G concluídas |
-| 8. Community Reputation & Trust V1 | Em execução; 8A concluída; 8B próxima |
+| 8. Community Reputation & Trust V1 | Em execução; 8A e 8B concluídas; 8C próxima |
 | 9. Social / Competitive Layer V1 | Planejada; escopo expandido |
 | 10. Web / Extensão / Growth Surfaces | Planejada |
 | Public App Experience / Visual Polish | Frente transversal ativa |

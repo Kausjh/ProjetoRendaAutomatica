@@ -2,7 +2,7 @@
   "schema": "projeto-renda-automatica.community-trust-core",
   "community_trust_core_version": 1,
   "stage": "8B-community-trust-core-ledger",
-  "status": "implementation-complete-validation-pending",
+  "status": "completed",
   "source_model_contract": "contracts/community_trust_model_v1.json",
   "database": "database/user_identity.sqlite3",
   "tables": {
@@ -57,5 +57,16 @@
     "offer_scoring_influence": false,
     "price_intelligence_influence": false
   },
-  "next_step": "8B-live-schema-validation"
+  "next_step": "8C-production-trust-policy-anti-abuse",
+  "validation": {
+    "targeted_tests_passed": 16,
+    "live_schema_initialized": true,
+    "live_schema_second_init_idempotent": true,
+    "live_evidence_total_after_init": 0,
+    "live_profile_total_after_init": 0,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "preexisting_schema_preserved": true,
+    "backup_validated": true
+  }
 }
