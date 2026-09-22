@@ -993,3 +993,43 @@ class CommunityModerationRepository:
 
         finally:
             conexao.close()
+
+    def listar_decisoes_abuso_confirmado(
+        self,
+        *,
+        moderator_actor_id: str,
+        limite: int = 100,
+        offset: int = 0,
+    ) -> list[DecisaoCommunityModeration]:
+        actor = self._obrigatorio(
+            moderator_actor_id,
+            "moderator_actor_id",
+        )
+
+        limite_normalizado = self._limite(
+            limite,
+            maximo=1000,
+        )
+
+        offset_normalizado = self._offset(offset)
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT *
+                FROM community_moderation_decisions
+                WHERE resultado = 'confirmed_abuse'
+                  AND moderator_actor_id = ?
+                ORDER BY
+                    ocorrido_em ASC,
+                    id ASC
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    actor,
+                    limite_normalizado,
+                    offset_normalizado,
+                ),
+            ).fetchall()
+
+        return [self._decisao_da_linha(linha) for linha in linhas]

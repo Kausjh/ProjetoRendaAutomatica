@@ -1,0 +1,111 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-trust-reconciliation",
+  "community_moderation_trust_reconciliation_version": 1,
+  "stage": "8E5-moderation-trust-bridge-reconciliation",
+  "status": "completed",
+  "baseline": "f3b5d01",
+  "source_contracts": [
+    "contracts/community_moderation_core_v1.json",
+    "contracts/community_moderation_authority_v1.json",
+    "contracts/community_moderation_trust_bridge_v1.json"
+  ],
+  "candidate_selection": {
+    "decision_result": "confirmed_abuse",
+    "moderator_actor_id": "radar-admin-control-plane-v1",
+    "repository_filter": true,
+    "end_user_reports_are_authority": false,
+    "non_authoritative_decisions_selected": false,
+    "ordering": [
+      "ocorrido_em ASC",
+      "id ASC"
+    ],
+    "pagination": "offset_limit",
+    "max_limit": 1000
+  },
+  "reconciliation": {
+    "uses_existing_trust_bridge": true,
+    "creates_second_trust_write_path": false,
+    "revalidates_bridge_invariants": true,
+    "report_must_exist": true,
+    "report_must_be_resolved": true,
+    "continues_after_single_item_failure": true,
+    "records_item_failures_in_result": true,
+    "idempotent_rerun": true,
+    "already_reconciled_is_success": true,
+    "missing_negative_can_be_repaired": true
+  },
+  "idempotency": {
+    "scope": "one_negative_per_community_discovery",
+    "canonical_key_owned_by_8e4_bridge": true,
+    "reconciliation_does_not_create_new_key_scheme": true,
+    "multiple_runs_stack_negatives": false,
+    "multiple_decisions_stack_negatives": false,
+    "concurrent_bridge_writes_stack_negatives": false,
+    "first_successful_decision_remains_origin": true
+  },
+  "authority": {
+    "creates_new_moderation_decision": false,
+    "requires_new_admin_token": false,
+    "uses_persisted_authoritative_decision": true,
+    "persisted_actor_revalidated_by_bridge": true,
+    "persisted_reason_family_revalidated_by_bridge": true
+  },
+  "trust": {
+    "classification": "negative",
+    "impact_units": -1,
+    "terminal_evidence_mutated": false,
+    "terminal_evidence_reclassified": false,
+    "profiles_updated_only_when_missing_evidence_created": true
+  },
+  "runtime": {
+    "scheduled_reconciliation_enabled": false,
+    "live_schema_activation": false,
+    "live_bridge_injection": false,
+    "live_reconciliation_execution": false,
+    "admin_http_route_integration": false,
+    "public_report_api": false
+  },
+  "validation_boundaries": {
+    "tests_use_temporary_databases_only": true,
+    "live_database_read_only": true,
+    "live_database_write": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  },
+  "next_step": "8E6-moderation-runtime-composition",
+  "validation": {
+    "baseline": "f3b5d01",
+    "source_audit_passed": true,
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 11,
+    "stage_8e_tests_passed_pre_closure": 67,
+    "trust_moderation_tests_passed_pre_closure": 116,
+    "critical_reconciliation_tests_passed": 6,
+    "crash_gap_reconciliation_implemented": true,
+    "candidate_result": "confirmed_abuse",
+    "candidate_authority": "radar-admin-control-plane-v1",
+    "existing_8e4_bridge_reused": true,
+    "second_trust_write_path_created": false,
+    "persisted_actor_revalidated": true,
+    "persisted_reason_family_revalidated": true,
+    "new_admin_token_required": false,
+    "reconciliation_rerun_idempotent": true,
+    "multiple_runs_stack_negatives": false,
+    "multiple_decisions_stack_negatives": false,
+    "single_item_failure_blocks_all": false,
+    "terminal_trust_evidence_mutated": false,
+    "terminal_trust_evidence_reclassified": false,
+    "scheduled_reconciliation_enabled": false,
+    "live_reconciliation_execution": false,
+    "live_schema_activation": false,
+    "live_database_query_only": true,
+    "live_integrity_check": "ok",
+    "live_foreign_key_errors": 0,
+    "live_moderation_tables": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}
