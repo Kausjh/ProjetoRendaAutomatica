@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from models.community_moderation import (
     FAMILIA_ABUSO_POR_MOTIVO_DENUNCIA,
     RESULTADOS_MODERACAO_VALIDOS,
@@ -13,6 +15,13 @@ from services.community_moderation_authority import (
 )
 
 
+class CommunityModerationDecisionBridge(Protocol):
+    def processar_decisao(
+        self,
+        resultado: ResultadoRegistroDecisaoCommunityModeration,
+    ) -> object: ...
+
+
 class PoliticaModeracaoNegada(ValueError):
     pass
 
@@ -23,9 +32,11 @@ class CommunityModerationService:
         *,
         repository: CommunityModerationRepository,
         authority: CommunityModerationAuthorityV1,
+        trust_bridge: CommunityModerationDecisionBridge | None = None,
     ) -> None:
         self.repository = repository
         self.authority = authority
+        self.trust_bridge = trust_bridge
 
     def registrar_decisao_autorizada(
         self,
@@ -59,7 +70,7 @@ class CommunityModerationService:
                     "Motivo da denuncia nao " "autoriza confirmed_abuse " "na policy V1."
                 )
 
-        return self.repository.registrar_decisao(
+        registro = self.repository.registrar_decisao(
             denuncia_id=denuncia.id,
             acao_idempotencia=(acao_idempotencia),
             moderator_actor_id=(contexto.actor_id),
@@ -68,3 +79,8 @@ class CommunityModerationService:
             justificativa=justificativa,
             ocorrido_em=ocorrido_em,
         )
+
+        if registro.decisao.resultado == "confirmed_abuse" and self.trust_bridge is not None:
+            self.trust_bridge.processar_decisao(registro)
+
+        return registro
