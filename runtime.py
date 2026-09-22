@@ -278,12 +278,16 @@ def main() -> int:
     community_moderation_resultado = _ativar_community_moderation_controlado(
         caminho_banco=user_identity_db,
     )
+    community_moderation_repository_user_facing = None
 
     if community_moderation_resultado.ativo and (
         community_moderation_resultado.componentes is not None
     ):
         servidor_status.community_moderation_decision_service = (
             community_moderation_resultado.componentes.moderation_service
+        )
+        community_moderation_repository_user_facing = (
+            community_moderation_resultado.componentes.moderation_repository
         )
 
     else:
@@ -301,6 +305,7 @@ def main() -> int:
         personalized_feed_service=personalized_feed_service,
         gamification_read_service=gamification_read_service,
         mission_read_service=mission_read_service,
+        community_moderation_repository=(community_moderation_repository_user_facing),
     )
 
     try:

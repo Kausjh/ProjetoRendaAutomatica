@@ -1,0 +1,117 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-user-report-creation",
+  "community_moderation_user_report_creation_version": 1,
+  "stage": "8E10A-authenticated-report-creation",
+  "status": "completed",
+  "baseline_commit": "ed66a5d",
+  "source_stage": {
+    "8E9": "completed"
+  },
+  "route": {
+    "method": "POST",
+    "path": "/api/v1/me/reports",
+    "response_created_status": 201,
+    "repository_replay_status": 200
+  },
+  "authentication": {
+    "user_session_header": "X-User-Session",
+    "user_session_required": true,
+    "reporter_derived_from_session": true,
+    "infrastructure_token_behavior_preserved": true,
+    "anonymous_creation_allowed": false
+  },
+  "request": {
+    "accepted_fields": [
+      "target_id",
+      "motivo",
+      "detalhes"
+    ],
+    "client_may_set_reporter_conta_id": false,
+    "client_may_set_target_type": false,
+    "client_may_set_estado": false,
+    "client_may_set_timestamp": false,
+    "target_type_server_value": "community_discovery"
+  },
+  "persistence": {
+    "repository": "CommunityModerationRepository",
+    "ledger": "community_moderation_reports",
+    "initial_state": "received",
+    "report_id_server_generated": true,
+    "reporter_account_must_exist": true,
+    "target_must_exist": true,
+    "trust_write_on_creation": false,
+    "moderation_decision_write_on_creation": false
+  },
+  "runtime": {
+    "repository_reused_from_moderation_runtime": true,
+    "report_creation_available_only_when_moderation_runtime_active": true,
+    "moderation_runtime_flag_changed": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart_this_stage": false
+  },
+  "idempotency_boundary": {
+    "repository_semantic_replay_already_exists": true,
+    "explicit_client_idempotency_header": false,
+    "duplicate_policy_finalized": false,
+    "deferred_to": "8E10B-idempotency-duplicate-protection"
+  },
+  "readback_boundary": {
+    "user_report_status_api": false,
+    "deferred_to": "8E10C-limited-user-status-readback"
+  },
+  "public_app_boundary": {
+    "ui_added": false,
+    "deferred_to": "8E11-public-app-reporting-surface"
+  },
+  "validation_boundary": {
+    "live_canary": false,
+    "live_database_write": false
+  },
+  "implementation": {
+    "server_wiring_method": "ast-structural-insertion",
+    "runtime_wiring_method": "ast-structural-insertion",
+    "reporting_controller_reused_from_partial_attempt": true
+  },
+  "next_step": "8E10B-idempotency-duplicate-protection",
+  "validation": {
+    "baseline_commit": "ed66a5d",
+    "pre_commit_passed": true,
+    "old_8e9c_http_stability_probe_runs": 3,
+    "old_8e9c_http_stability_probe_passed": 3,
+    "stage_8e9c_tests_passed": 21,
+    "isolated_8e10a_cases_passed_pre_closure": 25,
+    "stage_8e1_8e10a_cases_passed_pre_closure": 186,
+    "trust_moderation_reporting_cases_passed_pre_closure": 235,
+    "admin_server_cases_passed_pre_closure": 96,
+    "user_facing_server_cases_passed_pre_closure": 178,
+    "production_infrastructure_auth_preserved": true,
+    "user_session_required": true,
+    "reporter_derived_from_session": true,
+    "target_type_server_derived": "community_discovery",
+    "trust_write_on_creation": false,
+    "decision_write_on_creation": false,
+    "explicit_client_idempotency_header": false,
+    "duplicate_policy_deferred_to_8e10b": true,
+    "user_status_readback_deferred_to_8e10c": true,
+    "moderation_runtime_flag_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_cases_after_closure": 26,
+    "expected_stage_8e1_8e10a_cases_after_closure": 187,
+    "expected_trust_moderation_reporting_cases_after_closure": 236,
+    "expected_admin_server_cases_after_closure": 96,
+    "expected_user_facing_server_cases_after_closure": 179
+  }
+}

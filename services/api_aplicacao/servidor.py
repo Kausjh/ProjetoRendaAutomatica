@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 from repositories.community_discovery_repository import (
     CommunityDiscoveryRepository,
 )
+from repositories.community_moderation_repository import (
+    CommunityModerationRepository,
+)
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.user_facing_abuse_controls import (
     DecisaoAbuseControl,
@@ -33,6 +36,9 @@ from services.api_aplicacao.user_facing_http import (
 from services.api_aplicacao.user_facing_missions import UserFacingMissionsController
 from services.api_aplicacao.user_facing_preferences import (
     UserFacingPreferencesController,
+)
+from services.api_aplicacao.user_facing_reporting import (
+    UserFacingCommunityReportingController,
 )
 from services.api_aplicacao.user_facing_watchlist import (
     UserFacingWatchlistController,
@@ -65,6 +71,7 @@ class ServidorApiAplicacao:
         community_discovery_service: CommunityDiscoveryService | None = None,
         user_facing_abuse_controls: UserFacingAbuseControls | None = None,
         mission_read_service: MissionReadService | None = None,
+        community_moderation_repository: CommunityModerationRepository | None = None,
     ) -> None:
         load_dotenv()
 
@@ -101,6 +108,9 @@ class ServidorApiAplicacao:
             gamification_read_service,
         )
         self.user_facing_missions = UserFacingMissionsController(mission_read_service)
+        self.user_facing_reporting = UserFacingCommunityReportingController(
+            community_moderation_repository,
+        )
 
         if community_discovery_service is None and user_identity_service is not None:
             identity_repository = getattr(
@@ -188,6 +198,7 @@ class ServidorApiAplicacao:
         user_facing_feed = self.user_facing_feed
         user_facing_gamification = self.user_facing_gamification
         user_facing_missions = self.user_facing_missions
+        user_facing_reporting = self.user_facing_reporting
         user_facing_community_discovery = self.user_facing_community_discovery
         abuse_controls = self.user_facing_abuse_controls
 
@@ -434,6 +445,7 @@ class ServidorApiAplicacao:
                     "/api/v1/auth/login",
                     "/api/v1/auth/logout",
                     "/api/v1/me/discoveries",
+                    "/api/v1/me/reports",
                 }:
                     self._metodo_nao_permitido()
                     return
@@ -445,6 +457,30 @@ class ServidorApiAplicacao:
                             "infraestrutura_nao_autorizada",
                             "Nao autorizado.",
                         )
+                    )
+                    return
+
+                if rota == "/api/v1/me/reports":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    payload = self._ler_json_user_facing()
+                    if payload is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_reporting.criar(
+                            conta,
+                            payload,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
                     )
                     return
 
