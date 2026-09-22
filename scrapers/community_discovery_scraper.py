@@ -16,6 +16,9 @@ from services.community_discovery_marketplace_adapter import (
 from services.community_discovery_queue_service import (
     CommunityDiscoveryQueueService,
 )
+from services.community_trust_runtime import (
+    criar_terminal_hook_community_trust_live,
+)
 from services.mission_runtime import (
     criar_wiring_missoes_live,
 )
@@ -49,6 +52,22 @@ class CommunityDiscoveryScraper(BaseScraper):
         if queue_service is None:
             repository = CommunityDiscoveryRepository(caminho_banco)
 
+            terminal_hook = None
+
+            try:
+                terminal_hook = criar_terminal_hook_community_trust_live(
+                    caminho_banco=caminho_banco,
+                    discovery_repository=repository,
+                )
+
+            except Exception:
+                logger.exception(
+                    "Community Trust live wiring "
+                    "indisponivel no worker; "
+                    "Community Discovery continuara "
+                    "fail-open e podera ser reconciliada."
+                )
+
             approval_hook = None
 
             if (
@@ -72,6 +91,7 @@ class CommunityDiscoveryScraper(BaseScraper):
             queue_service = CommunityDiscoveryQueueService(
                 repository,
                 approval_hook=approval_hook,
+                terminal_hook=terminal_hook,
             )
 
         self.queue_service = queue_service
