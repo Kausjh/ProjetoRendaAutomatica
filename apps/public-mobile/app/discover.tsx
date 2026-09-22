@@ -306,7 +306,21 @@ export default function DiscoverScreen() {
           ) : null}
 
           {recent.map((item) => (
-            <DiscoveryCard key={item.id} item={item} />
+            <DiscoveryCard
+              key={item.id}
+              item={item}
+              onReport={() =>
+                router.push(
+                  {
+                    pathname: "/report",
+                    params: {
+                      targetId: item.id,
+                      targetLabel: hostLabel(item.url),
+                    },
+                  } as never,
+                )
+              }
+            />
           ))}
         </View>
       </ScrollView>
@@ -316,8 +330,10 @@ export default function DiscoverScreen() {
 
 function DiscoveryCard({
   item,
+  onReport,
 }: Readonly<{
   item: CommunityDiscoveryItem;
+  onReport: () => void;
 }>) {
   const approved = item.status === "approved";
   const rejected = item.status === "rejected";
@@ -382,6 +398,25 @@ function DiscoveryCard({
           </Text>
         ) : null}
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Denunciar problema nesta contribuição"
+        style={({ pressed }) => [
+          styles.reportButton,
+          pressed && styles.reportButtonPressed,
+        ]}
+        onPress={onReport}
+      >
+        <Ionicons
+          name="flag-outline"
+          size={15}
+          color={appTheme.colors.danger}
+        />
+        <Text style={styles.reportButtonText}>
+          Denunciar problema
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -685,5 +720,25 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     textAlign: "right",
+  },
+  reportButton: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: appTheme.colors.dangerBorder,
+    borderRadius: appTheme.radius.md,
+    backgroundColor: appTheme.colors.dangerSurface,
+    paddingHorizontal: 12,
+  },
+  reportButtonPressed: {
+    opacity: 0.78,
+  },
+  reportButtonText: {
+    color: appTheme.colors.danger,
+    fontSize: 11,
+    fontWeight: "900",
   },
 });
