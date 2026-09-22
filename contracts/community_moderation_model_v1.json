@@ -1,0 +1,169 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-model",
+  "community_moderation_model_version": 1,
+  "policy_version": "community-moderation-foundation-v1",
+  "stage": "8E1-moderation-reporting-model-boundaries",
+  "status": "completed",
+  "baseline": "371646d",
+  "source_contracts": [
+    "contracts/community_trust_stage8d_closure_v1.json",
+    "contracts/community_trust_policy_v1.json",
+    "contracts/user_identity_v1.json"
+  ],
+  "authority": {
+    "report_is_allegation_only": true,
+    "report_is_objective_truth": false,
+    "report_count_is_authority": false,
+    "public_user_can_confirm_abuse": false,
+    "client_can_write_trust": false,
+    "moderator_confirmation_required": true,
+    "automated_report_threshold_can_confirm_abuse": false,
+    "reporter_reputation_can_auto_confirm_abuse": false,
+    "active_account_flag_is_moderator_role": false,
+    "moderator_identity_source": "trusted_server_side_control_plane_reserved"
+  },
+  "target": {
+    "supported_types_v1": [
+      "community_discovery"
+    ],
+    "target_id_source": "community_discoveries.id",
+    "target_contributor_account": "derived_server_side_from_community_discovery",
+    "reporter_cannot_select_impacted_account": true,
+    "future_social_targets_reserved": [
+      "comment",
+      "offer_interaction"
+    ]
+  },
+  "reporting": {
+    "authenticated_account_required": true,
+    "reporter_account_source": "contas_usuario.id",
+    "account_attribution_server_side": true,
+    "reason_families": [
+      "spam",
+      "fraud",
+      "malicious_link",
+      "abuse",
+      "off_topic",
+      "duplicate",
+      "other"
+    ],
+    "details_optional": true,
+    "details_max_chars": 1000,
+    "initial_state": "received",
+    "states": [
+      "received",
+      "under_review",
+      "resolved"
+    ],
+    "same_reporter_target_reason_idempotent": true,
+    "idempotency_template": "v1:community-report:{reporter_account_id}:{target_type}:{target_id}:{reason_family}",
+    "report_creation_changes_trust": false,
+    "multiple_reports_stack_negative_trust": false
+  },
+  "moderation": {
+    "decision_outcomes": [
+      "confirmed_abuse",
+      "dismissed",
+      "keep_under_review"
+    ],
+    "confirmed_abuse_families": [
+      "abuso_confirmado",
+      "spam_confirmado",
+      "fraude_confirmada",
+      "link_malicioso_confirmado"
+    ],
+    "confirmed_abuse_mapping": {
+      "abuse": "abuso_confirmado",
+      "spam": "spam_confirmado",
+      "fraud": "fraude_confirmada",
+      "malicious_link": "link_malicioso_confirmado"
+    },
+    "off_topic_maps_to_negative_trust": false,
+    "duplicate_maps_to_negative_trust": false,
+    "other_maps_to_negative_trust": false,
+    "decision_actor_server_side": true,
+    "decision_append_only": true,
+    "reporter_cannot_author_own_authoritative_decision": true,
+    "dismissed_creates_negative_trust": false,
+    "keep_under_review_creates_negative_trust": false,
+    "confirmed_abuse_can_authorize_negative_trust": true
+  },
+  "trust_bridge_design": {
+    "implemented_in_8e1": false,
+    "existing_terminal_evidence_mutated": false,
+    "existing_terminal_evidence_reclassified": false,
+    "creates_separate_evidence": true,
+    "evidence_type": "community_moderation_confirmed_abuse",
+    "classification": "negative",
+    "origin": "community_moderation_v1",
+    "origin_id": "authoritative_moderation_decision_id",
+    "impacted_account": "target_discovery_contributor_account",
+    "idempotency_scope": "one_confirmed_abuse_negative_per_target_discovery",
+    "idempotency_template": "v1:community-moderation:community-discovery:{discovery_id}:confirmed-abuse",
+    "report_id_is_trust_idempotency_key": false,
+    "multiple_confirmed_reports_can_stack_negatives": false,
+    "terminal_discovery_key_reused": false,
+    "terminal_discovery_key_template": "v1:community-discovery:{discovery_id}"
+  },
+  "anti_manipulation": {
+    "mass_reporting_is_confirmation": false,
+    "same_reporter_duplicate_report_deduplicated": true,
+    "multiple_reporters_do_not_multiply_negative_evidence": true,
+    "self_report_has_no_authority": true,
+    "client_selects_moderator": false,
+    "client_selects_impacted_account": false,
+    "trust_effect_requires_authoritative_decision": true
+  },
+  "audit": {
+    "reporter_account_preserved": true,
+    "target_preserved": true,
+    "report_reason_preserved": true,
+    "moderator_actor_preserved": true,
+    "decision_outcome_preserved": true,
+    "confirmed_abuse_family_preserved": true,
+    "decision_timestamp_preserved": true,
+    "no_in_place_terminal_trust_history_rewrite": true
+  },
+  "boundaries": {
+    "database_schema_change": false,
+    "live_database_write": false,
+    "report_repository": false,
+    "moderation_repository": false,
+    "moderation_decision_service": false,
+    "trust_bridge_write": false,
+    "public_report_api": false,
+    "admin_moderation_api": false,
+    "public_app": false,
+    "account_suspension": false,
+    "content_takedown": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "8E2-moderation-reporting-core-ledger",
+  "validation": {
+    "baseline": "371646d",
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 7,
+    "trust_8e1_regression_tests_passed_pre_closure": 56,
+    "contract_assert_passed": true,
+    "live_preflight_query_only": true,
+    "live_integrity_check": "ok",
+    "live_foreign_key_errors": 0,
+    "live_existing_moderation_tables": 0,
+    "live_database_mutation": false,
+    "terminal_trust_evidence_mutated": false,
+    "report_is_allegation_only": true,
+    "moderator_confirmation_required": true,
+    "report_count_is_authority": false,
+    "automatic_confirmation": false,
+    "moderation_trust_evidence_separate_additive": true,
+    "max_negative_moderation_evidence_per_discovery": 1,
+    "trust_bridge_write": false,
+    "public_report_api": false,
+    "admin_moderation_api": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}
