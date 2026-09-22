@@ -1,0 +1,105 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-runtime",
+  "community_moderation_runtime_version": 1,
+  "stage": "8E6-moderation-runtime-composition",
+  "status": "completed",
+  "baseline": "ddef57f",
+  "source_contracts": [
+    "contracts/community_moderation_authority_v1.json",
+    "contracts/community_moderation_trust_bridge_v1.json",
+    "contracts/community_moderation_trust_reconciliation_v1.json"
+  ],
+  "composition": {
+    "moderation_repository": true,
+    "discovery_repository": true,
+    "trust_repository": true,
+    "authority": true,
+    "trust_bridge": true,
+    "moderation_service": true,
+    "reconciliation_service": true,
+    "single_runtime_composition_root": true,
+    "second_trust_write_path": false
+  },
+  "activation": {
+    "runtime_flag": "COMMUNITY_MODERATION_RUNTIME_ATIVO",
+    "runtime_default_enabled": false,
+    "schema_activation_requires_explicit_permission": true,
+    "schema_activation_default_authorized": false,
+    "flag_disabled_instantiates_repositories": false,
+    "schema_permission_missing_instantiates_repositories": false,
+    "authority_resolved_before_repository_instantiation": true,
+    "authority_missing_fails_closed": true,
+    "main_runtime_py_integration": false
+  },
+  "reconciliation": {
+    "startup_flag": "COMMUNITY_MODERATION_RECONCILIATION_STARTUP_ATIVA",
+    "startup_default_enabled": false,
+    "automatic_by_default": false,
+    "explicit_override_supported": true,
+    "failure_makes_activation_incomplete": true,
+    "uses_8e5_service": true
+  },
+  "authority": {
+    "default_source": "RADAR_ADMIN_TOKEN",
+    "test_injection_supported": true,
+    "real_admin_token_read_by_tests": false,
+    "end_user_identity_is_authority": false
+  },
+  "schema_safety": {
+    "repository_constructors_can_initialize_schema": true,
+    "guard_exists_before_repository_construction": true,
+    "live_schema_activation_this_stage": false,
+    "live_database_write_this_stage": false
+  },
+  "runtime": {
+    "runtime_py_modified": false,
+    "main_process_activation": false,
+    "live_bridge_injection": false,
+    "live_reconciliation_execution": false,
+    "admin_http_route_integration": false,
+    "public_report_api": false
+  },
+  "validation_boundaries": {
+    "writes_use_temporary_databases_only": true,
+    "live_database_read_only": true,
+    "live_database_write": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  },
+  "next_step": "8E7-moderation-live-schema-activation",
+  "validation": {
+    "baseline": "ddef57f",
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 10,
+    "stage_8e_tests_passed_pre_closure": 78,
+    "trust_moderation_tests_passed_pre_closure": 127,
+    "fail_closed_runtime_tests_passed": 3,
+    "composition_reconciliation_tests_passed": 5,
+    "runtime_flag_default_off": true,
+    "schema_activation_default_authorized": false,
+    "schema_activation_explicit_permission_required": true,
+    "flag_disabled_instantiates_repositories": false,
+    "no_schema_permission_instantiates_repositories": false,
+    "authority_resolved_before_repositories": true,
+    "authority_missing_fails_before_schema": true,
+    "trust_bridge_injected_in_moderation_service": true,
+    "second_trust_write_path_created": false,
+    "reconciliation_service_composed": true,
+    "reconciliation_startup_default_off": true,
+    "env_example_safe_flags": true,
+    "runtime_py_modified": false,
+    "main_process_activation": false,
+    "live_bridge_injection": false,
+    "live_reconciliation_execution": false,
+    "live_schema_activation": false,
+    "live_database_query_only": true,
+    "live_integrity_check": "ok",
+    "live_foreign_key_errors": 0,
+    "live_moderation_tables": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}
