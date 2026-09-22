@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -12,6 +13,7 @@ from models.community_trust import (
     PerfilCommunityTrust,
     ResultadoRegistroCommunityTrust,
 )
+from models.community_trust_policy import DecisaoCommunityTrust
 
 CLASSIFICACOES_VALIDAS = frozenset(
     {
@@ -295,6 +297,401 @@ class CommunityTrustRepository:
             )
 
         return self._perfil_da_linha(linha)
+
+    def registrar_evidencia_com_decisao_atomica(
+        self,
+        *,
+        conta_id: str,
+        chave_idempotencia: str,
+        tipo_evidencia: str,
+        origem: str,
+        origem_id: str,
+        ocorrido_em: str,
+        janela_segundos: int,
+        decidir: Callable[[int], DecisaoCommunityTrust],
+    ) -> tuple[
+        ResultadoRegistroCommunityTrust,
+        DecisaoCommunityTrust,
+        int,
+    ]:
+        conta = self._obrigatorio(
+            conta_id,
+            "conta_id",
+        )
+        chave = self._obrigatorio(
+            chave_idempotencia,
+            "chave_idempotencia",
+        )
+        tipo = self._obrigatorio(
+            tipo_evidencia,
+            "tipo_evidencia",
+        )
+        origem_normalizada = self._obrigatorio(
+            origem,
+            "origem",
+        )
+        origem_id_normalizada = self._obrigatorio(
+            origem_id,
+            "origem_id",
+        )
+        ocorrido_original = self._obrigatorio(
+            ocorrido_em,
+            "ocorrido_em",
+        )
+
+        if isinstance(janela_segundos, bool):
+            raise ValueError("janela_segundos precisa ser inteiro positivo.")
+
+        janela = int(janela_segundos)
+
+        if janela < 1:
+            raise ValueError("janela_segundos precisa ser positivo.")
+
+        try:
+            ocorrido_dt = datetime.fromisoformat(
+                ocorrido_original.replace(
+                    "Z",
+                    "+00:00",
+                )
+            )
+        except ValueError as erro:
+            raise ValueError("ocorrido_em precisa ser ISO-8601 valido.") from erro
+
+        if ocorrido_dt.tzinfo is None:
+            raise ValueError("ocorrido_em precisa possuir timezone.")
+
+        ocorrido_utc = ocorrido_dt.astimezone(UTC)
+        ocorrido = ocorrido_utc.isoformat()
+
+        inicio_janela = (
+            ocorrido_utc
+            - timedelta(
+                seconds=janela,
+            )
+        ).isoformat()
+
+        evento_id = str(uuid4())
+
+        agora = datetime.now(UTC).isoformat(timespec="seconds")
+
+        def preparar_decisao(
+            positivas_na_janela: int,
+        ) -> tuple[
+            DecisaoCommunityTrust,
+            str,
+        ]:
+            decisao = decidir(int(positivas_na_janela))
+
+            if not isinstance(
+                decisao,
+                DecisaoCommunityTrust,
+            ):
+                raise TypeError("decidir precisa retornar " "DecisaoCommunityTrust.")
+
+            if not decisao.elegivel:
+                raise ValueError("Decisao atomica exige " "evidencia elegivel.")
+
+            classe = str(decisao.classificacao or "").strip()
+
+            if classe not in CLASSIFICACOES_VALIDAS:
+                raise ValueError("classificacao da decisao invalida.")
+
+            if str(decisao.chave_idempotencia or "").strip() != chave:
+                raise ConflitoIdempotenciaCommunityTrust(
+                    "Chave da policy diverge " "da chave atomica."
+                )
+
+            self._obrigatorio(
+                decisao.politica_versao,
+                "politica_versao",
+            )
+
+            self._obrigatorio(
+                decisao.motivo_politica,
+                "motivo_politica",
+            )
+
+            metadados = dict(decisao.metadados)
+
+            contagem_metadados = metadados.get("positive_count_before")
+
+            if (
+                isinstance(
+                    contagem_metadados,
+                    bool,
+                )
+                or not isinstance(
+                    contagem_metadados,
+                    int,
+                )
+                or contagem_metadados != int(positivas_na_janela)
+            ):
+                raise ValueError(
+                    "Policy precisa preservar " "positive_count_before " "server-side."
+                )
+
+            metadados["impacto_unidades"] = int(decisao.impacto_unidades)
+
+            metadados_json = json.dumps(
+                metadados,
+                ensure_ascii=True,
+                sort_keys=True,
+                separators=(
+                    ",",
+                    ":",
+                ),
+            )
+
+            return (
+                decisao,
+                metadados_json,
+            )
+
+        conexao = self._conectar()
+
+        try:
+            conexao.execute("BEGIN IMMEDIATE")
+
+            existente = self._buscar_evidencia(
+                conexao,
+                conta_id=conta,
+                chave_idempotencia=chave,
+            )
+
+            if existente is not None:
+                metadados_existentes = json.loads(str(existente["metadados_json"]))
+
+                if not isinstance(
+                    metadados_existentes,
+                    dict,
+                ):
+                    raise (
+                        ConflitoIdempotenciaCommunityTrust(
+                            "Evidencia idempotente " "possui metadados invalidos."
+                        )
+                    )
+
+                positivas_original = metadados_existentes.get("positive_count_before")
+
+                if (
+                    isinstance(
+                        positivas_original,
+                        bool,
+                    )
+                    or not isinstance(
+                        positivas_original,
+                        int,
+                    )
+                    or positivas_original < 0
+                ):
+                    raise (
+                        ConflitoIdempotenciaCommunityTrust(
+                            "Evidencia atomica " "nao preservou " "positive_count_before."
+                        )
+                    )
+
+                decisao, metadados_json = preparar_decisao(positivas_original)
+
+                esperado = (
+                    tipo,
+                    str(decisao.classificacao),
+                    origem_normalizada,
+                    origem_id_normalizada,
+                    str(decisao.motivo_politica),
+                    str(decisao.politica_versao),
+                    metadados_json,
+                    ocorrido,
+                )
+
+                encontrado = (
+                    str(existente["tipo_evidencia"]),
+                    str(existente["classificacao"]),
+                    str(existente["origem"]),
+                    str(existente["origem_id"]),
+                    (str(existente["motivo"]) if existente["motivo"] is not None else None),
+                    (
+                        str(existente["politica_versao"])
+                        if existente["politica_versao"] is not None
+                        else None
+                    ),
+                    str(existente["metadados_json"]),
+                    str(existente["ocorrido_em"]),
+                )
+
+                if encontrado != esperado:
+                    raise (
+                        ConflitoIdempotenciaCommunityTrust(
+                            "Chave atomica " "reutilizada com " "semantica diferente."
+                        )
+                    )
+
+                perfil_linha = self._buscar_perfil(
+                    conexao,
+                    conta,
+                )
+
+                if perfil_linha is None:
+                    raise RuntimeError(
+                        "Evidencia idempotente " "existe sem perfil " "materializado."
+                    )
+
+                conexao.commit()
+
+                return (
+                    ResultadoRegistroCommunityTrust(
+                        evidencia=(self._evidencia_da_linha(existente)),
+                        perfil=(self._perfil_da_linha(perfil_linha)),
+                        criado=False,
+                    ),
+                    decisao,
+                    positivas_original,
+                )
+
+            positivas_na_janela = int(
+                conexao.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM community_trust_evidence
+                    WHERE conta_id = ?
+                      AND classificacao = 'positive'
+                      AND ocorrido_em >= ?
+                      AND ocorrido_em <= ?
+                    """,
+                    (
+                        conta,
+                        inicio_janela,
+                        ocorrido,
+                    ),
+                ).fetchone()[0]
+            )
+
+            decisao, metadados_json = preparar_decisao(positivas_na_janela)
+
+            classe = str(decisao.classificacao)
+
+            conexao.execute(
+                """
+                INSERT INTO
+                    community_trust_evidence (
+                        id,
+                        conta_id,
+                        chave_idempotencia,
+                        tipo_evidencia,
+                        classificacao,
+                        origem,
+                        origem_id,
+                        motivo,
+                        politica_versao,
+                        metadados_json,
+                        ocorrido_em,
+                        criado_em
+                    )
+                VALUES (
+                    ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    evento_id,
+                    conta,
+                    chave,
+                    tipo,
+                    classe,
+                    origem_normalizada,
+                    origem_id_normalizada,
+                    str(decisao.motivo_politica),
+                    str(decisao.politica_versao),
+                    metadados_json,
+                    ocorrido,
+                    agora,
+                ),
+            )
+
+            positiva = int(classe == "positive")
+            negativa = int(classe == "negative")
+            neutra = int(classe == "neutral")
+
+            conexao.execute(
+                """
+                INSERT INTO
+                    community_trust_profiles (
+                        conta_id,
+                        evidencias_total,
+                        positivas_total,
+                        negativas_total,
+                        neutras_total,
+                        atualizado_em
+                    )
+                VALUES (?, 1, ?, ?, ?, ?)
+
+                ON CONFLICT(conta_id)
+                DO UPDATE SET
+                    evidencias_total =
+                        community_trust_profiles
+                        .evidencias_total + 1,
+
+                    positivas_total =
+                        community_trust_profiles
+                        .positivas_total
+                        + excluded.positivas_total,
+
+                    negativas_total =
+                        community_trust_profiles
+                        .negativas_total
+                        + excluded.negativas_total,
+
+                    neutras_total =
+                        community_trust_profiles
+                        .neutras_total
+                        + excluded.neutras_total,
+
+                    atualizado_em =
+                        excluded.atualizado_em
+                """,
+                (
+                    conta,
+                    positiva,
+                    negativa,
+                    neutra,
+                    agora,
+                ),
+            )
+
+            evidencia_linha = self._buscar_evidencia(
+                conexao,
+                conta_id=conta,
+                chave_idempotencia=chave,
+            )
+
+            perfil_linha = self._buscar_perfil(
+                conexao,
+                conta,
+            )
+
+            if evidencia_linha is None:
+                raise RuntimeError("Evidencia atomica " "desapareceu apos " "persistencia.")
+
+            if perfil_linha is None:
+                raise RuntimeError("Perfil atomico " "nao foi materializado.")
+
+            conexao.commit()
+
+            return (
+                ResultadoRegistroCommunityTrust(
+                    evidencia=(self._evidencia_da_linha(evidencia_linha)),
+                    perfil=(self._perfil_da_linha(perfil_linha)),
+                    criado=True,
+                ),
+                decisao,
+                positivas_na_janela,
+            )
+
+        except Exception:
+            conexao.rollback()
+            raise
+
+        finally:
+            conexao.close()
 
     def registrar_evidencia(
         self,

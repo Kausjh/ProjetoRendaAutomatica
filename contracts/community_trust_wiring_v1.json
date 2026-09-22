@@ -1,0 +1,74 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-wiring",
+  "community_trust_wiring_version": 1,
+  "stage": "8D1-atomic-trust-decision-ledger-write",
+  "status": "completed",
+  "source_contracts": [
+    "contracts/community_trust_model_v1.json",
+    "contracts/community_trust_core_v1.json",
+    "contracts/community_trust_policy_v1.json"
+  ],
+  "source_domain": "community_discovery",
+  "source_terminal_statuses": [
+    "approved",
+    "rejected"
+  ],
+  "atomicity": {
+    "transaction": "BEGIN IMMEDIATE",
+    "idempotency_checked_before_window_count": true,
+    "positive_window_count_server_side": true,
+    "policy_decision_inside_transaction": true,
+    "ledger_write_same_transaction": true,
+    "profile_update_same_transaction": true,
+    "concurrent_positive_overrun_fail_closed": true
+  },
+  "positive_window": {
+    "limit": 10,
+    "window_seconds": 86400,
+    "basis": "community_trust_evidence.ocorrido_em",
+    "classification": "positive",
+    "caller_supplied_count_authoritative": false
+  },
+  "idempotency": {
+    "key": "v1:community-discovery:<discovery_id>",
+    "retry_preserves_original_positive_count_before": true,
+    "semantic_collision_fails_closed": true
+  },
+  "negative_policy": {
+    "automatic_rejected_negative": false,
+    "authoritative_abuse_source_available_in_8d1": false,
+    "abuse_confirmation_value_in_8d1": false
+  },
+  "boundaries": {
+    "community_discovery_terminal_hook": false,
+    "historical_reconciliation": false,
+    "runtime_wiring": false,
+    "live_database_backfill": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "public_api": false,
+    "public_app": false,
+    "moderation_action": false,
+    "offer_scoring_influence": false,
+    "price_intelligence_influence": false
+  },
+  "next_step": "8D2-terminal-community-trust-hook",
+  "validation": {
+    "baseline": "8f0babb",
+    "pre_commit_passed": true,
+    "pre_closure_isolated_tests_passed": 8,
+    "pre_closure_stage_8_accumulated_tests_passed": 72,
+    "concurrency_cap_test_passed": true,
+    "idempotency_test_passed": true,
+    "positive_window_cap_test_passed": true,
+    "rejected_neutral_test_passed": true,
+    "contract_boundaries_passed": true,
+    "git_diff_check_passed": true,
+    "protected_local_files_preserved": true,
+    "pytest_local_temproot_used": true,
+    "runtime_wiring": false,
+    "historical_reconciliation": false,
+    "live_database_write": false,
+    "gamification_write": false
+  }
+}
