@@ -5,6 +5,7 @@ import json
 import os
 import threading
 from collections import deque
+from dataclasses import asdict
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -13,6 +14,16 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from dotenv import load_dotenv
 
+from repositories.community_moderation_repository import (
+    ConflitoEstadoCommunityModeration,
+    ConflitoIdempotenciaCommunityModeration,
+)
+from services.community_moderation_authority import (
+    AutorizacaoModeracaoNegada,
+)
+from services.community_moderation_service import (
+    PoliticaModeracaoNegada,
+)
 from services.controle.controlador import ControladorAdministrativo
 
 DIRETORIO_PROJETO = Path(__file__).resolve().parents[2]
@@ -50,6 +61,12 @@ class ServidorStatusAdministrativo:
         moderation_read_service = getattr(
             self,
             "community_moderation_read_service",
+            None,
+        )
+
+        moderation_decision_service = getattr(
+            self,
+            "community_moderation_decision_service",
             None,
         )
 
@@ -447,6 +464,32 @@ class ServidorStatusAdministrativo:
                 )
 
             def do_POST(self) -> None:
+                moderation_post_url = urlparse(self.path)
+
+                moderation_post_partes = [
+                    unquote(parte) for parte in moderation_post_url.path.split("/") if parte
+                ]
+
+                moderation_decision_route = (
+                    len(moderation_post_partes) == 4
+                    and moderation_post_partes[0] == "moderation"
+                    and moderation_post_partes[1] == "reports"
+                    and moderation_post_partes[3] == "decision"
+                )
+
+                if moderation_decision_route and not token_administrativo:
+                    self._responder_json(
+                        503,
+                        {
+                            "erro": (
+                                "Moderation decision control "
+                                "plane indisponivel sem "
+                                "RADAR_ADMIN_TOKEN."
+                            ),
+                        },
+                    )
+                    return
+
                 enforcement_monetizacao = self.path.startswith("/monetizacao/enforcement/")
 
                 if enforcement_monetizacao and not token_administrativo:
@@ -500,6 +543,185 @@ class ServidorStatusAdministrativo:
                     ).strip()[:120]
                     or None
                 )
+                if moderation_decision_route:
+                    if moderation_decision_service is None:
+                        self._responder_json(
+                            503,
+                            {
+                                "erro": ("Moderation decision " "service indisponivel."),
+                            },
+                        )
+                        return
+
+                    acao_idempotencia = self.headers.get(
+                        "Idempotency-Key",
+                        "",
+                    ).strip()
+
+                    if not acao_idempotencia:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Idempotency-Key " "e obrigatorio."),
+                            },
+                        )
+                        return
+
+                    tamanho_raw = self.headers.get(
+                        "Content-Length",
+                        "",
+                    ).strip()
+
+                    try:
+                        tamanho = int(tamanho_raw)
+                    except ValueError:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Content-Length " "invalido."),
+                            },
+                        )
+                        return
+
+                    if tamanho < 1 or tamanho > 16384:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Corpo JSON precisa " "ter entre 1 e 16384 " "bytes."),
+                            },
+                        )
+                        return
+
+                    try:
+                        corpo_raw = self.rfile.read(tamanho)
+
+                        payload = json.loads(corpo_raw.decode("utf-8"))
+
+                    except (
+                        UnicodeDecodeError,
+                        json.JSONDecodeError,
+                    ):
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Corpo JSON invalido."),
+                            },
+                        )
+                        return
+
+                    if not isinstance(
+                        payload,
+                        dict,
+                    ):
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Corpo JSON precisa " "ser um objeto."),
+                            },
+                        )
+                        return
+
+                    campos_permitidos = {
+                        "resultado",
+                        "justificativa",
+                        "ocorrido_em",
+                    }
+
+                    campos_extras = sorted(
+                        str(campo) for campo in payload if campo not in campos_permitidos
+                    )
+
+                    if campos_extras:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": ("Campos nao " "permitidos: " + ", ".join(campos_extras)),
+                            },
+                        )
+                        return
+
+                    denuncia_id = moderation_post_partes[2]
+
+                    authorization_header = self.headers.get(
+                        "Authorization",
+                        "",
+                    )
+
+                    try:
+                        registro = moderation_decision_service.registrar_decisao_autorizada(
+                            authorization_header=(authorization_header),
+                            denuncia_id=(denuncia_id),
+                            acao_idempotencia=(acao_idempotencia),
+                            resultado=(payload.get("resultado")),
+                            justificativa=(payload.get("justificativa")),
+                            ocorrido_em=(payload.get("ocorrido_em")),
+                        )
+
+                    except (
+                        ConflitoIdempotenciaCommunityModeration,
+                        ConflitoEstadoCommunityModeration,
+                    ) as erro:
+                        self._responder_json(
+                            409,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+
+                    except AutorizacaoModeracaoNegada as erro:
+                        self._responder_json(
+                            401,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+
+                    except PoliticaModeracaoNegada as erro:
+                        self._responder_json(
+                            400,
+                            {
+                                "erro": str(erro),
+                            },
+                        )
+                        return
+
+                    except ValueError as erro:
+                        mensagem = str(erro)
+
+                        status = 404 if mensagem == "Denuncia nao encontrada." else 400
+
+                        self._responder_json(
+                            status,
+                            {
+                                "erro": mensagem,
+                            },
+                        )
+                        return
+
+                    except Exception:
+                        self._responder_json(
+                            500,
+                            {
+                                "erro": ("Falha interna ao " "registrar decisao " "de moderacao."),
+                            },
+                        )
+                        return
+
+                    dados = {
+                        "api_version": "v1",
+                        "recurso": ("moderation_decision"),
+                        "criado": (registro.criado),
+                        "decisao": asdict(registro.decisao),
+                        "denuncia": asdict(registro.denuncia),
+                    }
+
+                    self._responder_json(
+                        (201 if registro.criado else 200),
+                        dados,
+                    )
+                    return
 
                 if (
                     len(partes) == 3

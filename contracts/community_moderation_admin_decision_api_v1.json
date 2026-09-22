@@ -1,0 +1,102 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-admin-decision-api",
+  "community_moderation_admin_decision_api_version": 1,
+  "stage": "8E9B-authoritative-admin-decision-api",
+  "status": "completed",
+  "baseline_commit": "76ea8d8",
+  "source_contract": "contracts/community_moderation_admin_read_api_v1.json",
+  "route": {
+    "method": "POST",
+    "path": "/moderation/reports/{denuncia_id}/decision",
+    "admin_token_env": "RADAR_ADMIN_TOKEN",
+    "idempotency_header": "Idempotency-Key",
+    "max_body_bytes": 16384,
+    "accepted_body_fields": [
+      "resultado",
+      "justificativa",
+      "ocorrido_em"
+    ],
+    "client_may_set_moderator_actor_id": false,
+    "client_may_set_authority_origin": false,
+    "client_may_set_trust_family": false
+  },
+  "authority": {
+    "class": "CommunityModerationAuthorityV1",
+    "actor_server_derived": true,
+    "origin_server_derived": true,
+    "authorization_revalidated_by_service": true
+  },
+  "service": {
+    "class": "CommunityModerationService",
+    "method": "registrar_decisao_autorizada",
+    "policy_validation": true,
+    "trust_family_server_derived": true,
+    "trust_bridge_used_for_confirmed_abuse": true
+  },
+  "runtime": {
+    "service_injected_only_when_moderation_runtime_active": true,
+    "inactive_runtime_fail_closed": true,
+    "persistent_runtime_flag_changed": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart_this_stage": false
+  },
+  "http_semantics": {
+    "created": 201,
+    "idempotent_replay": 200,
+    "bad_request": 400,
+    "unauthorized": 401,
+    "not_found": 404,
+    "conflict": 409,
+    "runtime_unavailable": 503,
+    "internal_error": 500,
+    "status_semantics_are_minimum_8e9b": true,
+    "full_error_semantics_deferred_to_8e9c": true
+  },
+  "boundaries": {
+    "live_canary": false,
+    "public_report_api": false,
+    "audit_finalization": false,
+    "rate_limit_finalization": false,
+    "automatic_reconciliation": false,
+    "persistent_runtime_activation": false
+  },
+  "next_step": "8E9C-auth-audit-rate-error-semantics",
+  "validation": {
+    "baseline": "76ea8d8",
+    "audit_strategy": "ast-plus-behavioral-tests",
+    "text_message_assertions": false,
+    "structural_audit_passed": true,
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 14,
+    "stage_8e_tests_passed_pre_closure": 139,
+    "trust_moderation_tests_passed_pre_closure": 188,
+    "route": "POST /moderation/reports/{denuncia_id}/decision",
+    "admin_auth_env": "RADAR_ADMIN_TOKEN",
+    "idempotency_header": "Idempotency-Key",
+    "http_decision_service_call_validated": true,
+    "http_accepts_moderator_actor": false,
+    "http_accepts_authority_origin": false,
+    "http_accepts_trust_family": false,
+    "core_derives_moderator_actor": true,
+    "core_derives_trust_family": true,
+    "core_trust_bridge": true,
+    "runtime_service_only_when_active": true,
+    "runtime_inactive_fail_closed": true,
+    "persistent_runtime_flag_changed": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "public_report_api": false,
+    "audit_finalization": false,
+    "rate_limit_finalization": false,
+    "full_error_semantics_finalization": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  }
+}

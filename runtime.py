@@ -264,9 +264,19 @@ def main() -> int:
     else:
         logger.info("Mission reward settlement desativado por feature flag.")
 
-    _ativar_community_moderation_controlado(
+    community_moderation_resultado = _ativar_community_moderation_controlado(
         caminho_banco=user_identity_db,
     )
+
+    if community_moderation_resultado.ativo and (
+        community_moderation_resultado.componentes is not None
+    ):
+        servidor_status.community_moderation_decision_service = (
+            community_moderation_resultado.componentes.moderation_service
+        )
+
+    else:
+        servidor_status.community_moderation_decision_service = None
 
     personalized_feed_service = PersonalizedFeedService(
         catalogo_repository=controlador_api.catalogo_repository,
