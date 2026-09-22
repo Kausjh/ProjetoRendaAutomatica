@@ -1,0 +1,125 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-authority",
+  "community_moderation_authority_version": 1,
+  "stage": "8E3-authoritative-moderation-policy-service",
+  "status": "completed",
+  "baseline": "05c8ac0",
+  "source_contracts": [
+    "contracts/community_moderation_model_v1.json",
+    "contracts/community_moderation_core_v1.json"
+  ],
+  "authority": {
+    "source": "existing_admin_control_plane",
+    "environment_variable": "RADAR_ADMIN_TOKEN",
+    "authorization_scheme": "Bearer",
+    "constant_time_compare": true,
+    "fail_closed_without_configured_token": true,
+    "loopback_bypass": false,
+    "end_user_session_is_authority": false,
+    "user_account_is_authority": false,
+    "reporter_is_authority": false,
+    "report_volume_is_authority": false,
+    "actor_id": "radar-admin-control-plane-v1",
+    "actor_origin": "admin_control_plane",
+    "shared_principal": true,
+    "unique_human_identity_claimed": false,
+    "token_value_logged": false
+  },
+  "service": {
+    "class": "CommunityModerationService",
+    "authorization_happens_before_report_lookup": true,
+    "caller_can_supply_moderator_actor_id": false,
+    "caller_can_supply_confirmed_abuse_family": false,
+    "confirmed_abuse_family_derived_server_side": true,
+    "decision_persisted_via_8e2_repository": true,
+    "repository_remains_non_authoritative": true
+  },
+  "policy": {
+    "confirmed_abuse_mapping": {
+      "spam": "spam_confirmado",
+      "fraud": "fraude_confirmada",
+      "malicious_link": "link_malicioso_confirmado",
+      "abuse": "abuso_confirmado"
+    },
+    "confirmed_abuse_allowed_report_reasons": [
+      "spam",
+      "fraud",
+      "malicious_link",
+      "abuse"
+    ],
+    "confirmed_abuse_forbidden_report_reasons": [
+      "off_topic",
+      "duplicate",
+      "other"
+    ],
+    "dismissed_allowed_for_all_report_reasons": true,
+    "keep_under_review_allowed_for_all_report_reasons": true,
+    "report_reason_is_preserved": true,
+    "client_does_not_choose_negative_family": true
+  },
+  "trust": {
+    "bridge_implemented": false,
+    "ledger_write": false,
+    "negative_evidence_write": false,
+    "terminal_evidence_mutated": false,
+    "confirmed_abuse_decision_is_future_bridge_input": true
+  },
+  "runtime": {
+    "admin_http_route_integration": false,
+    "public_report_api": false,
+    "live_schema_activation": false,
+    "live_repository_instantiation": false
+  },
+  "validation_boundaries": {
+    "tests_use_temporary_databases_only": true,
+    "explicit_test_token_only": true,
+    "real_admin_token_read_by_tests": false,
+    "live_database_read_only": true,
+    "live_database_write": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  },
+  "known_limitations": {
+    "shared_admin_token_does_not_identify_unique_human": true,
+    "actor_is_technical_control_plane_principal": true,
+    "future_named_moderator_identity_can_replace_shared_principal": true
+  },
+  "next_step": "8E4-moderation-trust-bridge-core",
+  "validation": {
+    "baseline": "05c8ac0",
+    "source_audit_passed": true,
+    "admin_control_plane_source_guard_passed": true,
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 23,
+    "stage_8e_tests_passed_pre_closure": 43,
+    "trust_moderation_tests_passed_pre_closure": 92,
+    "authority_fail_closed_tests_passed": 23,
+    "server_side_family_policy_tests_passed": 7,
+    "authority_source": "RADAR_ADMIN_TOKEN",
+    "authorization_scheme": "Bearer",
+    "constant_time_compare": true,
+    "fail_closed_without_configured_token": true,
+    "loopback_bypass": false,
+    "end_user_session_is_authority": false,
+    "shared_technical_principal": true,
+    "unique_human_identity_claimed": false,
+    "caller_supplies_moderator_actor": false,
+    "caller_supplies_abuse_family": false,
+    "abuse_family_derived_server_side": true,
+    "ambiguous_reason_can_confirm_abuse": false,
+    "trust_bridge_write": false,
+    "terminal_trust_evidence_mutated": false,
+    "admin_http_route_integration": false,
+    "live_schema_activation": false,
+    "live_database_query_only": true,
+    "live_integrity_check": "ok",
+    "live_foreign_key_errors": 0,
+    "live_moderation_tables": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "real_admin_token_read_by_tests": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}
