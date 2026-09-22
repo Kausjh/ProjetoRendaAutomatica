@@ -1,0 +1,74 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-stage8d-closure",
+  "version": 1,
+  "stage": "8D-community-trust-wiring-reconciliation-runtime",
+  "status": "completed",
+  "baseline": "9f3c3cc",
+  "scope": {
+    "8D1_atomic_decision_and_ledger_write": true,
+    "8D2_terminal_hook": true,
+    "8D3_reconciliation_core": true,
+    "8D3_historical_live_backfill": true,
+    "8D4_real_runtime_activation": true
+  },
+  "implementation_commits": {
+    "8A_model_boundaries": "44acdab",
+    "8B_core_implementation": "4d63b18",
+    "8B_core_closure": "1b53581",
+    "8C_policy_implementation": "d12d8cb",
+    "8C_policy_closure": "8f0babb",
+    "8D1_atomic_wiring": "a755396",
+    "8D2_terminal_hook": "33124c9",
+    "8D3_reconciliation_core": "114dcac",
+    "8D4_runtime_activation": "9f3c3cc"
+  },
+  "historical_backfill_8D3B": {
+    "executed": true,
+    "candidates_processed": 2,
+    "evidences_created": 2,
+    "failures": 0,
+    "rejected_classification": "neutral",
+    "approved_classification": "positive",
+    "second_run_noop": true,
+    "backup_preserved": true
+  },
+  "live_state_at_closure": {
+    "query_only": true,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "terminal_total": 2,
+    "evidence_total": 2,
+    "profile_total": 1,
+    "positive_total": 1,
+    "negative_total": 0,
+    "neutral_total": 1,
+    "backfill_candidates": 0,
+    "terminals_with_evidence": 2,
+    "duplicate_idempotency_keys": 0,
+    "orphan_origins": 0,
+    "profile_ledger_mismatch": 0
+  },
+  "runtime": {
+    "real_scraper_wiring_active": true,
+    "terminal_hook_injected": true,
+    "mission_approval_hook_preserved": true,
+    "mission_and_trust_hooks_separate": true,
+    "composition_failure_mode": "fail-open",
+    "reconciliation_recovery_path": true
+  },
+  "safety_boundaries": {
+    "moderation_authority": false,
+    "confirmed_abuse_authority": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "public_api_change": false,
+    "public_app_change": false
+  },
+  "validation": {
+    "pre_closure_accumulated_tests": 110,
+    "all_prior_8d_contracts_completed": true,
+    "commit_chain_validated": true,
+    "live_database_read_only_during_closure": true
+  },
+  "next_step": "8E-moderation-reporting-foundation"
+}
