@@ -1,0 +1,117 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-manual-reconciliation",
+  "community_moderation_manual_reconciliation_version": 1,
+  "stage": "8E8C-controlled-manual-reconciliation",
+  "status": "completed",
+  "baseline_commit": "921480c",
+  "source_contracts": [
+    "contracts/community_moderation_trust_reconciliation_v1.json",
+    "contracts/community_moderation_runtime_main_wiring_v1.json",
+    "contracts/community_moderation_live_bridge_activation_v1.json"
+  ],
+  "execution": {
+    "target_database": "database/user_identity.sqlite3",
+    "real_live_database_used": true,
+    "full_runtime_restart": false,
+    "runtime_flag_process_local": true,
+    "runtime_flag_persisted": false,
+    "reconciliation_startup_flag_enabled": false,
+    "automatic_reconciliation_executed": false,
+    "manual_reconciliation_executed": true,
+    "manual_service": "CommunityModerationTrustReconciliation.reconciliar",
+    "limite": 100,
+    "offset": 0,
+    "authoritative_candidates_before": 0
+  },
+  "first_run": {
+    "offset_inicial": 0,
+    "proximo_offset": 0,
+    "examinadas": 0,
+    "evidencias_criadas": 0,
+    "evidencias_existentes": 0,
+    "falhas": 0
+  },
+  "second_run": {
+    "offset_inicial": 0,
+    "proximo_offset": 0,
+    "examinadas": 0,
+    "evidencias_criadas": 0,
+    "evidencias_existentes": 0,
+    "falhas": 0
+  },
+  "idempotency": {
+    "second_manual_run_executed": true,
+    "empty_rerun_idempotent": true,
+    "duplicate_negative_created": false
+  },
+  "live_state": {
+    "moderation_report_rows": 0,
+    "moderation_decision_rows": 0,
+    "trust_evidence_total": 2,
+    "trust_profile_total": 1,
+    "moderation_rows_created": 0,
+    "trust_evidence_created": 0,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0
+  },
+  "boundaries": {
+    "automatic_startup_reconciliation": false,
+    "persistent_reconciliation_flag_changed": false,
+    "admin_http_integration": false,
+    "public_report_api_integration": false,
+    "moderation_decision_canary": false,
+    "confirmed_abuse_canary": false,
+    "gamification_write": false
+  },
+  "next_step": "8E9A-admin-moderation-read-api",
+  "validation": {
+    "baseline": "921480c",
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 8,
+    "stage_8e_tests_passed_pre_closure": 111,
+    "trust_moderation_tests_passed_pre_closure": 160,
+    "real_live_database_used": true,
+    "full_runtime_restart": false,
+    "runtime_flag_process_local": true,
+    "runtime_flag_persisted": false,
+    "reconciliation_startup_flag_enabled": false,
+    "automatic_reconciliation_executed": false,
+    "manual_reconciliation_executed": true,
+    "authoritative_candidates_before": 0,
+    "first_run_examinadas": 0,
+    "first_run_evidencias_criadas": 0,
+    "first_run_evidencias_existentes": 0,
+    "first_run_falhas": 0,
+    "second_run_examinadas": 0,
+    "second_run_evidencias_criadas": 0,
+    "second_run_evidencias_existentes": 0,
+    "second_run_falhas": 0,
+    "empty_rerun_idempotent": true,
+    "runtime_flag_restored": true,
+    "reconciliation_flag_restored": true,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "trust_evidence_created": 0,
+    "moderation_rows_created": 0,
+    "live_domain_state_unchanged": true,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "admin_http_integration": false,
+    "public_report_api_integration": false,
+    "confirmed_abuse_canary": false,
+    "gamification_write": false,
+    "protected_files_preserved": true
+  },
+  "stage_8e8": {
+    "status": "completed",
+    "sub_stages": {
+      "8E8A": "completed",
+      "8E8B": "completed",
+      "8E8C": "completed"
+    },
+    "automatic_reconciliation_enabled": false,
+    "persistent_runtime_activation": false
+  }
+}
