@@ -1,0 +1,67 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-terminal-hook",
+  "version": 1,
+  "stage": "8D2-terminal-community-trust-hook",
+  "status": "completed",
+  "baseline": "a755396",
+  "terminal_statuses": [
+    "approved",
+    "rejected"
+  ],
+  "queue_semantics": {
+    "hook_runs_after_terminal_persistence": true,
+    "approved_triggers_terminal_hook": true,
+    "rejected_direct_triggers_terminal_hook": true,
+    "rejected_after_processing_error_triggers_terminal_hook": true,
+    "retry_triggers_terminal_hook": false,
+    "mission_approval_hook_preserved": true,
+    "mission_and_trust_hooks_independent": true,
+    "terminal_hook_failure_rolls_back_discovery": false,
+    "terminal_hook_failure_recoverable_by_reconciliation": true
+  },
+  "trust_hook": {
+    "reloads_authoritative_discovery": true,
+    "validates_account": true,
+    "validates_terminal_status": true,
+    "validates_occurred_at": true,
+    "uses_atomic_8d1_wiring": true,
+    "idempotent_by_discovery_id": true,
+    "confirmed_abuse_authority": false
+  },
+  "boundaries": {
+    "runtime_composition_activation": false,
+    "historical_reconciliation": false,
+    "live_database_backfill": false,
+    "moderation_authority": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "public_api_change": false,
+    "public_app_change": false
+  },
+  "next_step": "8D3-community-trust-reconciliation-backfill",
+  "validation": {
+    "baseline": "a755396",
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 9,
+    "original_queue_tests_passed_pre_closure": 5,
+    "queue_trust_regression_tests_passed_pre_closure": 87,
+    "approved_terminal_hook_passed": true,
+    "rejected_direct_terminal_hook_passed": true,
+    "terminal_error_rejection_hook_passed": true,
+    "retry_without_trust_passed": true,
+    "mission_approval_hook_preserved": true,
+    "mission_and_trust_hooks_independent": true,
+    "terminal_hook_idempotency_passed": true,
+    "terminal_persistence_on_hook_failure_passed": true,
+    "identity_fail_closed_passed": true,
+    "contract_boundaries_passed": true,
+    "git_diff_check_passed": true,
+    "protected_local_files_preserved": true,
+    "runtime_composition_activation": false,
+    "historical_reconciliation": false,
+    "live_database_backfill": false,
+    "moderation_authority": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}

@@ -29,6 +29,22 @@ class CommunityApprovalHook(Protocol):
     ) -> ResultadoCommunityApprovalHook: ...
 
 
+class ResultadoCommunityTerminalHook(Protocol):
+    sucesso: bool
+    falhas: tuple[str, ...]
+
+
+class CommunityTerminalHook(Protocol):
+    def processar_terminal(
+        self,
+        *,
+        descoberta_id: str,
+        conta_id: str,
+        status: str,
+        ocorrido_em: str,
+    ) -> ResultadoCommunityTerminalHook: ...
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +59,7 @@ class CommunityDiscoveryQueueService:
         timeout_processamento_segundos: int = 900,
         agora_provider: Callable[[], datetime] | None = None,
         approval_hook: CommunityApprovalHook | None = None,
+        terminal_hook: CommunityTerminalHook | None = None,
     ) -> None:
         if max_tentativas < 1:
             raise ValueError("max_tentativas precisa ser positivo.")
@@ -60,6 +77,7 @@ class CommunityDiscoveryQueueService:
         self.timeout_processamento_segundos = int(timeout_processamento_segundos)
         self.agora_provider = agora_provider or (lambda: datetime.now(UTC))
         self.approval_hook = approval_hook
+        self.terminal_hook = terminal_hook
 
     def _agora(self) -> datetime:
         agora = self.agora_provider()
@@ -77,6 +95,40 @@ class CommunityDiscoveryQueueService:
             return "erro_processamento"
 
         return texto[:500]
+
+    def _executar_terminal_hook(
+        self,
+        descoberta: DescobertaComunitaria,
+    ) -> None:
+        if self.terminal_hook is None:
+            return
+
+        try:
+            resultado = self.terminal_hook.processar_terminal(
+                descoberta_id=descoberta.id,
+                conta_id=descoberta.conta_id,
+                status=descoberta.status,
+                ocorrido_em=descoberta.atualizado_em,
+            )
+
+            if not resultado.sucesso:
+                logger.error(
+                    "Community terminal persistido, "
+                    "mas terminal hook retornou falha | "
+                    "descoberta=%s status=%s falhas=%s",
+                    descoberta.id,
+                    descoberta.status,
+                    resultado.falhas,
+                )
+
+        except Exception:
+            logger.exception(
+                "Community terminal persistido, "
+                "mas terminal hook falhou | "
+                "descoberta=%s status=%s",
+                descoberta.id,
+                descoberta.status,
+            )
 
     def reservar(
         self,
@@ -148,6 +200,8 @@ class CommunityDiscoveryQueueService:
                     aprovada.id,
                 )
 
+        self._executar_terminal_hook(aprovada)
+
         return aprovada
 
     def rejeitar(
@@ -165,7 +219,11 @@ class CommunityDiscoveryQueueService:
         ):
             raise ValueError("Somente descoberta em processing pode ser rejeitada.")
 
-        return self._obter_obrigatoria(descoberta_id)
+        rejeitada = self._obter_obrigatoria(descoberta_id)
+
+        self._executar_terminal_hook(rejeitada)
+
+        return rejeitada
 
     def registrar_erro(
         self,
@@ -210,7 +268,11 @@ class CommunityDiscoveryQueueService:
         ):
             raise RuntimeError("Falha ao rejeitar descoberta apos erro.")
 
-        return self._obter_obrigatoria(descoberta_id)
+        rejeitada = self._obter_obrigatoria(descoberta_id)
+
+        self._executar_terminal_hook(rejeitada)
+
+        return rejeitada
 
     def _obter_obrigatoria(
         self,
