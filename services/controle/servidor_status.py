@@ -21,6 +21,9 @@ from repositories.community_moderation_repository import (
 from services.community_moderation_authority import (
     AutorizacaoModeracaoNegada,
 )
+from services.community_moderation_control_plane_policy import (
+    CommunityModerationControlPlanePolicy,
+)
 from services.community_moderation_service import (
     PoliticaModeracaoNegada,
 )
@@ -70,8 +73,90 @@ class ServidorStatusAdministrativo:
             None,
         )
 
+        moderation_control_plane_policy = getattr(
+            self,
+            "community_moderation_control_plane_policy",
+            None,
+        )
+
+        if moderation_control_plane_policy is None:
+            moderation_control_plane_policy = CommunityModerationControlPlanePolicy()
+
         class Handler(BaseHTTPRequestHandler):
+            def _iniciar_contexto_moderation(
+                self,
+                *,
+                escopo: str,
+                acao: str,
+                alvo: str | None,
+            ) -> None:
+                request_id = moderation_control_plane_policy.normalizar_request_id(
+                    self.headers.get("X-Request-Id")
+                )
+
+                dispositivo = (
+                    self.headers.get(
+                        "X-Radar-Device",
+                        "",
+                    ).strip()[:120]
+                    or None
+                )
+
+                client_ip = str(self.client_address[0]) if self.client_address else "unknown"
+
+                self._moderation_context = {
+                    "request_id": request_id,
+                    "escopo": escopo,
+                    "acao": acao,
+                    "alvo": alvo,
+                    "dispositivo": dispositivo,
+                    "client_ip": client_ip,
+                    "idempotency_key_present": bool(
+                        self.headers.get(
+                            "Idempotency-Key",
+                            "",
+                        ).strip()
+                    ),
+                    "rate_limit": None,
+                }
+
+                self._moderation_audit_written = False
+
+            def _permitir_rate_moderation(
+                self,
+            ) -> bool:
+                context = getattr(
+                    self,
+                    "_moderation_context",
+                    None,
+                )
+
+                if context is None:
+                    return True
+
+                resultado = moderation_control_plane_policy.consumir_rate_limit(
+                    escopo=str(context["escopo"]),
+                    chave=str(context["client_ip"]),
+                )
+
+                context["rate_limit"] = resultado
+
+                if resultado.permitido:
+                    return True
+
+                self._responder_json(
+                    429,
+                    {
+                        "erro": ("Limite de requisicoes " "de Moderation excedido."),
+                    },
+                )
+
+                return False
+
             def do_GET(self) -> None:
+                self._moderation_context = None
+                self._moderation_audit_written = False
+
                 price_url = urlparse(self.path)
                 price_rota = price_url.path.rstrip("/") or "/"
                 price_query = parse_qs(price_url.query)
@@ -185,6 +270,37 @@ class ServidorStatusAdministrativo:
                     moderation_rota == "/moderation/reports"
                     or moderation_rota.startswith("/moderation/reports/")
                 )
+                if moderation_read_route:
+                    partes_contexto = [
+                        unquote(parte) for parte in moderation_rota.split("/") if parte
+                    ]
+
+                    if moderation_rota == "/moderation/reports":
+                        moderation_acao = "moderation.admin.read.list"
+
+                        moderation_alvo = "queue"
+
+                    elif len(partes_contexto) == 3 and partes_contexto[:2] == [
+                        "moderation",
+                        "reports",
+                    ]:
+                        moderation_acao = "moderation.admin.read.detail"
+
+                        moderation_alvo = partes_contexto[2]
+
+                    else:
+                        moderation_acao = "moderation.admin.read.unknown"
+
+                        moderation_alvo = moderation_rota
+
+                    self._iniciar_contexto_moderation(
+                        escopo="read",
+                        acao=moderation_acao,
+                        alvo=moderation_alvo,
+                    )
+
+                    if not self._permitir_rate_moderation():
+                        return
 
                 if moderation_read_route and not token_administrativo:
                     self._responder_json(
@@ -464,6 +580,9 @@ class ServidorStatusAdministrativo:
                 )
 
             def do_POST(self) -> None:
+                self._moderation_context = None
+                self._moderation_audit_written = False
+
                 moderation_post_url = urlparse(self.path)
 
                 moderation_post_partes = [
@@ -476,6 +595,15 @@ class ServidorStatusAdministrativo:
                     and moderation_post_partes[1] == "reports"
                     and moderation_post_partes[3] == "decision"
                 )
+                if moderation_decision_route:
+                    self._iniciar_contexto_moderation(
+                        escopo="decision",
+                        acao=("moderation.admin.decision"),
+                        alvo=(moderation_post_partes[2]),
+                    )
+
+                    if not self._permitir_rate_moderation():
+                        return
 
                 if moderation_decision_route and not token_administrativo:
                     self._responder_json(
@@ -1067,7 +1195,83 @@ class ServidorStatusAdministrativo:
                 self,
                 status: int,
                 dados: dict[str, Any],
+                headers: dict[str, str] | None = None,
             ) -> None:
+                cabecalhos = dict(headers or {})
+
+                moderation_context = getattr(
+                    self,
+                    "_moderation_context",
+                    None,
+                )
+
+                if moderation_context is not None:
+                    request_id = str(moderation_context["request_id"])
+
+                    cabecalhos.setdefault(
+                        "X-Request-Id",
+                        request_id,
+                    )
+
+                    rate_result = moderation_context.get("rate_limit")
+
+                    if rate_result is not None:
+                        cabecalhos["X-RateLimit-Limit"] = str(rate_result.limite)
+
+                        cabecalhos["X-RateLimit-Remaining"] = str(rate_result.restantes)
+
+                        if rate_result.retry_after_segundos is not None:
+                            cabecalhos["Retry-After"] = str(rate_result.retry_after_segundos)
+
+                    error_code = moderation_control_plane_policy.codigo_erro(status)
+
+                    if error_code is not None:
+                        cabecalhos["X-Moderation-Error-Code"] = error_code
+
+                    cabecalhos.setdefault(
+                        "Cache-Control",
+                        "no-store",
+                    )
+
+                    if not getattr(
+                        self,
+                        "_moderation_audit_written",
+                        False,
+                    ):
+                        detalhes_auditoria = {
+                            "request_id": request_id,
+                            "method": self.command,
+                            "path": self.path,
+                            "status_code": int(status),
+                            "error_code": (error_code),
+                            "scope": (moderation_context["escopo"]),
+                            "client_ip": (moderation_context["client_ip"]),
+                            "idempotency_key_present": (
+                                moderation_context["idempotency_key_present"]
+                            ),
+                        }
+
+                        if rate_result is not None:
+                            detalhes_auditoria["rate_limit"] = {
+                                "limite": (rate_result.limite),
+                                "restantes": (rate_result.restantes),
+                                "retry_after_segundos": (rate_result.retry_after_segundos),
+                            }
+
+                        audit_ok = moderation_control_plane_policy.auditar(
+                            acao=(moderation_context["acao"]),
+                            alvo=(moderation_context["alvo"]),
+                            detalhes=(detalhes_auditoria),
+                            dispositivo=(moderation_context["dispositivo"]),
+                            resultado=(moderation_control_plane_policy.resultado_auditoria(status)),
+                        )
+
+                        self._moderation_audit_written = True
+
+                        cabecalhos["X-Moderation-Audit"] = (
+                            "persisted" if audit_ok else "unavailable"
+                        )
+
                 corpo = json.dumps(
                     dados,
                     ensure_ascii=False,
@@ -1076,20 +1280,34 @@ class ServidorStatusAdministrativo:
 
                 try:
                     self.send_response(status)
+
                     self.send_header(
                         "Content-Type",
                         "application/json; charset=utf-8",
                     )
+
                     self.send_header(
                         "Content-Length",
                         str(len(corpo)),
                     )
+
+                    for (
+                        nome,
+                        valor,
+                    ) in cabecalhos.items():
+                        self.send_header(
+                            str(nome),
+                            str(valor),
+                        )
+
                     self.end_headers()
+
                     self.wfile.write(corpo)
-                except (BrokenPipeError, ConnectionResetError):
-                    # O app pode cancelar uma atualização ao trocar de tela ou
-                    # perder a rede. Isso não é falha do backend e não merece
-                    # um traceback inteiro no console.
+
+                except (
+                    BrokenPipeError,
+                    ConnectionResetError,
+                ):
                     return
 
             def log_message(

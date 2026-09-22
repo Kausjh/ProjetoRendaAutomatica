@@ -22,6 +22,9 @@ from repositories.user_personalization_repository import (
 )
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
+from services.community_moderation_control_plane_policy import (
+    CommunityModerationControlPlanePolicy,
+)
 from services.community_moderation_read_service import CommunityModerationReadService
 from services.community_moderation_runtime import (
     ResultadoAtivacaoCommunityModeration,
@@ -107,6 +110,14 @@ def main() -> int:
     servidor_status = ServidorStatusAdministrativo(
         controlador=orquestrador.controle_administrativo,
     )
+    servidor_status.community_moderation_control_plane_policy = (
+        CommunityModerationControlPlanePolicy(
+            audit_sink=(
+                orquestrador.controle_administrativo.auditar_community_moderation_control_plane
+            ),
+        )
+    )
+
     controlador_api = ControladorApiAplicacao()
     user_identity_db = os.path.join(
         DIRETORIO_PROJETO,

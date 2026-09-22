@@ -1,4 +1,4 @@
-﻿# 63.8738, -149.7525
+# 63.8738, -149.7525
 
 from __future__ import annotations
 
@@ -103,6 +103,28 @@ class ControladorAdministrativo:
             dispositivo=dispositivo,
             resultado=resultado,
         )
+
+    def auditar_community_moderation_control_plane(
+        self,
+        *,
+        acao: str,
+        alvo: str | None,
+        detalhes: dict[str, object],
+        dispositivo: str | None,
+        resultado: str,
+    ) -> bool:
+        if self.repositorio_admin is None:
+            return False
+
+        self.repositorio_admin.registrar_auditoria(
+            acao=acao,
+            alvo=alvo,
+            detalhes=detalhes,
+            dispositivo=dispositivo,
+            resultado=resultado,
+        )
+
+        return True
 
     def _modo_operacao(self) -> str:
         if self.repositorio_admin is None:
