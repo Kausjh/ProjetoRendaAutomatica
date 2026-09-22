@@ -22,6 +22,10 @@ from repositories.user_personalization_repository import (
 )
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
+from services.community_moderation_runtime import (
+    ResultadoAtivacaoCommunityModeration,
+    ativar_community_moderation_runtime,
+)
 from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
@@ -42,6 +46,34 @@ from services.user_identity_service import UserIdentityService
 from services.user_personalization_service import UserPersonalizationService
 
 logger = logging.getLogger(__name__)
+
+
+def _ativar_community_moderation_controlado(
+    *,
+    caminho_banco: str,
+) -> ResultadoAtivacaoCommunityModeration:
+    resultado = ativar_community_moderation_runtime(
+        caminho_banco=caminho_banco,
+        permitir_schema_activation=True,
+        executar_reconciliation=False,
+    )
+
+    if resultado.ativo:
+        logger.info(
+            "Community Moderation runtime ativo | " "reconciliation_executada=%s",
+            resultado.reconciliation_executada,
+        )
+
+    elif resultado.erro == "feature_flag_disabled":
+        logger.info("Community Moderation runtime desativado " "por feature flag.")
+
+    else:
+        logger.error(
+            "Community Moderation runtime inativo | erro=%s",
+            resultado.erro,
+        )
+
+    return resultado
 
 
 def main() -> int:
@@ -226,6 +258,10 @@ def main() -> int:
 
     else:
         logger.info("Mission reward settlement desativado por feature flag.")
+
+    _ativar_community_moderation_controlado(
+        caminho_banco=user_identity_db,
+    )
 
     personalized_feed_service = PersonalizedFeedService(
         catalogo_repository=controlador_api.catalogo_repository,

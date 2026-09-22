@@ -1,0 +1,78 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-runtime-main-wiring",
+  "community_moderation_runtime_main_wiring_version": 1,
+  "stage": "8E8A-runtime-main-wiring-behind-flag",
+  "status": "completed",
+  "baseline_commit": "43bc0bc",
+  "source_contracts": [
+    "contracts/community_moderation_runtime_v1.json",
+    "contracts/community_moderation_live_schema_activation_v1.json"
+  ],
+  "target": {
+    "file": "runtime.py",
+    "helper": "_ativar_community_moderation_controlado",
+    "main_call": true,
+    "composition_service": "ativar_community_moderation_runtime"
+  },
+  "activation": {
+    "feature_flag": "COMMUNITY_MODERATION_RUNTIME_ATIVO",
+    "feature_flag_default_enabled": false,
+    "runtime_call_exists_even_when_flag_off": true,
+    "flag_off_returns_before_repository_construction": true,
+    "schema_permission_passed": true,
+    "schema_permission_is_safe_only_after_8e7": true,
+    "schema_already_active_before_8e8a": true,
+    "real_activation_this_stage": false,
+    "runtime_restart_this_stage": false
+  },
+  "reconciliation": {
+    "startup_flag": "COMMUNITY_MODERATION_RECONCILIATION_STARTUP_ATIVA",
+    "explicit_override_in_main": true,
+    "automatic_reconciliation_possible_in_8e8a": false,
+    "live_reconciliation_this_stage": false,
+    "explicit_override_value": false,
+    "startup_environment_flag_can_trigger_reconciliation_from_main": false
+  },
+  "boundaries": {
+    "moderation_service_exposed_to_http": false,
+    "admin_http_integration": false,
+    "public_report_api_integration": false,
+    "main_runtime_process_restarted": false,
+    "live_bridge_activation": false,
+    "live_reconciliation_execution": false,
+    "moderation_rows_created": false,
+    "trust_rows_changed": false,
+    "live_database_write": false,
+    "gamification_write": false
+  },
+  "validation": {
+    "baseline": "43bc0bc",
+    "source_audit_passed": true,
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 8,
+    "stage_8e_tests_passed_pre_closure": 93,
+    "trust_moderation_tests_passed_pre_closure": 142,
+    "main_controlled_call_count": 1,
+    "runtime_feature_flag_default_off": true,
+    "runtime_real_flag_off": true,
+    "reconciliation_real_flag_off": true,
+    "schema_pre_activated_by_8e7": true,
+    "schema_permission_in_main": true,
+    "reconciliation_explicitly_disabled_in_main": true,
+    "reconciliation_explicit_override_value": false,
+    "runtime_restart": false,
+    "live_runtime_activation": false,
+    "live_trust_bridge_activation": false,
+    "live_reconciliation_execution": false,
+    "admin_http_integration": false,
+    "public_report_api_integration": false,
+    "live_database_query_only": true,
+    "live_database_write": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "protected_files_preserved": true
+  },
+  "next_step": "8E8B-controlled-live-bridge-activation"
+}
