@@ -533,7 +533,7 @@ def test_contract_8e6_boundaries():
 
     assert runtime["live_bridge_injection"] is False
 
-    assert data["next_step"] == "8E7-moderation-live-schema-activation"
+    assert data["next_step"] == "8E8-controlled-runtime-wiring"
 
 
 def test_contract_8e6_closure_metadata():
@@ -541,7 +541,7 @@ def test_contract_8e6_closure_metadata():
 
     assert data["status"] == "completed"
 
-    assert data["next_step"] == "8E7-moderation-live-schema-activation"
+    assert data["next_step"] == "8E8-controlled-runtime-wiring"
 
     validation = data["validation"]
 

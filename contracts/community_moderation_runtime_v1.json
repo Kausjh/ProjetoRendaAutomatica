@@ -66,7 +66,7 @@
     "gamification_write": false,
     "reputation_total_write": false
   },
-  "next_step": "8E7-moderation-live-schema-activation",
+  "next_step": "8E8-controlled-runtime-wiring",
   "validation": {
     "baseline": "ddef57f",
     "pre_commit_passed": true,
@@ -101,5 +101,14 @@
     "live_database_write": false,
     "gamification_write": false,
     "reputation_total_write": false
+  },
+  "live_schema_activation": {
+    "contract": "contracts/community_moderation_live_schema_activation_v1.json",
+    "status": "completed",
+    "moderation_tables_active": true,
+    "moderation_rows": 0,
+    "runtime_activation": false,
+    "trust_bridge_live_activation": false,
+    "reconciliation_live_execution": false
   }
 }

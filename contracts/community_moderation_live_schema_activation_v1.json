@@ -1,0 +1,72 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-live-schema-activation",
+  "community_moderation_live_schema_activation_version": 1,
+  "stage": "8E7-moderation-live-schema-activation",
+  "status": "completed",
+  "baseline_commit": "cca4764",
+  "source_contract": "contracts/community_moderation_runtime_v1.json",
+  "sub_stages": {
+    "8E7A": {
+      "name": "backup-and-pre-activation-snapshot",
+      "status": "completed"
+    },
+    "8E7B": {
+      "name": "moderation-live-schema-activation",
+      "status": "completed"
+    },
+    "8E7C": {
+      "name": "schema-verification-and-rollback-proof",
+      "status": "completed"
+    }
+  },
+  "recovery_point": {
+    "backup_path": "logs/reports/backups/user_identity_pre_8e7b_20260922_155416148.sqlite3",
+    "backup_sha256": "74f8bb85b28738d535ad73622f394143dd3c671703469472beb18cc852ad1526",
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "moderation_tables": 0,
+    "trust_evidence": 2,
+    "trust_profiles": 1,
+    "pre_schema_sha256": "ef8c9baec8e50420626a724069ddcebcca284fecc95103a82dcfb557a231b93b"
+  },
+  "activation": {
+    "repository": "CommunityModerationRepository",
+    "rehearsal_before_live": true,
+    "live_schema_write": true,
+    "live_schema_matches_rehearsal": true,
+    "post_schema_sha256": "710c43d5e42c78647c2476de7e55b87b3c27e9acdcac67e66d9f61e53788ec2b",
+    "moderation_tables": [
+      "community_moderation_decisions",
+      "community_moderation_reports"
+    ],
+    "moderation_report_rows": 0,
+    "moderation_decision_rows": 0,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "trust_evidence": 2,
+    "trust_profiles": 1
+  },
+  "rollback_proof": {
+    "simulated_restore_from_backup": true,
+    "restored_schema_matches_pre_activation": true,
+    "restored_moderation_tables": 0,
+    "restored_trust_evidence": 2,
+    "restored_trust_profiles": 1,
+    "forward_replay_after_restore": true,
+    "forward_replay_matches_live_schema": true,
+    "live_restore_performed": false,
+    "windows_temp_cleanup_is_correctness_boundary": false
+  },
+  "boundaries": {
+    "live_database_write_by_8e7c": false,
+    "moderation_rows_created": false,
+    "trust_rows_changed": false,
+    "main_runtime_activation": false,
+    "moderation_service_activation": false,
+    "trust_bridge_live_activation": false,
+    "reconciliation_live_execution": false,
+    "admin_http_activation": false,
+    "public_report_api_activation": false
+  },
+  "next_step": "8E8-controlled-runtime-wiring"
+}
