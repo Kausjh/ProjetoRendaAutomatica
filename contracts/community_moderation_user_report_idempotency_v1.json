@@ -1,0 +1,128 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-user-report-idempotency",
+  "community_moderation_user_report_idempotency_version": 1,
+  "stage": "8E10B-idempotency-duplicate-protection",
+  "status": "completed",
+  "baseline_commit": "ddf9e7e",
+  "source_stage": {
+    "8E10A": "completed"
+  },
+  "route": {
+    "method": "POST",
+    "path": "/api/v1/me/reports",
+    "idempotency_header": "Idempotency-Key",
+    "idempotency_header_required": true
+  },
+  "idempotency_key": {
+    "scope": "authenticated-reporter",
+    "minimum_length": 1,
+    "maximum_length": 128,
+    "allowed_pattern": "^[A-Za-z0-9._:-]{1,128}$",
+    "stored_prefix": "v2:community-report-user",
+    "same_key_same_payload_status": 200,
+    "same_key_different_payload_status": 409,
+    "first_creation_status": 201
+  },
+  "duplicate_policy": {
+    "semantic_identity": [
+      "reporter_conta_id",
+      "target_type",
+      "target_id",
+      "motivo"
+    ],
+    "different_key_same_semantic_report_status": 409,
+    "different_key_same_semantic_error_code": "denuncia_duplicada",
+    "details_change_does_not_create_second_semantic_report": true,
+    "cross_reporter_same_key_allowed": true
+  },
+  "errors": {
+    "missing_idempotency_key": {
+      "status": 400,
+      "code": "idempotency_key_obrigatoria"
+    },
+    "invalid_idempotency_key": {
+      "status": 400,
+      "code": "idempotency_key_invalida"
+    },
+    "same_key_different_payload": {
+      "status": 409,
+      "code": "idempotency_key_reutilizada"
+    },
+    "semantic_duplicate": {
+      "status": 409,
+      "code": "denuncia_duplicada"
+    }
+  },
+  "persistence": {
+    "new_table_required": false,
+    "schema_migration_required": false,
+    "existing_idempotency_column_reused": true,
+    "existing_semantic_unique_constraint_reused": true,
+    "begin_immediate_preserved": true,
+    "legacy_registrar_denuncia_preserved": true,
+    "new_public_repository_method": "registrar_denuncia_usuario"
+  },
+  "response": {
+    "created_field_preserved": true,
+    "idempotent_replay_field_added": true,
+    "idempotent_replay_true_only_for_exact_key_replay": true
+  },
+  "boundaries": {
+    "user_status_readback": false,
+    "deferred_to": "8E10C-limited-user-status-readback",
+    "public_app_ui": false,
+    "trust_write": false,
+    "moderation_decision_write": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_schema_write": false
+  },
+  "next_step": "8E10C-limited-user-status-readback",
+  "validation": {
+    "baseline_commit": "ddf9e7e",
+    "structural_ast_audit_passed": true,
+    "pre_commit_passed": true,
+    "isolated_8e10b_cases_passed_pre_closure": 18,
+    "stage_8e10a_regression_cases_passed": 26,
+    "stage_8e1_8e10b_cases_passed_pre_closure": 205,
+    "trust_moderation_reporting_cases_passed_pre_closure": 254,
+    "admin_server_cases_passed": 96,
+    "user_facing_server_cases_passed_pre_closure": 197,
+    "idempotency_header": "Idempotency-Key",
+    "idempotency_header_required": true,
+    "idempotency_scope": "authenticated-reporter",
+    "first_creation_status": 201,
+    "exact_replay_status": 200,
+    "same_key_different_payload_status": 409,
+    "different_key_same_semantics_status": 409,
+    "cross_reporter_same_key_allowed": true,
+    "new_table_required": false,
+    "schema_migration_required": false,
+    "legacy_registrar_denuncia_preserved": true,
+    "user_status_readback": false,
+    "user_status_readback_deferred_to_8e10c": true,
+    "trust_write": false,
+    "decision_write": false,
+    "moderation_runtime_flag_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_schema_write": false,
+    "live_database_write": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8e10b_cases_after_closure": 19,
+    "expected_stage_8e1_8e10b_cases_after_closure": 206,
+    "expected_trust_moderation_reporting_cases_after_closure": 255,
+    "expected_admin_server_cases_after_closure": 96,
+    "expected_user_facing_server_cases_after_closure": 198
+  }
+}

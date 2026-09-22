@@ -22,6 +22,10 @@ class ConflitoIdempotenciaCommunityModeration(ValueError):
     pass
 
 
+class DuplicataDenunciaCommunityModeration(ValueError):
+    pass
+
+
 class ConflitoEstadoCommunityModeration(ValueError):
     pass
 
@@ -36,6 +40,9 @@ class TargetCommunityModerationNaoEncontrado(ValueError):
 
 class CommunityModerationRepository:
     REPORT_IDEMPOTENCY_PREFIX = "v1:community-report"
+    REPORT_USER_IDEMPOTENCY_PREFIX = "v2:community-report-user"
+
+    MAX_USER_IDEMPOTENCY_KEY = 128
 
     DECISION_IDEMPOTENCY_PREFIX = "v1:community-moderation-decision"
 
@@ -619,6 +626,251 @@ class CommunityModerationRepository:
 
             if linha is None:
                 raise RuntimeError("Denuncia desapareceu " "apos persistencia.")
+
+            conexao.commit()
+
+            return ResultadoRegistroDenunciaCommunityModeration(
+                denuncia=(self._denuncia_da_linha(linha)),
+                criado=True,
+            )
+
+        except Exception:
+            conexao.rollback()
+            raise
+
+        finally:
+            conexao.close()
+
+    @classmethod
+    def _chave_denuncia_usuario(
+        cls,
+        *,
+        reporter_conta_id: str,
+        acao_idempotencia: str,
+    ) -> str:
+        return (
+            f"{cls.REPORT_USER_IDEMPOTENCY_PREFIX}:" f"{reporter_conta_id}:" f"{acao_idempotencia}"
+        )
+
+    @staticmethod
+    def _buscar_denuncia_semantica(
+        conexao: sqlite3.Connection,
+        *,
+        reporter_conta_id: str,
+        target_type: str,
+        target_id: str,
+        motivo: str,
+    ) -> sqlite3.Row | None:
+        return conexao.execute(
+            """
+            SELECT *
+            FROM community_moderation_reports
+            WHERE reporter_conta_id = ?
+              AND target_type = ?
+              AND target_id = ?
+              AND motivo = ?
+            """,
+            (
+                reporter_conta_id,
+                target_type,
+                target_id,
+                motivo,
+            ),
+        ).fetchone()
+
+    def registrar_denuncia_usuario(
+        self,
+        *,
+        reporter_conta_id: str,
+        target_type: str,
+        target_id: str,
+        motivo: str,
+        detalhes: str | None,
+        acao_idempotencia: str,
+        agora: str,
+    ) -> ResultadoRegistroDenunciaCommunityModeration:
+        reporter = self._obrigatorio(
+            reporter_conta_id,
+            "reporter_conta_id",
+        )
+
+        tipo_target = self._obrigatorio(
+            target_type,
+            "target_type",
+        )
+
+        target = self._obrigatorio(
+            target_id,
+            "target_id",
+        )
+
+        motivo_normalizado = self._obrigatorio(
+            motivo,
+            "motivo",
+        )
+
+        detalhes_normalizados = self._opcional_limitado(
+            detalhes,
+            campo="detalhes",
+            maximo=self.MAX_DETALHES,
+        )
+
+        chave_cliente = self._obrigatorio(
+            acao_idempotencia,
+            "acao_idempotencia",
+        )
+
+        if len(chave_cliente) > self.MAX_USER_IDEMPOTENCY_KEY:
+            raise ValueError(
+                "acao_idempotencia excede " f"{self.MAX_USER_IDEMPOTENCY_KEY} caracteres."
+            )
+
+        timestamp = self._timestamp(
+            agora,
+            "agora",
+        )
+
+        if tipo_target not in TARGET_TYPES_VALIDOS:
+            raise ValueError("target_type invalido.")
+
+        if motivo_normalizado not in MOTIVOS_DENUNCIA_VALIDOS:
+            raise ValueError("motivo invalido.")
+
+        chave = self._chave_denuncia_usuario(
+            reporter_conta_id=reporter,
+            acao_idempotencia=chave_cliente,
+        )
+
+        conexao = self._conectar()
+
+        try:
+            conexao.execute("BEGIN IMMEDIATE")
+
+            existente_chave = self._buscar_denuncia_por_chave(
+                conexao,
+                chave_idempotencia=chave,
+            )
+
+            if existente_chave is not None:
+                esperado = (
+                    reporter,
+                    tipo_target,
+                    target,
+                    motivo_normalizado,
+                    detalhes_normalizados,
+                )
+
+                encontrado = (
+                    str(existente_chave["reporter_conta_id"]),
+                    str(existente_chave["target_type"]),
+                    str(existente_chave["target_id"]),
+                    str(existente_chave["motivo"]),
+                    (
+                        str(existente_chave["detalhes"])
+                        if (existente_chave["detalhes"] is not None)
+                        else None
+                    ),
+                )
+
+                if encontrado != esperado:
+                    raise (
+                        ConflitoIdempotenciaCommunityModeration(
+                            "Idempotency-Key reutilizada " "com semantica diferente."
+                        )
+                    )
+
+                conexao.commit()
+
+                return ResultadoRegistroDenunciaCommunityModeration(
+                    denuncia=(self._denuncia_da_linha(existente_chave)),
+                    criado=False,
+                )
+
+            reporter_existe = conexao.execute(
+                """
+                SELECT 1
+                FROM contas_usuario
+                WHERE id = ?
+                """,
+                (reporter,),
+            ).fetchone()
+
+            if reporter_existe is None:
+                raise (
+                    ReporterCommunityModerationNaoEncontrado("Conta do reporter nao encontrada.")
+                )
+
+            target_existe = conexao.execute(
+                """
+                SELECT 1
+                FROM community_discoveries
+                WHERE id = ?
+                """,
+                (target,),
+            ).fetchone()
+
+            if target_existe is None:
+                raise (
+                    TargetCommunityModerationNaoEncontrado("Target de moderacao nao encontrado.")
+                )
+
+            duplicata = self._buscar_denuncia_semantica(
+                conexao,
+                reporter_conta_id=reporter,
+                target_type=tipo_target,
+                target_id=target,
+                motivo=motivo_normalizado,
+            )
+
+            if duplicata is not None:
+                raise (
+                    DuplicataDenunciaCommunityModeration(
+                        "Denuncia equivalente ja existe " "para este reporter e target."
+                    )
+                )
+
+            denuncia_id = "rpt_" + uuid4().hex
+
+            conexao.execute(
+                """
+                INSERT INTO
+                    community_moderation_reports (
+                        id,
+                        chave_idempotencia,
+                        reporter_conta_id,
+                        target_type,
+                        target_id,
+                        motivo,
+                        detalhes,
+                        estado,
+                        criado_em,
+                        atualizado_em
+                    )
+                VALUES (
+                    ?, ?, ?, ?, ?, ?,
+                    ?, 'received', ?, ?
+                )
+                """,
+                (
+                    denuncia_id,
+                    chave,
+                    reporter,
+                    tipo_target,
+                    target,
+                    motivo_normalizado,
+                    detalhes_normalizados,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+
+            linha = self._buscar_denuncia(
+                conexao,
+                denuncia_id=denuncia_id,
+            )
+
+            if linha is None:
+                raise RuntimeError("Denuncia desapareceu apos persistencia.")
 
             conexao.commit()
 

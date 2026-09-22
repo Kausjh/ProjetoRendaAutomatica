@@ -470,9 +470,10 @@ class ServidorApiAplicacao:
                         return
 
                     try:
-                        status, dados = user_facing_reporting.criar(
+                        status, dados = user_facing_reporting.criar_idempotente(
                             conta,
                             payload,
+                            idempotency_key=self.headers.get("Idempotency-Key"),
                         )
                     except ErroHttpUserFacing as erro:
                         self._responder_erro_user_facing(erro)

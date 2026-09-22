@@ -92,6 +92,16 @@ class FakeModerationRepository:
             criado=self.criado,
         )
 
+    def registrar_denuncia_usuario(
+        self,
+        *,
+        acao_idempotencia: str,
+        **kwargs,
+    ):
+        return self.registrar_denuncia(
+            **kwargs,
+        )
+
 
 class FakeIdentityService:
     def __init__(
@@ -159,6 +169,7 @@ def _request(
     payload: object,
     user_session: str | None = None,
     infrastructure_token: str | None = None,
+    idempotency_key: str | None = "8e10a-default-key",
 ):
     headers = {
         "Content-Type": "application/json",
@@ -169,6 +180,8 @@ def _request(
 
     if infrastructure_token is not None:
         headers["Authorization"] = f"Bearer {infrastructure_token}"
+    if idempotency_key is not None:
+        headers["Idempotency-Key"] = idempotency_key
 
     request = Request(
         url,
