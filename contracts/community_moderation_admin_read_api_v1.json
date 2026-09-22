@@ -1,0 +1,111 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-admin-read-api",
+  "community_moderation_admin_read_api_version": 1,
+  "stage": "8E9A-admin-moderation-read-api",
+  "status": "completed",
+  "baseline_commit": "02b2f23",
+  "recovery": {
+    "first_attempt": "repository-text-anchor-mismatch",
+    "second_attempt": "server-route-text-anchor-mismatch",
+    "structural_patch_used": true,
+    "server_patch_strategy": "python-ast-semantic-line-insertion",
+    "write_repository_modified": false
+  },
+  "transport": {
+    "server": "ServidorStatusAdministrativo",
+    "control_plane": "administrative",
+    "admin_token_env": "RADAR_ADMIN_TOKEN",
+    "user_facing_api": false,
+    "user_session_required": false,
+    "fail_closed_without_admin_token": true
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/moderation/reports",
+      "purpose": "listar denuncias pendentes",
+      "query": {
+        "limite": {
+          "default": 50,
+          "max": 100
+        },
+        "offset": {
+          "default": 0,
+          "min": 0
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/moderation/reports/{denuncia_id}",
+      "purpose": "obter denuncia e historico de decisoes"
+    }
+  ],
+  "read_projection": {
+    "class": "CommunityModerationReadService",
+    "sqlite_uri_mode": "ro",
+    "query_only": true,
+    "schema_initialization": false,
+    "write_repository_dependency": false,
+    "list_pending": true,
+    "list_pending_pagination": true,
+    "report_detail": true,
+    "decision_history": true,
+    "writes": false
+  },
+  "runtime": {
+    "read_service_wired": true,
+    "server_instance_reused": true,
+    "moderation_runtime_flag_dependency": false,
+    "moderation_runtime_persistently_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart_this_stage": false
+  },
+  "boundaries": {
+    "decision_write_api": false,
+    "report_creation_api": false,
+    "trust_write": false,
+    "moderation_write": false,
+    "gamification_write": false,
+    "audit_semantics_finalization": false,
+    "rate_limit_finalization": false,
+    "error_semantics_finalization": false
+  },
+  "next_step": "8E9B-authoritative-admin-decision-api",
+  "validation": {
+    "baseline": "02b2f23",
+    "structural_patch_strategy": "python-ast-semantic-line-insertion",
+    "write_repository_modified": false,
+    "source_audit_passed": true,
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 12,
+    "stage_8e_tests_passed_pre_closure": 124,
+    "trust_moderation_tests_passed_pre_closure": 173,
+    "dedicated_read_projection": true,
+    "sqlite_mode_ro": true,
+    "query_only": true,
+    "accidental_write_blocked": true,
+    "admin_control_plane": "ServidorStatusAdministrativo",
+    "admin_auth_env": "RADAR_ADMIN_TOKEN",
+    "fail_closed_without_admin_token": true,
+    "user_facing_api_used": false,
+    "user_session_required": false,
+    "pending_reports_route": "GET /moderation/reports",
+    "report_detail_route": "GET /moderation/reports/{denuncia_id}",
+    "pending_pagination": true,
+    "runtime_read_service_wiring": true,
+    "runtime_restart": false,
+    "moderation_runtime_persistently_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "decision_write_api": false,
+    "public_report_api": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_database_write": false,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  }
+}

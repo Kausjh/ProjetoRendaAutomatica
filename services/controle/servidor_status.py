@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import hmac
 import json
@@ -46,6 +46,12 @@ class ServidorStatusAdministrativo:
 
         controlador = self.controlador
         token_administrativo = self.token
+
+        moderation_read_service = getattr(
+            self,
+            "community_moderation_read_service",
+            None,
+        )
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
@@ -157,6 +163,23 @@ class ServidorStatusAdministrativo:
                         dados,
                     )
                     return
+                moderation_rota = price_rota
+                moderation_read_route = (
+                    moderation_rota == "/moderation/reports"
+                    or moderation_rota.startswith("/moderation/reports/")
+                )
+
+                if moderation_read_route and not token_administrativo:
+                    self._responder_json(
+                        503,
+                        {
+                            "erro": (
+                                "Moderation control plane " "indisponivel sem " "RADAR_ADMIN_TOKEN."
+                            ),
+                        },
+                    )
+                    return
+
                 if token_administrativo:
                     autorizacao = self.headers.get(
                         "Authorization",
@@ -187,6 +210,65 @@ class ServidorStatusAdministrativo:
                 parametros = parse_qs(url.query)
 
                 try:
+                    if moderation_read_route:
+                        if moderation_read_service is None:
+                            self._responder_json(
+                                503,
+                                {
+                                    "erro": ("Moderation read service " "indisponivel."),
+                                },
+                            )
+                            return
+
+                        if moderation_rota == "/moderation/reports":
+                            limite = self._obter_inteiro(
+                                parametros,
+                                "limite",
+                                50,
+                            )
+
+                            offset = self._obter_inteiro(
+                                parametros,
+                                "offset",
+                                0,
+                            )
+
+                            dados = moderation_read_service.listar_pendentes(
+                                limite=limite,
+                                offset=offset,
+                            )
+
+                            self._responder_json(
+                                200,
+                                dados,
+                            )
+                            return
+
+                        partes_moderation = [
+                            unquote(parte) for parte in moderation_rota.split("/") if parte
+                        ]
+
+                        if len(partes_moderation) == 3 and partes_moderation[:2] == [
+                            "moderation",
+                            "reports",
+                        ]:
+                            dados = moderation_read_service.obter_denuncia(partes_moderation[2])
+
+                            if dados is None:
+                                self._responder_json(
+                                    404,
+                                    {
+                                        "erro": ("Denuncia de " "moderacao nao " "encontrada."),
+                                    },
+                                )
+                                return
+
+                            self._responder_json(
+                                200,
+                                dados,
+                            )
+                            return
+
                     if rota == "/status":
                         dados = controlador.obter_estado().como_dict()
                         self._responder_json(200, dados)

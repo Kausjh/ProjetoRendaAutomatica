@@ -22,6 +22,7 @@ from repositories.user_personalization_repository import (
 )
 from services.api_aplicacao.controlador import ControladorApiAplicacao
 from services.api_aplicacao.servidor import ServidorApiAplicacao
+from services.community_moderation_read_service import CommunityModerationReadService
 from services.community_moderation_runtime import (
     ResultadoAtivacaoCommunityModeration,
     ativar_community_moderation_runtime,
@@ -118,6 +119,10 @@ def main() -> int:
     user_identity_service = UserIdentityService(
         user_identity_repository,
     )
+    community_moderation_read_service = CommunityModerationReadService(user_identity_db)
+
+    servidor_status.community_moderation_read_service = community_moderation_read_service
+
     user_personalization_repository = UserPersonalizationRepository(
         user_identity_db,
     )
