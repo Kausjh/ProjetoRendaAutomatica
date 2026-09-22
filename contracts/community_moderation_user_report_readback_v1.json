@@ -1,0 +1,161 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-user-report-readback",
+  "community_moderation_user_report_readback_version": 1,
+  "stage": "8E10C-limited-user-status-readback",
+  "status": "completed",
+  "baseline_commit": "c6de05a",
+  "source_stages": {
+    "8E10A": "completed",
+    "8E10B": "completed"
+  },
+  "routes": {
+    "list": {
+      "method": "GET",
+      "path": "/api/v1/me/reports",
+      "status": 200
+    },
+    "detail": {
+      "method": "GET",
+      "path": "/api/v1/me/reports/{report_id}",
+      "status": 200
+    }
+  },
+  "authentication": {
+    "header": "X-User-Session",
+    "required": true,
+    "infrastructure_token_behavior_preserved": true
+  },
+  "ownership": {
+    "list_only_authenticated_reporter": true,
+    "detail_requires_authenticated_reporter_match": true,
+    "non_owned_report_status": 404,
+    "non_owned_and_missing_are_indistinguishable": true,
+    "ownership_filter_location": "repository-sql"
+  },
+  "list": {
+    "default_limit": 20,
+    "maximum_limit": 100,
+    "default_offset": 0,
+    "order": [
+      "criado_em DESC",
+      "id DESC"
+    ],
+    "fields": [
+      "id",
+      "target_type",
+      "target_id",
+      "motivo",
+      "estado",
+      "criado_em",
+      "atualizado_em"
+    ],
+    "details_in_list": false
+  },
+  "detail": {
+    "fields": [
+      "id",
+      "target_type",
+      "target_id",
+      "motivo",
+      "estado",
+      "criado_em",
+      "atualizado_em",
+      "detalhes"
+    ]
+  },
+  "private_fields": {
+    "reporter_conta_id_exposed": false,
+    "idempotency_key_exposed": false,
+    "moderator_actor_id_exposed": false,
+    "moderation_result_exposed": false,
+    "confirmed_abuse_family_exposed": false,
+    "moderator_justification_exposed": false,
+    "authority_origin_exposed": false,
+    "trust_internal_data_exposed": false
+  },
+  "decisions": {
+    "decision_table_queried_by_user_readback": false,
+    "decision_payload_exposed": false
+  },
+  "persistence": {
+    "read_only_operation": true,
+    "new_table_required": false,
+    "schema_migration_required": false,
+    "new_index_required": false,
+    "repository_reused": true
+  },
+  "boundaries": {
+    "report_creation_changed": false,
+    "idempotency_policy_changed": false,
+    "trust_write": false,
+    "moderation_decision_write": false,
+    "public_app_ui": false,
+    "runtime_flag_changed": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_database_write": false,
+    "live_schema_write": false
+  },
+  "next_step": "8E11A-public-app-reporting-client-read-model",
+  "validation": {
+    "baseline_commit": "c6de05a",
+    "pre_commit_passed": true,
+    "isolated_8e10c_cases_passed_pre_closure": 24,
+    "reporting_8e10a_8e10b_8e10c_cases_passed_pre_closure": 69,
+    "stage_8e1_8e10c_cases_passed_pre_closure": 230,
+    "trust_only_cases_passed": 49,
+    "admin_server_cases_passed": 96,
+    "user_facing_server_cases_passed_pre_closure": 222,
+    "windows_http_flake_detected": true,
+    "windows_http_flake_code": "WinError 10053",
+    "windows_http_flake_retry_succeeded": true,
+    "ownership_filter": "repository-sql",
+    "list_only_own_reports": true,
+    "detail_only_own_report": true,
+    "foreign_report_status": 404,
+    "missing_report_status": 404,
+    "foreign_and_missing_indistinguishable": true,
+    "list_default_limit": 20,
+    "list_maximum_limit": 100,
+    "list_details_exposed": false,
+    "detail_own_details_exposed": true,
+    "reporter_id_exposed": false,
+    "idempotency_key_exposed": false,
+    "moderator_actor_exposed": false,
+    "moderation_result_exposed": false,
+    "moderator_justification_exposed": false,
+    "trust_internal_data_exposed": false,
+    "decision_table_queried_by_user_readback": false,
+    "read_only_operation": true,
+    "new_table_required": false,
+    "schema_migration_required": false,
+    "runtime_wiring_change_required": false,
+    "report_creation_changed": false,
+    "idempotency_policy_changed": false,
+    "trust_write": false,
+    "decision_write": false,
+    "public_app_ui": false,
+    "moderation_runtime_flag_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_schema_write": false,
+    "live_database_write": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8e10c_cases_after_closure": 25,
+    "expected_reporting_8e10a_8e10b_8e10c_cases_after_closure": 70,
+    "expected_stage_8e1_8e10c_cases_after_closure": 231,
+    "expected_trust_only_cases_after_closure": 49,
+    "expected_admin_server_cases_after_closure": 96,
+    "expected_user_facing_server_cases_after_closure": 223
+  }
+}

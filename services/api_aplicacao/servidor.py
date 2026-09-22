@@ -216,7 +216,7 @@ class ServidorApiAplicacao:
                     return
 
                 if token_api and not self._autorizado(token_api):
-                    if rota in {
+                    if rota.startswith("/api/v1/me/reports/") or rota in {
                         "/api/v1/me",
                         "/api/v1/me/preferences",
                         "/api/v1/me/watchlist",
@@ -225,6 +225,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/gamification",
                         "/api/v1/me/missions",
                         "/api/v1/me/discoveries",
+                        "/api/v1/me/reports",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -238,6 +239,60 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/reports":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_reporting.listar_status(
+                            conta,
+                            limite=query.get(
+                                "limite",
+                                ["20"],
+                            )[0],
+                            offset=query.get(
+                                "offset",
+                                ["0"],
+                            )[0],
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
+                    return
+
+                partes_reports = [unquote(parte) for parte in rota.split("/") if parte]
+
+                if len(partes_reports) == 5 and partes_reports[:4] == [
+                    "api",
+                    "v1",
+                    "me",
+                    "reports",
+                ]:
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_reporting.obter_status(
+                            conta,
+                            partes_reports[4],
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/discoveries":

@@ -906,6 +906,80 @@ class CommunityModerationRepository:
 
         return self._denuncia_da_linha(linha)
 
+    def obter_denuncia_reporter(
+        self,
+        *,
+        denuncia_id: str,
+        reporter_conta_id: str,
+    ) -> DenunciaCommunityModeration | None:
+        denuncia = self._obrigatorio(
+            denuncia_id,
+            "denuncia_id",
+        )
+
+        reporter = self._obrigatorio(
+            reporter_conta_id,
+            "reporter_conta_id",
+        )
+
+        with self._conectar() as conexao:
+            linha = conexao.execute(
+                """
+                SELECT *
+                FROM community_moderation_reports
+                WHERE id = ?
+                  AND reporter_conta_id = ?
+                """,
+                (
+                    denuncia,
+                    reporter,
+                ),
+            ).fetchone()
+
+        if linha is None:
+            return None
+
+        return self._denuncia_da_linha(linha)
+
+    def listar_denuncias_reporter(
+        self,
+        *,
+        reporter_conta_id: str,
+        limite: int = 20,
+        offset: int = 0,
+    ) -> list[DenunciaCommunityModeration]:
+        reporter = self._obrigatorio(
+            reporter_conta_id,
+            "reporter_conta_id",
+        )
+
+        limite_normalizado = self._limite(
+            limite,
+            maximo=100,
+        )
+
+        offset_normalizado = self._offset(offset)
+
+        with self._conectar() as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT *
+                FROM community_moderation_reports
+                WHERE reporter_conta_id = ?
+                ORDER BY
+                    criado_em DESC,
+                    id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    reporter,
+                    limite_normalizado,
+                    offset_normalizado,
+                ),
+            ).fetchall()
+
+        return [self._denuncia_da_linha(linha) for linha in linhas]
+
     def listar_denuncias_target(
         self,
         *,

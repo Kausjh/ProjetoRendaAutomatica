@@ -79,6 +79,141 @@ class UserFacingCommunityReportingController:
             "atualizado_em": denuncia.atualizado_em,
         }
 
+    @staticmethod
+    def _serializar_status(
+        denuncia: DenunciaCommunityModeration,
+    ) -> dict[str, object]:
+        return {
+            "id": denuncia.id,
+            "target_type": denuncia.target_type,
+            "target_id": denuncia.target_id,
+            "motivo": denuncia.motivo,
+            "estado": denuncia.estado,
+            "criado_em": denuncia.criado_em,
+            "atualizado_em": denuncia.atualizado_em,
+        }
+
+    @classmethod
+    def _serializar_detalhe(
+        cls,
+        denuncia: DenunciaCommunityModeration,
+    ) -> dict[str, object]:
+        dados = cls._serializar_status(denuncia)
+
+        dados["detalhes"] = denuncia.detalhes
+
+        return dados
+
+    @staticmethod
+    def _paginacao_readback(
+        *,
+        limite: object,
+        offset: object,
+    ) -> tuple[int, int]:
+        try:
+            limite_int = int(str(limite).strip())
+
+            offset_int = int(str(offset).strip())
+
+        except (
+            TypeError,
+            ValueError,
+        ) as erro:
+            raise ErroHttpUserFacing(
+                400,
+                "paginacao_denuncias_invalida",
+                "Paginacao de denuncias invalida.",
+            ) from erro
+
+        if limite_int < 1 or limite_int > 100 or offset_int < 0:
+            raise ErroHttpUserFacing(
+                400,
+                "paginacao_denuncias_invalida",
+                ("limite deve estar entre 1 e 100 " "e offset deve ser maior ou igual a zero."),
+            )
+
+        return (
+            limite_int,
+            offset_int,
+        )
+
+    def listar_status(
+        self,
+        conta: ContaUsuario,
+        *,
+        limite: object = "20",
+        offset: object = "0",
+    ) -> tuple[int, dict[str, object]]:
+        if not conta.ativa:
+            raise ErroHttpUserFacing(
+                401,
+                "sessao_usuario_invalida",
+                "Sessao de usuario invalida.",
+            )
+
+        limite_int, offset_int = self._paginacao_readback(
+            limite=limite,
+            offset=offset,
+        )
+
+        denuncias = self._repository().listar_denuncias_reporter(
+            reporter_conta_id=conta.id,
+            limite=limite_int,
+            offset=offset_int,
+        )
+
+        itens = [self._serializar_status(denuncia) for denuncia in denuncias]
+
+        return (
+            200,
+            {
+                "itens": itens,
+                "limite": limite_int,
+                "offset": offset_int,
+                "quantidade": len(itens),
+            },
+        )
+
+    def obter_status(
+        self,
+        conta: ContaUsuario,
+        denuncia_id: object,
+    ) -> tuple[int, dict[str, object]]:
+        if not conta.ativa:
+            raise ErroHttpUserFacing(
+                401,
+                "sessao_usuario_invalida",
+                "Sessao de usuario invalida.",
+            )
+
+        identificador = str(denuncia_id if denuncia_id is not None else "").strip()
+
+        if not identificador:
+            raise ErroHttpUserFacing(
+                404,
+                "denuncia_nao_encontrada",
+                "Denuncia nao encontrada.",
+            )
+
+        denuncia = self._repository().obter_denuncia_reporter(
+            denuncia_id=identificador,
+            reporter_conta_id=conta.id,
+        )
+
+        if denuncia is None:
+            raise ErroHttpUserFacing(
+                404,
+                "denuncia_nao_encontrada",
+                "Denuncia nao encontrada.",
+            )
+
+        return (
+            200,
+            {
+                "denuncia": (self._serializar_detalhe(denuncia)),
+            },
+        )
+
     def criar_idempotente(
         self,
         conta: ContaUsuario,
