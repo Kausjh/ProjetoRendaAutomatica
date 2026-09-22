@@ -1,0 +1,62 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-reconciliation",
+  "version": 1,
+  "stage": "8D3A-community-trust-reconciliation-core",
+  "status": "completed",
+  "baseline": "33124c9",
+  "candidate_source": {
+    "table": "community_discoveries",
+    "terminal_statuses": [
+      "approved",
+      "rejected"
+    ],
+    "missing_evidence_key": "v1:community-discovery:<discovery_id>",
+    "account_scoped_key_check": true,
+    "order": [
+      "atualizado_em ASC",
+      "id ASC"
+    ],
+    "max_batch_size": 5000
+  },
+  "processing": {
+    "uses_terminal_hook_8d2": true,
+    "uses_atomic_wiring_8d1": true,
+    "idempotent": true,
+    "race_with_live_hook_safe": true,
+    "candidate_failure_does_not_abort_batch": true,
+    "failure_details_returned": true
+  },
+  "boundaries": {
+    "live_database_read": false,
+    "live_database_write": false,
+    "historical_backfill_executed": false,
+    "runtime_composition_activation": false,
+    "moderation_authority": false,
+    "gamification_write": false,
+    "reputation_total_write": false,
+    "public_api_change": false,
+    "public_app_change": false
+  },
+  "next_step": "8D3B-controlled-live-backfill",
+  "validation": {
+    "baseline": "33124c9",
+    "pre_commit_passed": true,
+    "isolated_tests_passed_pre_closure": 7,
+    "community_trust_regression_tests_passed_pre_closure": 95,
+    "terminal_missing_evidence_query_passed": true,
+    "deterministic_order_passed": true,
+    "temporary_backfill_passed": true,
+    "second_run_idempotency_passed": true,
+    "candidate_failure_isolation_passed": true,
+    "contract_boundaries_passed": true,
+    "git_diff_check_passed": true,
+    "protected_local_files_preserved": true,
+    "live_database_read": false,
+    "live_database_write": false,
+    "historical_backfill_executed": false,
+    "runtime_composition_activation": false,
+    "moderation_authority": false,
+    "gamification_write": false,
+    "reputation_total_write": false
+  }
+}
