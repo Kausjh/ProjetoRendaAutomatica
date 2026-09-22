@@ -31,6 +31,12 @@ export type CommunityDiscoveryCreateInput = Readonly<{
   url: string;
 }>;
 
+export type CommunityReportCreateInput = Readonly<{
+  target_id: string;
+  motivo: string;
+  detalhes?: string | null;
+}>;
+
 export class PublicApiClient {
   constructor(private readonly transport: HttpApiTransport) {}
 
@@ -166,6 +172,41 @@ export class PublicApiClient {
       path: "/me/discoveries",
       body: input,
       requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  listCommunityReports<T = unknown>(
+    pagination: PaginationParams = {},
+  ): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/reports",
+      query: pagination,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  getCommunityReport<T = unknown>(
+    reportId: string,
+  ): Promise<T> {
+    return this.transport.request<T>({
+      path: `/me/reports/${encodeURIComponent(reportId)}`,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  createCommunityReport<T = unknown>(
+    input: CommunityReportCreateInput,
+    idempotencyKey: string,
+  ): Promise<T> {
+    return this.transport.request<T>({
+      method: "POST",
+      path: "/me/reports",
+      body: input,
+      requiresUserSession: true,
+      idempotencyKey,
       responseMode: "user-facing-envelope",
     });
   }

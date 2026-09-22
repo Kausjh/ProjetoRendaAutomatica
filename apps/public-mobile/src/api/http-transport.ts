@@ -153,6 +153,12 @@ export class HttpApiTransport {
       headers["X-User-Session"] = userSession;
     }
 
+    const idempotencyKey = options.idempotencyKey?.trim();
+
+    if (idempotencyKey) {
+      headers["Idempotency-Key"] = idempotencyKey;
+    }
+
     let body: string | undefined;
 
     if (options.body !== undefined) {

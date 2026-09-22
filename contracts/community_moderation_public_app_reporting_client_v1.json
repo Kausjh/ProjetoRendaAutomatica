@@ -1,0 +1,160 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-public-app-reporting-client",
+  "community_moderation_public_app_reporting_client_version": 1,
+  "stage": "8E11A-public-app-reporting-client-read-model",
+  "status": "completed",
+  "baseline_commit": "520034c",
+  "recovery": {
+    "partial_failure_recovered": true,
+    "already_applied_file": "apps/public-mobile/src/api/api-types.ts",
+    "already_applied_change": "ApiRequestOptions.idempotencyKey",
+    "failed_original_anchor": "transport-idempotency-header",
+    "recovery_reapplied_api_types": false
+  },
+  "source_stage": {
+    "8E10": "completed",
+    "8E10A": "completed",
+    "8E10B": "completed",
+    "8E10C": "completed"
+  },
+  "public_api_client": {
+    "list_method": "listCommunityReports",
+    "detail_method": "getCommunityReport",
+    "create_method": "createCommunityReport",
+    "list_path": "/me/reports",
+    "detail_path": "/me/reports/{report_id}",
+    "create_path": "/me/reports",
+    "requires_user_session": true,
+    "user_facing_envelope": true
+  },
+  "idempotency": {
+    "transport_option": "idempotencyKey",
+    "header": "Idempotency-Key",
+    "generic_custom_headers_enabled": false,
+    "key_generator": "mobile-${Crypto.randomUUID()}",
+    "key_generator_surface": "reporting-query-layer",
+    "key_exposed_to_ui": false
+  },
+  "read_model": {
+    "reasons": [
+      "spam",
+      "fraud",
+      "malicious_link",
+      "abuse",
+      "off_topic",
+      "duplicate",
+      "other"
+    ],
+    "statuses": [
+      "received",
+      "under_review",
+      "resolved"
+    ],
+    "summary_fields": [
+      "id",
+      "targetType",
+      "targetId",
+      "reason",
+      "status",
+      "createdAt",
+      "updatedAt"
+    ],
+    "detail_additional_fields": [
+      "details"
+    ],
+    "private_fields_modeled": false
+  },
+  "react_query": {
+    "list_hook": "useCommunityReports",
+    "detail_hook": "useCommunityReport",
+    "create_hook": "useCreateCommunityReport",
+    "invalidate_after_create": true,
+    "detail_cache_seed_after_create": true
+  },
+  "security_boundary": {
+    "reporter_conta_id_modeled": false,
+    "persisted_idempotency_key_modeled": false,
+    "moderator_actor_modeled": false,
+    "moderation_result_modeled": false,
+    "moderator_justification_modeled": false,
+    "authority_origin_modeled": false,
+    "trust_internal_data_modeled": false
+  },
+  "ui_boundary": {
+    "screen_changed": false,
+    "route_changed": false,
+    "visual_surface_added": false,
+    "report_submission_ui": false,
+    "report_history_ui": false
+  },
+  "backend_boundary": {
+    "backend_code_changed": false,
+    "database_changed": false,
+    "schema_changed": false,
+    "runtime_flag_changed": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_database_write": false
+  },
+  "planned_followups": {
+    "8E11B": "report-submission-surface",
+    "8E11C": "report-status-history-surface"
+  },
+  "next_step": "8E11B-report-submission-surface",
+  "validation": {
+    "baseline_commit": "520034c",
+    "partial_failure_recovered": true,
+    "api_types_reapplied": false,
+    "structural_audit_passed": true,
+    "pre_commit_passed": true,
+    "public_app_typecheck_passed": true,
+    "isolated_8e11a_cases_passed_pre_closure": 13,
+    "public_mobile_test_files": 4,
+    "public_mobile_regression_cases_passed_pre_closure": 36,
+    "backend_reporting_cases_passed": 70,
+    "http_transport_idempotency_header": true,
+    "public_api_list_reports": true,
+    "public_api_get_report": true,
+    "public_api_create_report": true,
+    "reporting_types": true,
+    "reporting_presenter": true,
+    "reporting_react_query": true,
+    "list_hook": "useCommunityReports",
+    "detail_hook": "useCommunityReport",
+    "create_hook": "useCreateCommunityReport",
+    "generic_custom_headers": false,
+    "idempotency_key_exposed_to_ui": false,
+    "reporter_id_modeled": false,
+    "moderator_actor_modeled": false,
+    "moderation_result_modeled": false,
+    "moderator_justification_modeled": false,
+    "trust_internal_data_modeled": false,
+    "public_app_screen_changed": false,
+    "public_app_route_changed": false,
+    "report_submission_ui": false,
+    "report_history_ui": false,
+    "backend_code_changed": false,
+    "database_changed": false,
+    "schema_changed": false,
+    "moderation_runtime_flag_enabled": false,
+    "automatic_reconciliation_enabled": false,
+    "runtime_restart": false,
+    "live_canary": false,
+    "live_database_write": false,
+    "live_schema_write": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8e11a_cases_after_closure": 14,
+    "expected_public_mobile_regression_cases_after_closure": 37,
+    "expected_backend_reporting_cases_after_closure": 70,
+    "expected_public_mobile_test_files_after_closure": 4
+  }
+}

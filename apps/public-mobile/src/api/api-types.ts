@@ -10,6 +10,7 @@ export type ApiRequestOptions = Readonly<{
   query?: Readonly<Record<string, ApiQueryValue>>;
   body?: unknown;
   requiresUserSession?: boolean;
+  idempotencyKey?: string;
   responseMode?: ApiResponseMode;
   timeoutMs?: number;
 }>;
