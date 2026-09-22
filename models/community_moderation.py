@@ -89,3 +89,16 @@ class DecisaoCommunityModeration:
     familia_abuso_confirmado: str | None
     justificativa: str | None
     ocorrido_em: str
+
+
+@dataclass(frozen=True, slots=True)
+class ResultadoRegistroDenunciaCommunityModeration:
+    denuncia: DenunciaCommunityModeration
+    criado: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ResultadoRegistroDecisaoCommunityModeration:
+    decisao: DecisaoCommunityModeration
+    denuncia: DenunciaCommunityModeration
+    criado: bool
