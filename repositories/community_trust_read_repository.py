@@ -6,11 +6,12 @@ from pathlib import Path
 
 from models.community_trust import (
     PerfilCommunityTrust,
+    ResumoEvidenciaCommunityTrust,
 )
 
 
 class CommunityTrustReadOnlyRepository:
-    """Strict read-only projection repository for User-Facing Trust."""
+    """Strict read-only repository for User-Facing Community Trust."""
 
     def __init__(
         self,
@@ -29,6 +30,33 @@ class CommunityTrustReadOnlyRepository:
             raise ValueError(campo + " nao pode ser vazio.")
 
         return normalizado
+
+    @staticmethod
+    def _paginacao(
+        *,
+        limite: int,
+        offset: int,
+    ) -> tuple[int, int]:
+        if isinstance(
+            limite,
+            bool,
+        ) or isinstance(
+            offset,
+            bool,
+        ):
+            raise ValueError("Paginacao de Trust invalida.")
+
+        limite_int = int(limite)
+
+        offset_int = int(offset)
+
+        if limite_int < 1 or limite_int > 100 or offset_int < 0:
+            raise ValueError("Paginacao de Trust invalida.")
+
+        return (
+            limite_int,
+            offset_int,
+        )
 
     def _conectar(
         self,
@@ -99,3 +127,51 @@ class CommunityTrustReadOnlyRepository:
                 str(linha["atualizado_em"]) if linha["atualizado_em"] is not None else None
             ),
         )
+
+    def listar_evidencias_publicas(
+        self,
+        *,
+        conta_id: str,
+        limite: int,
+        offset: int,
+    ) -> list[ResumoEvidenciaCommunityTrust]:
+        conta = self._obrigatorio(
+            conta_id,
+            "conta_id",
+        )
+
+        limite_int, offset_int = self._paginacao(
+            limite=limite,
+            offset=offset,
+        )
+
+        with closing(self._conectar()) as conexao:
+            linhas = conexao.execute(
+                """
+                SELECT
+                    tipo_evidencia,
+                    classificacao,
+                    ocorrido_em
+                FROM community_trust_evidence
+                WHERE conta_id = ?
+                ORDER BY
+                    ocorrido_em DESC,
+                    id DESC
+                LIMIT ?
+                OFFSET ?
+                """,
+                (
+                    conta,
+                    limite_int,
+                    offset_int,
+                ),
+            ).fetchall()
+
+        return [
+            ResumoEvidenciaCommunityTrust(
+                tipo_evidencia=str(linha["tipo_evidencia"]),
+                classificacao=str(linha["classificacao"]),
+                ocorrido_em=str(linha["ocorrido_em"]),
+            )
+            for linha in linhas
+        ]

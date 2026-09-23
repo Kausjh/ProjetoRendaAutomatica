@@ -1,0 +1,236 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-evidence-history-api",
+  "community_trust_evidence_history_api_version": 1,
+  "stage": "8F3-trust-evidence-history-api",
+  "status": "completed",
+  "baseline_commit": "2a55c56",
+  "source_stage": {
+    "8F1": "completed",
+    "8F2": "completed",
+    "source_commit": "2a55c56"
+  },
+  "http": {
+    "method": "GET",
+    "path": "/api/v1/me/trust/evidence",
+    "authenticated": true,
+    "user_session_header": "X-User-Session",
+    "preserves_infrastructure_bearer_auth": true,
+    "self_only": true,
+    "subject_from_authenticated_session": true,
+    "subject_from_path": false,
+    "subject_from_query": false,
+    "subject_from_body": false,
+    "request_body": false,
+    "write_methods_supported": false,
+    "detail_endpoint_added": false,
+    "cache_control": "no-store"
+  },
+  "pagination": {
+    "default_limit": 20,
+    "minimum_limit": 1,
+    "maximum_limit": 100,
+    "default_offset": 0,
+    "minimum_offset": 0,
+    "total_count_query": false,
+    "response_count_is_page_length": true
+  },
+  "ordering": {
+    "primary": "ocorrido_em DESC",
+    "tie_breaker": "internal id DESC",
+    "internal_id_returned": false
+  },
+  "public_projection": {
+    "fields": [
+      "tipo_evidencia",
+      "classificacao",
+      "ocorrido_em"
+    ],
+    "tipo_evidencia_intentionally_public": true,
+    "classification_values": [
+      "positive",
+      "negative",
+      "neutral"
+    ],
+    "account_id_exposed": false,
+    "evidence_id_exposed": false,
+    "idempotency_key_exposed": false,
+    "origin_exposed": false,
+    "origin_id_exposed": false,
+    "reason_exposed": false,
+    "policy_version_exposed": false,
+    "metadata_exposed": false,
+    "created_at_exposed": false,
+    "moderator_actor_exposed": false,
+    "internal_policy_exposed": false
+  },
+  "query_minimization": {
+    "selects_only_public_fields": true,
+    "selected_columns": [
+      "tipo_evidencia",
+      "classificacao",
+      "ocorrido_em"
+    ],
+    "internal_id_used_only_for_stable_order": true,
+    "loads_raw_metadata": false,
+    "loads_origin": false,
+    "loads_reason": false,
+    "loads_policy_version": false
+  },
+  "read_persistence": {
+    "repository": "CommunityTrustReadOnlyRepository",
+    "sqlite_mode": "ro",
+    "pragma_query_only": true,
+    "connection_lifecycle": "contextlib.closing",
+    "schema_creation_capability": false,
+    "write_methods": false,
+    "runtime_schema_activation": false
+  },
+  "failure_semantics": {
+    "missing_user_session": {
+      "status": 401,
+      "code": "sessao_usuario_obrigatoria"
+    },
+    "invalid_user_session": {
+      "status": 401,
+      "code": "sessao_usuario_invalida"
+    },
+    "invalid_pagination": {
+      "status": 400,
+      "code": "paginacao_trust_invalida"
+    },
+    "trust_read_unavailable": {
+      "status": 503,
+      "code": "trust_comunitario_indisponivel"
+    },
+    "unsupported_write_method": {
+      "status": 405
+    }
+  },
+  "boundaries": {
+    "new_authenticated_endpoint": true,
+    "new_unauthenticated_endpoint": false,
+    "new_detail_endpoint": false,
+    "database_schema_changed": false,
+    "database_write": false,
+    "trust_write": false,
+    "moderation_write": false,
+    "gamification_write": false,
+    "public_app_changed": false,
+    "profile_api_changed_semantically": false
+  },
+  "security_review": {
+    "protocol": "AEGIS",
+    "security_first_class": true,
+    "secure_by_design": true,
+    "zero_trust": true,
+    "least_privilege": true,
+    "defense_in_depth": true,
+    "data_minimization": true,
+    "fail_closed": true,
+    "existing_session_auth_reused": true,
+    "existing_infrastructure_auth_preserved": true,
+    "server_derived_subject": true,
+    "horizontal_idor_subject_parameter": false,
+    "query_level_data_minimization": true,
+    "raw_evidence_object_loaded": false,
+    "stable_internal_id_exposed": false,
+    "sensitive_internal_context_exposed": false,
+    "new_secret": false,
+    "new_dependency": false,
+    "new_database": false,
+    "new_persistent_port": false,
+    "new_write_path": false,
+    "persistent_attack_surface_increase": true,
+    "attack_surface_increase_reason": "new authenticated GET /api/v1/me/trust/evidence",
+    "attack_surface_bounded_by": [
+      "existing infrastructure bearer when configured",
+      "authenticated user session",
+      "self-only server-derived account",
+      "strict read-only sqlite repository",
+      "query-level column minimization",
+      "bounded pagination",
+      "no evidence detail endpoint",
+      "no-store response",
+      "GET-only route"
+    ],
+    "existing_security_silently_weakened": false,
+    "validation_completed": true,
+    "authenticated_self_only_boundary_validated": true,
+    "query_level_minimization_validated": true,
+    "strict_read_only_repository_validated": true,
+    "bounded_pagination_validated": true,
+    "no_detail_endpoint_validated": true,
+    "internal_context_non_exposure_validated": true,
+    "live_state_preserved": true,
+    "security_regression_detected": false,
+    "secret_value_exposed": false
+  },
+  "8F_tree": {
+    "8F1": "completed",
+    "8F2": "completed",
+    "8F3": "completed",
+    "8F4": "public-app-trust-client",
+    "8F5": "public-app-trust-surface",
+    "8F6": "final-closure",
+    "hidden_sublevels": false
+  },
+  "next_step": "8F4-public-app-trust-client",
+  "validation": {
+    "baseline_commit": "2a55c56",
+    "pre_commit_passed": true,
+    "python_syntax_passed": true,
+    "initial_validation_harness_expected_cases": 17,
+    "actual_8f3_cases": 19,
+    "validation_harness_count_corrected": true,
+    "functional_failure_detected": false,
+    "tests_removed_to_match_count": false,
+    "tests_relaxed": false,
+    "isolated_8f3_cases_passed_pre_closure": 19,
+    "community_trust_test_files": 11,
+    "community_trust_cases_passed_pre_closure": 148,
+    "server_api_test_files": 18,
+    "server_api_broad_cases_passed_pre_closure": 259,
+    "community_moderation_test_files": 16,
+    "community_moderation_cases_passed": 194,
+    "public_mobile_test_files": 6,
+    "public_mobile_cases_passed": 61,
+    "backend_reporting_cases_passed": 70,
+    "live_query_only": true,
+    "live_integrity_check": "ok",
+    "live_foreign_key_errors": 0,
+    "live_schema_version": 43,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "live_public_history_rows": 2,
+    "live_public_history_fields_only": true,
+    "live_internal_account_id_printed": false,
+    "live_database_sha256_unchanged": true,
+    "live_database_write": false,
+    "live_schema_write": false,
+    "query_level_data_minimization": true,
+    "detail_endpoint_added": false,
+    "public_app_changed": false,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8f3_cases_after_closure": 20,
+    "expected_community_trust_cases_after_closure": 149,
+    "expected_community_trust_test_files_after_closure": 11,
+    "expected_server_api_broad_cases_after_closure": 260,
+    "expected_server_api_test_files_after_closure": 18,
+    "expected_community_moderation_cases_after_closure": 194,
+    "expected_community_moderation_test_files_after_closure": 16,
+    "expected_public_mobile_cases_after_closure": 61,
+    "expected_public_mobile_test_files_after_closure": 6,
+    "expected_backend_reporting_cases_after_closure": 70,
+    "8F1": "completed",
+    "8F2": "completed",
+    "8F3": "completed",
+    "8F4": "pending",
+    "8F5": "pending",
+    "8F6": "pending"
+  }
+}

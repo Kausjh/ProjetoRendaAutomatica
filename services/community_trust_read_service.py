@@ -6,6 +6,7 @@ from typing import Protocol
 
 from models.community_trust import (
     PerfilCommunityTrust,
+    ResumoEvidenciaCommunityTrust,
 )
 
 PUBLIC_TRUST_READ_MODEL_VERSION = 1
@@ -16,6 +17,14 @@ class CommunityTrustProfileReader(Protocol):
         self,
         conta_id: str,
     ) -> PerfilCommunityTrust: ...
+
+    def listar_evidencias_publicas(
+        self,
+        *,
+        conta_id: str,
+        limite: int,
+        offset: int,
+    ) -> list[ResumoEvidenciaCommunityTrust]: ...
 
 
 class CommunityTrustReadUnavailableError(RuntimeError):
@@ -31,6 +40,19 @@ class LeituraCommunityTrustUsuario:
     read_model_version: int
 
 
+@dataclass(
+    frozen=True,
+    slots=True,
+)
+class HistoricoCommunityTrustUsuario:
+    itens: tuple[
+        ResumoEvidenciaCommunityTrust,
+        ...,
+    ]
+    limite: int
+    offset: int
+
+
 class CommunityTrustReadService:
     def __init__(
         self,
@@ -38,14 +60,22 @@ class CommunityTrustReadService:
     ) -> None:
         self.repository = repository
 
-    def obter(
-        self,
+    @staticmethod
+    def _conta(
         conta_id: str,
-    ) -> LeituraCommunityTrustUsuario:
+    ) -> str:
         conta = str(conta_id or "").strip()
 
         if not conta:
             raise ValueError("conta_id e obrigatorio.")
+
+        return conta
+
+    def obter(
+        self,
+        conta_id: str,
+    ) -> LeituraCommunityTrustUsuario:
+        conta = self._conta(conta_id)
 
         try:
             perfil = self.repository.obter_perfil(conta)
@@ -58,4 +88,31 @@ class CommunityTrustReadService:
         return LeituraCommunityTrustUsuario(
             perfil=perfil,
             read_model_version=(PUBLIC_TRUST_READ_MODEL_VERSION),
+        )
+
+    def listar_evidencias(
+        self,
+        *,
+        conta_id: str,
+        limite: int,
+        offset: int,
+    ) -> HistoricoCommunityTrustUsuario:
+        conta = self._conta(conta_id)
+
+        try:
+            itens = self.repository.listar_evidencias_publicas(
+                conta_id=conta,
+                limite=limite,
+                offset=offset,
+            )
+
+        except sqlite3.Error as erro:
+            raise (
+                CommunityTrustReadUnavailableError("Historico de Community Trust indisponivel.")
+            ) from erro
+
+        return HistoricoCommunityTrustUsuario(
+            itens=tuple(itens),
+            limite=int(limite),
+            offset=int(offset),
         )

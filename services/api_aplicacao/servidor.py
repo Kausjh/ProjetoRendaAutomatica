@@ -236,6 +236,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/discoveries",
                         "/api/v1/me/reports",
                         "/api/v1/me/trust",
+                        "/api/v1/me/trust/evidence",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -249,6 +250,33 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/trust/evidence":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_trust.listar_evidencias(
+                            conta,
+                            limite=query.get(
+                                "limite",
+                                ["20"],
+                            )[0],
+                            offset=query.get(
+                                "offset",
+                                ["0"],
+                            )[0],
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/trust":

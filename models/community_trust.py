@@ -21,6 +21,13 @@ class EvidenciaCommunityTrust:
 
 
 @dataclass(frozen=True, slots=True)
+class ResumoEvidenciaCommunityTrust:
+    tipo_evidencia: str
+    classificacao: str
+    ocorrido_em: str
+
+
+@dataclass(frozen=True, slots=True)
 class PerfilCommunityTrust:
     conta_id: str
     evidencias_total: int
