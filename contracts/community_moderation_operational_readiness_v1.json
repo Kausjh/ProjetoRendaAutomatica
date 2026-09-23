@@ -1,0 +1,130 @@
+{
+  "schema": "projeto-renda-automatica.community-moderation-operational-readiness",
+  "community_moderation_operational_readiness_version": 1,
+  "stage": "8E12A-operational-readiness-preflight",
+  "status": "completed",
+  "baseline_commit": "3e66ed1",
+  "source_stages": {
+    "8E9C": "completed",
+    "8E10C": "completed",
+    "8E11": "completed",
+    "8E11A": "completed",
+    "8E11B": "completed",
+    "8E11C": "completed"
+  },
+  "preflight": {
+    "script": "scripts/community_moderation_operational_preflight.py",
+    "modes": [
+      "standby",
+      "activation"
+    ],
+    "default_mode": "standby",
+    "database_open_mode": "read-only",
+    "query_only": true,
+    "integrity_check": true,
+    "foreign_key_check": true
+  },
+  "standby_mode": {
+    "runtime_flag_expected": false,
+    "reconciliation_flag_expected": false,
+    "admin_token_required": false
+  },
+  "activation_mode": {
+    "runtime_flag_expected": true,
+    "reconciliation_startup_flag_expected": false,
+    "admin_token_required": true,
+    "activation_is_not_performed_by_preflight": true
+  },
+  "operational_gates": {
+    "terminal_contracts": [
+      "8E9C",
+      "8E10C",
+      "8E11C"
+    ],
+    "required_tables": [
+      "community_moderation_reports",
+      "community_moderation_decisions",
+      "community_trust_evidence",
+      "community_trust_profiles"
+    ],
+    "runtime_wiring_checked": true,
+    "admin_token_presence_checked_without_value_exposure": true
+  },
+  "security": {
+    "admin_token_value_exposed": false,
+    "authorization_header_emitted": false,
+    "request_body_emitted": false,
+    "moderator_justification_emitted": false
+  },
+  "safety_boundary": {
+    "runtime_activation": false,
+    "reconciliation_execution": false,
+    "admin_http_request": false,
+    "user_http_request": false,
+    "database_write": false,
+    "schema_write": false,
+    "live_canary": false
+  },
+  "operational_closure_tree": {
+    "8E12A": "operational-readiness-preflight",
+    "8E12B": "controlled-operational-canary",
+    "8E12C": "final-operational-closure",
+    "hidden_sublevels": false
+  },
+  "next_step": "8E12B-controlled-operational-canary",
+  "validation": {
+    "baseline_commit": "3e66ed1",
+    "materialized_state_recovered": true,
+    "implementation_recreated": false,
+    "pre_commit_passed": true,
+    "python_syntax_passed": true,
+    "temporary_json_encoding": "utf-8-no-bom",
+    "process_environment_precedence": true,
+    "explicit_empty_process_value_masks_dotenv": true,
+    "admin_token_test_isolation": true,
+    "real_standby_preflight_ready": true,
+    "real_standby_preflight_blockers": 0,
+    "database_open_mode": "read-only",
+    "database_query_only": true,
+    "integrity_check": "ok",
+    "foreign_key_errors": 0,
+    "required_tables_complete": true,
+    "terminal_contract_8E9C": "completed",
+    "terminal_contract_8E10C": "completed",
+    "terminal_contract_8E11C": "completed",
+    "runtime_wiring_complete": true,
+    "admin_token_configured": true,
+    "admin_token_source": "dotenv",
+    "admin_token_value_exposed": false,
+    "live_moderation_report_rows": 0,
+    "live_moderation_decision_rows": 0,
+    "live_trust_evidence_total": 2,
+    "live_trust_profile_total": 1,
+    "isolated_8e12a_cases_passed_pre_closure": 10,
+    "community_moderation_test_files": 14,
+    "community_moderation_cases_passed_pre_closure": 171,
+    "public_mobile_test_files": 6,
+    "public_mobile_cases_passed": 61,
+    "backend_reporting_cases_passed": 70,
+    "runtime_activated": false,
+    "reconciliation_executed": false,
+    "admin_http_request_performed": false,
+    "user_http_request_performed": false,
+    "live_canary_performed": false,
+    "live_database_write": false,
+    "live_schema_write": false,
+    "protected_files_preserved": true
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8e12a_cases_after_closure": 11,
+    "expected_community_moderation_cases_after_closure": 172,
+    "expected_community_moderation_test_files_after_closure": 14,
+    "expected_public_mobile_cases_after_closure": 61,
+    "expected_public_mobile_test_files_after_closure": 6,
+    "expected_backend_reporting_cases_after_closure": 70,
+    "8E12A": "completed",
+    "8E12B": "pending",
+    "8E12C": "pending"
+  }
+}
