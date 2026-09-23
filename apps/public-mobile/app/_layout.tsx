@@ -88,6 +88,18 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="reports"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="report-status"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="product/[canonicalKey]"
               options={{
                 title: "Produto",

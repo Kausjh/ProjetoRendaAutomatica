@@ -374,6 +374,34 @@ export default function AccountScreen() {
 
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Abrir minhas denúncias"
+            style={styles.settingRow}
+            onPress={() => router.push("/reports" as never)}
+          >
+            <View style={styles.settingIcon}>
+              <Ionicons
+                name="flag-outline"
+                size={19}
+                color={appTheme.colors.danger}
+              />
+            </View>
+            <View style={styles.settingCopy}>
+              <Text style={styles.settingTitle}>Minhas denúncias</Text>
+              <Text style={styles.hint}>
+                Acompanhe o recebimento e o andamento das denúncias
+                enviadas pela sua conta.
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={appTheme.colors.textSubtle}
+            />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
             style={styles.settingRow}
             onPress={() => router.push("/connection")}
           >
