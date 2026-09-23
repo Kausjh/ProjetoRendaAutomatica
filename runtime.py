@@ -16,6 +16,9 @@ import logging
 import os
 
 from config.logging_config import configurar_logging
+from repositories.community_trust_read_repository import (
+    CommunityTrustReadOnlyRepository,
+)
 from repositories.user_identity_repository import UserIdentityRepository
 from repositories.user_personalization_repository import (
     UserPersonalizationRepository,
@@ -30,6 +33,7 @@ from services.community_moderation_runtime import (
     ResultadoAtivacaoCommunityModeration,
     ativar_community_moderation_runtime,
 )
+from services.community_trust_read_service import CommunityTrustReadService
 from services.controle.servidor_status import ServidorStatusAdministrativo
 from services.gamification_read_service import GamificationReadService
 from services.gamification_runtime import ativar_gamificacao_runtime
@@ -129,6 +133,12 @@ def main() -> int:
     )
     user_identity_service = UserIdentityService(
         user_identity_repository,
+    )
+    community_trust_read_repository = CommunityTrustReadOnlyRepository(
+        user_identity_db,
+    )
+    community_trust_read_service = CommunityTrustReadService(
+        community_trust_read_repository,
     )
     community_moderation_read_service = CommunityModerationReadService(user_identity_db)
 
@@ -305,6 +315,7 @@ def main() -> int:
         personalized_feed_service=personalized_feed_service,
         gamification_read_service=gamification_read_service,
         mission_read_service=mission_read_service,
+        community_trust_read_service=community_trust_read_service,
         community_moderation_repository=(community_moderation_repository_user_facing),
     )
 

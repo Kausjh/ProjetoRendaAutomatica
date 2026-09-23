@@ -40,10 +40,14 @@ from services.api_aplicacao.user_facing_preferences import (
 from services.api_aplicacao.user_facing_reporting import (
     UserFacingCommunityReportingController,
 )
+from services.api_aplicacao.user_facing_trust import (
+    UserFacingCommunityTrustController,
+)
 from services.api_aplicacao.user_facing_watchlist import (
     UserFacingWatchlistController,
 )
 from services.community_discovery_service import CommunityDiscoveryService
+from services.community_trust_read_service import CommunityTrustReadService
 from services.gamification_read_service import GamificationReadService
 from services.mission_read_service import MissionReadService
 
@@ -72,6 +76,7 @@ class ServidorApiAplicacao:
         user_facing_abuse_controls: UserFacingAbuseControls | None = None,
         mission_read_service: MissionReadService | None = None,
         community_moderation_repository: CommunityModerationRepository | None = None,
+        community_trust_read_service: CommunityTrustReadService | None = None,
     ) -> None:
         load_dotenv()
 
@@ -110,6 +115,9 @@ class ServidorApiAplicacao:
         self.user_facing_missions = UserFacingMissionsController(mission_read_service)
         self.user_facing_reporting = UserFacingCommunityReportingController(
             community_moderation_repository,
+        )
+        self.user_facing_trust = UserFacingCommunityTrustController(
+            community_trust_read_service,
         )
 
         if community_discovery_service is None and user_identity_service is not None:
@@ -199,6 +207,7 @@ class ServidorApiAplicacao:
         user_facing_gamification = self.user_facing_gamification
         user_facing_missions = self.user_facing_missions
         user_facing_reporting = self.user_facing_reporting
+        user_facing_trust = self.user_facing_trust
         user_facing_community_discovery = self.user_facing_community_discovery
         abuse_controls = self.user_facing_abuse_controls
 
@@ -226,6 +235,7 @@ class ServidorApiAplicacao:
                         "/api/v1/me/missions",
                         "/api/v1/me/discoveries",
                         "/api/v1/me/reports",
+                        "/api/v1/me/trust",
                     }:
                         self._responder_erro_user_facing(
                             ErroHttpUserFacing(
@@ -239,6 +249,25 @@ class ServidorApiAplicacao:
                             401,
                             {"erro": "Nao autorizado."},
                         )
+                    return
+
+                if rota == "/api/v1/me/trust":
+                    conta = self._resolver_usuario_user_facing()
+                    if conta is None:
+                        return
+
+                    try:
+                        status, dados = user_facing_trust.obter(
+                            conta,
+                        )
+                    except ErroHttpUserFacing as erro:
+                        self._responder_erro_user_facing(erro)
+                        return
+
+                    self._responder_json(
+                        status,
+                        user_facing_http.sucesso(dados),
+                    )
                     return
 
                 if rota == "/api/v1/me/reports":

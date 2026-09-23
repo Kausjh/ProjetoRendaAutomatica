@@ -1,18 +1,31 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
+from typing import Protocol
 
 from models.community_trust import (
     PerfilCommunityTrust,
-)
-from repositories.community_trust_repository import (
-    CommunityTrustRepository,
 )
 
 PUBLIC_TRUST_READ_MODEL_VERSION = 1
 
 
-@dataclass(frozen=True, slots=True)
+class CommunityTrustProfileReader(Protocol):
+    def obter_perfil(
+        self,
+        conta_id: str,
+    ) -> PerfilCommunityTrust: ...
+
+
+class CommunityTrustReadUnavailableError(RuntimeError):
+    pass
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+)
 class LeituraCommunityTrustUsuario:
     perfil: PerfilCommunityTrust
     read_model_version: int
@@ -21,7 +34,7 @@ class LeituraCommunityTrustUsuario:
 class CommunityTrustReadService:
     def __init__(
         self,
-        repository: CommunityTrustRepository,
+        repository: CommunityTrustProfileReader,
     ) -> None:
         self.repository = repository
 
@@ -34,7 +47,13 @@ class CommunityTrustReadService:
         if not conta:
             raise ValueError("conta_id e obrigatorio.")
 
-        perfil = self.repository.obter_perfil(conta)
+        try:
+            perfil = self.repository.obter_perfil(conta)
+
+        except sqlite3.Error as erro:
+            raise (
+                CommunityTrustReadUnavailableError("Leitura de Community Trust indisponivel.")
+            ) from erro
 
         return LeituraCommunityTrustUsuario(
             perfil=perfil,

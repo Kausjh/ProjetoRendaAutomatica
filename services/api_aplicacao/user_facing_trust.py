@@ -8,6 +8,7 @@ from services.api_aplicacao.user_facing_http import (
 )
 from services.community_trust_read_service import (
     CommunityTrustReadService,
+    CommunityTrustReadUnavailableError,
     LeituraCommunityTrustUsuario,
 )
 
@@ -75,6 +76,13 @@ class UserFacingCommunityTrustController:
 
         try:
             leitura = self._service().obter(conta.id)
+
+        except CommunityTrustReadUnavailableError as erro:
+            raise ErroHttpUserFacing(
+                503,
+                "trust_comunitario_indisponivel",
+                "Trust comunitario indisponivel.",
+            ) from erro
 
         except ValueError as erro:
             raise ErroHttpUserFacing(
