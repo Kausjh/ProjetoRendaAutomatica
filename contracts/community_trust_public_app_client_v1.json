@@ -1,0 +1,197 @@
+{
+  "schema": "projeto-renda-automatica.community-trust-public-app-client",
+  "community_trust_public_app_client_version": 1,
+  "stage": "8F4-public-app-trust-client",
+  "status": "completed",
+  "baseline_commit": "7583dae",
+  "source_stage": {
+    "8F1": "completed",
+    "8F2": "completed",
+    "8F3": "completed",
+    "source_commit": "7583dae"
+  },
+  "client": {
+    "runtime": "Expo React Native",
+    "transport": "HttpApiTransport",
+    "api_client": "PublicApiClient",
+    "session_source": "existing secure runtime session loader",
+    "infrastructure_auth_source": "existing runtime configuration",
+    "new_http_transport": false,
+    "new_auth_implementation": false,
+    "new_storage": false,
+    "new_secret": false
+  },
+  "server_routes_consumed": {
+    "profile": {
+      "method": "GET",
+      "path": "/api/v1/me/trust"
+    },
+    "evidence_history": {
+      "method": "GET",
+      "path": "/api/v1/me/trust/evidence"
+    }
+  },
+  "transport_relative_paths": {
+    "profile": "/me/trust",
+    "evidence_history": "/me/trust/evidence"
+  },
+  "public_api_client_methods": {
+    "profile": "getCommunityTrustProfile",
+    "evidence_history": "listCommunityTrustEvidence",
+    "requires_user_session": true,
+    "response_mode": "user-facing-envelope",
+    "write_method_added": false
+  },
+  "read_model": {
+    "profile_fields": [
+      "evidenceTotal",
+      "positiveTotal",
+      "negativeTotal",
+      "neutralTotal",
+      "updatedAt",
+      "modelVersion",
+      "numericScoreDefined"
+    ],
+    "numeric_score_defined": false,
+    "evidence_fields": [
+      "type",
+      "classification",
+      "occurredAt"
+    ],
+    "classification_values": [
+      "positive",
+      "negative",
+      "neutral"
+    ],
+    "internal_account_id_modeled": false,
+    "internal_evidence_id_modeled": false,
+    "idempotency_key_modeled": false,
+    "origin_modeled": false,
+    "origin_id_modeled": false,
+    "reason_modeled": false,
+    "policy_version_modeled": false,
+    "raw_metadata_modeled": false,
+    "moderator_actor_modeled": false
+  },
+  "presenter": {
+    "strict_payload_validation": true,
+    "invalid_payload_fails_closed": true,
+    "profile_presenter": "presentCommunityTrustProfile",
+    "history_presenter": "presentCommunityTrustEvidenceHistory",
+    "validates_numeric_score_false": true,
+    "validates_history_count": true,
+    "validates_classification_allowlist": true
+  },
+  "react_query": {
+    "profile_hook": "useCommunityTrustProfile",
+    "history_hook": "useCommunityTrustEvidenceHistory",
+    "default_limit": 20,
+    "minimum_limit": 1,
+    "maximum_limit": 100,
+    "default_offset": 0,
+    "minimum_offset": 0,
+    "query_keys_are_account_implicit": true,
+    "account_selector_in_query_key": false
+  },
+  "boundaries": {
+    "public_app_client_changed": true,
+    "public_app_ui_changed": false,
+    "navigation_changed": false,
+    "screen_added": false,
+    "server_changed": false,
+    "server_endpoint_added": false,
+    "database_changed": false,
+    "database_write": false,
+    "trust_write": false,
+    "moderation_write": false,
+    "gamification_write": false
+  },
+  "security_review": {
+    "protocol": "AEGIS",
+    "security_first_class": true,
+    "secure_by_design": true,
+    "zero_trust": true,
+    "least_privilege": true,
+    "defense_in_depth": true,
+    "data_minimization": true,
+    "fail_closed": true,
+    "existing_http_transport_reused": true,
+    "existing_session_storage_reused": true,
+    "existing_infrastructure_auth_reused": true,
+    "no_account_selector_added": true,
+    "self_only_backend_contract_preserved": true,
+    "no_internal_evidence_identifiers_modeled": true,
+    "no_internal_evidence_context_modeled": true,
+    "no_numeric_score_invented": true,
+    "bounded_pagination_client_side": true,
+    "strict_presenter_validation": true,
+    "secret_logging_added": false,
+    "new_write_path": false,
+    "new_persistent_attack_surface": false,
+    "client_feature_surface_increase": true,
+    "existing_security_silently_weakened": false,
+    "validation_completed": true,
+    "existing_transport_reuse_validated": true,
+    "existing_session_reuse_validated": true,
+    "existing_infrastructure_auth_reuse_validated": true,
+    "strict_presenter_validation_validated": true,
+    "bounded_client_pagination_validated": true,
+    "account_selector_absence_validated": true,
+    "numeric_score_not_invented_validated": true,
+    "internal_context_non_modeling_validated": true,
+    "runtime_state_preserved": true,
+    "live_database_state_preserved": true,
+    "security_regression_detected": false
+  },
+  "8F_tree": {
+    "8F1": "completed",
+    "8F2": "completed",
+    "8F3": "completed",
+    "8F4": "completed",
+    "8F5": "public-app-trust-surface",
+    "8F6": "final-closure",
+    "hidden_sublevels": false
+  },
+  "next_step": "8F5-public-app-trust-surface",
+  "validation": {
+    "baseline_commit": "7583dae",
+    "implementation_harness_missing_import_ast": true,
+    "implementation_harness_failure_functional": false,
+    "product_reapplied_after_harness_failure": false,
+    "public_mobile_discovery_harness_mismatch": true,
+    "public_mobile_discovery_harness_failure_functional": false,
+    "pre_commit_passed": true,
+    "public_app_typecheck_passed": true,
+    "isolated_8f4_cases_passed_pre_closure": 13,
+    "public_mobile_legacy_test_files": 6,
+    "public_mobile_legacy_cases_passed": 61,
+    "public_mobile_combined_test_files": 7,
+    "public_mobile_combined_cases_passed_pre_closure": 74,
+    "community_trust_backend_test_files": 11,
+    "community_trust_backend_cases_passed": 149,
+    "live_database_sha256_unchanged": true,
+    "database_write": false,
+    "trust_write": false,
+    "runtime_main_still_running": true,
+    "health_monitor_still_enabled": true,
+    "runtime_restart": false,
+    "protected_files_preserved": true,
+    "functional_failure_detected": false
+  },
+  "closure": {
+    "closure_test_added": true,
+    "expected_isolated_8f4_cases_after_closure": 14,
+    "expected_public_mobile_legacy_test_files_after_closure": 6,
+    "expected_public_mobile_legacy_cases_after_closure": 61,
+    "expected_public_mobile_combined_test_files_after_closure": 7,
+    "expected_public_mobile_combined_cases_after_closure": 75,
+    "expected_community_trust_backend_test_files_after_closure": 11,
+    "expected_community_trust_backend_cases_after_closure": 149,
+    "8F1": "completed",
+    "8F2": "completed",
+    "8F3": "completed",
+    "8F4": "completed",
+    "8F5": "pending",
+    "8F6": "pending"
+  }
+}

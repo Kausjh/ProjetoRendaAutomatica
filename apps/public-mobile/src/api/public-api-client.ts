@@ -283,4 +283,24 @@ export class PublicApiClient {
       responseMode: "user-facing-envelope",
     });
   }
+
+  getCommunityTrustProfile<T = unknown>(): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/trust",
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
+  listCommunityTrustEvidence<T = unknown>(
+    pagination: PaginationParams = {},
+  ): Promise<T> {
+    return this.transport.request<T>({
+      path: "/me/trust/evidence",
+      query: pagination,
+      requiresUserSession: true,
+      responseMode: "user-facing-envelope",
+    });
+  }
+
 }
