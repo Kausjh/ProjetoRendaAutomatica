@@ -22,6 +22,7 @@ import {
 import { useAuthSession } from "@/src/auth";
 import { GamificationPanel } from "@/src/gamification";
 import { MissionsPanel } from "@/src/missions";
+import { TrustPanel } from "@/src/trust";
 import { appTheme } from "@/src/ui";
 
 function accountField(
@@ -220,6 +221,8 @@ export default function AccountScreen() {
         <GamificationPanel enabled={authenticated} />
 
         <MissionsPanel enabled={authenticated} />
+
+        {authenticated ? <TrustPanel /> : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionEyebrow}>PREFERÊNCIAS</Text>
