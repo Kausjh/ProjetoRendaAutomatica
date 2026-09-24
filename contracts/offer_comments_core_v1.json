@@ -1,0 +1,271 @@
+{
+  "schema": "projeto-renda-automatica.offer-comments-core",
+  "offer_comments_core_version": 1,
+  "phase": "2",
+  "roadmap_item": 9,
+  "roadmap_item_name": "Social / Competitive Layer V1",
+  "stage": "phase2-item9-offer-comments-core-v1",
+  "status": "contract-frozen-implementation-pending",
+  "baseline_commit": "8564bef",
+  "roadmap_hierarchy": {
+    "new_roadmap_sublevel_created": false,
+    "hidden_sublevels_created": false,
+    "contract_is_implementation_unit_only": true
+  },
+  "domain_state_before_contract": {
+    "comment_backend_exists": false,
+    "comment_route_exists": false,
+    "comment_table_exists": false,
+    "comment_reply_primitive_exists": false,
+    "comment_reaction_primitive_exists": false,
+    "public_profile_exists": false,
+    "ranking_exists": false
+  },
+  "target": {
+    "v1_target_kind": "canonical_product",
+    "key_name": "canonical_key",
+    "source": "produtos_canonicos.chave_canonica",
+    "catalog_database": "database/catalogo_canonico.sqlite3",
+    "identity_database": "database/user_identity.sqlite3",
+    "databases_are_separate": true,
+    "cross_database_foreign_key": false,
+    "existence_validation_required_server_side": true,
+    "existence_validation_repository": "CatalogoCanonicoRepository.obter_produto",
+    "marketplace_listing_specific_comments_v1": false,
+    "promotion_specific_signals_are_separate_domain": true
+  },
+  "identity": {
+    "authentication_required_for_write": true,
+    "author_account_source": "contas_usuario.id",
+    "author_account_is_server_derived": true,
+    "client_selects_author_account": false,
+    "internal_account_id_public": false,
+    "email_public": false,
+    "public_profile_required_for_core": false,
+    "public_author_projection_v1": {
+      "is_mine_boolean_allowed": true,
+      "internal_account_id_allowed": false,
+      "email_allowed": false,
+      "future_opt_in_profile_projection_reserved": true
+    }
+  },
+  "comment_identity": {
+    "comment_id": "server_generated_uuid",
+    "comment_id_public": true,
+    "comment_id_reason": "required-for-reply-edit-delete-report",
+    "id_is_opaque": true
+  },
+  "threading": {
+    "root_comments": true,
+    "direct_replies": true,
+    "maximum_depth": 1,
+    "reply_to_reply": false,
+    "cycles_allowed": false,
+    "parent_must_share_same_canonical_key": true,
+    "parent_must_be_root": true
+  },
+  "content": {
+    "format": "plain_text",
+    "maximum_chars": 1000,
+    "minimum_non_whitespace_chars": 1,
+    "trim_outer_whitespace": true,
+    "normalize_line_endings": true,
+    "html": false,
+    "markdown": false,
+    "rich_text": false,
+    "automatic_link_rendering": false,
+    "nul_character_allowed": false,
+    "server_validation_required": true
+  },
+  "persistence_design": {
+    "planned_tables": [
+      "offer_comments",
+      "offer_comment_revisions"
+    ],
+    "comment_header_mutable": true,
+    "revision_ledger_append_only": true,
+    "edit_overwrites_prior_revision": false,
+    "delete_is_soft_delete": true,
+    "normal_public_hard_delete": false,
+    "deleted_comment_public_body_visible": false,
+    "historical_revision_public": false,
+    "moderation_audit_can_preserve_revision_history": true,
+    "physical_retention_policy": "reserved-for-privacy-moderation-policy"
+  },
+  "planned_comment_header": {
+    "id": "TEXT PRIMARY KEY",
+    "canonical_key": "TEXT NOT NULL",
+    "author_account_id": "TEXT NOT NULL",
+    "parent_comment_id": "TEXT NULL",
+    "status": [
+      "active",
+      "deleted_by_author",
+      "removed_by_moderation"
+    ],
+    "current_revision_number": "INTEGER NOT NULL",
+    "created_at": "timezone-aware UTC",
+    "updated_at": "timezone-aware UTC",
+    "deleted_at": "nullable timezone-aware UTC",
+    "author_fk": "contas_usuario(id) ON DELETE RESTRICT",
+    "parent_self_fk": "offer_comments(id) ON DELETE RESTRICT",
+    "catalog_fk": null
+  },
+  "planned_revision_ledger": {
+    "id": "TEXT PRIMARY KEY",
+    "comment_id": "TEXT NOT NULL",
+    "revision_number": "INTEGER NOT NULL",
+    "body": "TEXT NOT NULL",
+    "created_at": "timezone-aware UTC",
+    "comment_fk": "offer_comments(id) ON DELETE RESTRICT",
+    "unique_revision": [
+      "comment_id",
+      "revision_number"
+    ],
+    "append_only": true
+  },
+  "ownership": {
+    "author_can_edit_own_comment": true,
+    "author_can_delete_own_comment": true,
+    "author_can_edit_other_comment": false,
+    "author_can_delete_other_comment": false,
+    "ownership_checked_server_side": true,
+    "client_claim_of_ownership_has_authority": false
+  },
+  "read_model": {
+    "public_listing": true,
+    "pagination": true,
+    "pagination_applies_to_root_comments": true,
+    "default_root_limit": 20,
+    "maximum_root_limit": 100,
+    "default_offset": 0,
+    "root_order": [
+      "created_at DESC",
+      "id DESC"
+    ],
+    "reply_order": [
+      "created_at ASC",
+      "id ASC"
+    ],
+    "public_fields": [
+      "id",
+      "parent_id",
+      "body",
+      "created_at",
+      "edited",
+      "is_mine",
+      "reply_count"
+    ],
+    "internal_fields_not_public": [
+      "author_account_id",
+      "email",
+      "revision_id",
+      "idempotency_key",
+      "internal_moderation_state"
+    ]
+  },
+  "write_idempotency": {
+    "required_for_create": true,
+    "required_for_edit": true,
+    "client_request_identifier": "opaque UUID-like request id",
+    "scoped_server_side": true,
+    "request_identifier_public_in_read_model": false,
+    "duplicate_retry_must_not_duplicate_comment": true
+  },
+  "anti_abuse_gate": {
+    "public_write_api_can_launch_now": false,
+    "current_abuse_controls_cover_comments": false,
+    "must_extend_user_facing_abuse_controls": true,
+    "per_account_bucket_required": true,
+    "per_client_bucket_required": true,
+    "bounded_global_bucket_count_required": true,
+    "retry_after_required": true,
+    "duplicate_content_window_required": true,
+    "configurable_limits_required": true,
+    "fail_closed_when_mandatory_bucket_unavailable": true,
+    "exact_numeric_limits_frozen_here": false
+  },
+  "moderation_gate": {
+    "comment_target_reserved_in_existing_contract": true,
+    "comment_target_live_supported_now": false,
+    "existing_live_supported_target": "community_discovery",
+    "moderation_schema_extension_required": true,
+    "public_comment_write_launch_requires_comment_reporting": true,
+    "public_comment_write_launch_requires_comment_moderation": true,
+    "report_is_allegation_only": true,
+    "report_count_is_authority": false,
+    "trust_change_from_report_creation": false,
+    "moderator_confirmation_required_for_authoritative_abuse": true
+  },
+  "trust_and_gamification": {
+    "comment_creation_directly_changes_trust": false,
+    "comment_creation_directly_changes_reputation": false,
+    "comment_creation_directly_changes_xp": false,
+    "client_can_write_trust": false,
+    "client_can_write_xp": false,
+    "future_helpful_reaction_signal_reserved": true,
+    "future_server_side_settlement_required": true
+  },
+  "price_and_offer_intelligence": {
+    "comment_can_override_price_intelligence": false,
+    "comment_can_override_offer_validity": false,
+    "comment_can_directly_expire_offer": false,
+    "promotion_signals_are_auxiliary_only": true,
+    "automatic_price_truth_from_comments": false
+  },
+  "security_review": {
+    "protocol": "AEGIS",
+    "security_first_class": true,
+    "secure_by_design": true,
+    "zero_trust": true,
+    "least_privilege": true,
+    "defense_in_depth": true,
+    "assume_breach": true,
+    "data_minimization": true,
+    "fail_closed": true,
+    "server_derived_authority": true,
+    "plain_text_only": true,
+    "no_html": true,
+    "no_markdown": true,
+    "no_auto_links": true,
+    "bounded_content": true,
+    "bounded_pagination": true,
+    "shallow_threads": true,
+    "internal_account_id_not_public": true,
+    "email_not_public": true,
+    "no_cross_database_fk_assumption": true,
+    "server_side_catalog_validation": true,
+    "write_api_security_gated": true,
+    "moderation_required_before_launch": true,
+    "rate_limiting_required_before_launch": true,
+    "anti_spam_required_before_launch": true,
+    "no_client_trust_authority": true,
+    "no_client_moderation_authority": true,
+    "no_client_price_authority": true,
+    "existing_security_silently_weakened": false
+  },
+  "boundaries": {
+    "product_code_changed": false,
+    "database_schema_changed": false,
+    "live_database_write": false,
+    "catalog_database_write": false,
+    "api_route_added": false,
+    "public_app_changed": false,
+    "moderation_repository_changed": false,
+    "abuse_controls_changed": false,
+    "trust_changed": false,
+    "gamification_changed": false,
+    "runtime_changed": false
+  },
+  "implementation_order": [
+    "comment-model-and-repository",
+    "comment-service-and-target-validation",
+    "comment-abuse-controls",
+    "comment-moderation-target-extension",
+    "authenticated-comment-api",
+    "public-app-comment-client",
+    "public-app-product-comment-surface",
+    "helpful-reaction-domain"
+  ],
+  "implementation_order_is_roadmap_sublevels": false,
+  "next_step": "implement-offer-comments-model-and-repository"
+}
